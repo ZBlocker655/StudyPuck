@@ -11,6 +11,10 @@
         "/property:GenerateFullPaths=true",
         "/consoleloggerparameters:NoSummary"
       ],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
       "problemMatcher": "$msCompile"
     },
     {
@@ -31,8 +35,9 @@
       "type": "process",
       "args": [
         "watch",
-        "run",
+        "--project",
         "${workspaceFolder}/src/YouTubePoC/YouTubePoC.csproj",
+        "run",
         "/property:GenerateFullPaths=true",
         "/consoleloggerparameters:NoSummary"
       ],
