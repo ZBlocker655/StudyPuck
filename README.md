@@ -1,1 +1,1 @@
-VideoPuck
+StudyPuck
