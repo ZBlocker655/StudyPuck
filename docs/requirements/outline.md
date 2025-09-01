@@ -5,9 +5,12 @@
 ### Mission statement
 
 - Importance of active recall vs. ordinary flashcards (passive recall)
-- Core application structure
-  - Conversation (main translation drill)
-  - Spaced Repetition System (SRS)
+- Easy-to-maintain, easy-to-deploy project for professional portfolio and technology learning
+
+### Core application structure
+
+- Conversation (main translation drill)
+- Spaced Repetition System (SRS)
 
 ## Functional_Requirements
 
