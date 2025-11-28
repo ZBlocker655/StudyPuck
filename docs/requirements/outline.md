@@ -1,87 +1,119 @@
-# StudyPuck_Requirements
+# StudyPuck Requirements Outline
 
 ## Overview
 
-### Mission statement
+### Mission Statement
 
-- Importance of active recall vs. ordinary flashcards (passive recall)
-- Easy-to-maintain, easy-to-deploy project for professional portfolio and technology learning
+- Promote active recall over passive memorization (vs traditional SRS/Anki)
+- Help language learners produce fluent, grammatically correct sentences using acquired vocabulary
+- Combine vocabulary management with LLM-powered translation practice
+- Vehicle for learning modern technologies and demonstrating technical growth
+- Tool for everyday personal language learning
+- Potential career and income opportunities
 
-### Core application structure
+### Core Application Structure
 
-- Conversation (main translation drill)
-- Spaced Repetition System (SRS)
+- **Cards**: Study prompts with vocabulary, grammar patterns, and learning context
+- **Card Review**: Spaced repetition system for browsing and managing study cards
+- **Translation Drills**: LLM-powered conversation interface for active practice
+- **Card Entry**: Low-friction system for adding new study material
 
-## Functional_Requirements
+## Functional Requirements
 
-### Conversation
+### Cards
 
-- Continuous translation drills with the LLM
-  - Always easily reachable from any other point in the web UI
-- Real-time feedback from LLM
-- User actions within Conversation:
-  - View current Cards up for study (with optional gradual reveal)
-  - Edit Cards (expand scope, add alternative words, modify study prompts)
-  - Evaluate performance (add notes for RAG enhancement)
-  - Dismiss/snooze Cards (spaced repetition adjustments)
-  - Load new Cards into active context
-  - Turn Cards on/off for study
-  - Create new Cards based on recent sentences or external input
+- **Content Types**:
+  - Single words, grammar chunks, sentence patterns
+  - Complex prompts (e.g., "Difference between 东西 and 事情")
+  - Example: "越来越 (adjective) to express 'more and more...'"
+- **Structure**:
+  - Study prompts (not traditional front/back flashcards)
+  - Multiple example sentences
+  - Mnemonic prompts for memory encoding
+  - Optional LLM instructions for sentence generation
+- **Organization**:
+  - Stored in user-defined, named groups (e.g., "concrete nouns", "grammar patterns")
+  - Groups are language-specific, not shared across languages
+  - Cards can belong to multiple groups
+  - Cards can be snoozed, evaluated, or disabled from study
 
-### Spaced_Repetition_System (SRS)
+### Card Review
 
-- Concept of multiple, user-defined named queues
-- Example queues: "Concrete nouns," "Grammar patterns," "Common verbs"
-  - When creating Cards, LLM will guess which named queue and prepopulate that field
-- User specifies queue when pulling new Cards into active study
-- Cards are study prompts (not traditional flashcards)
-  - i.e. no front and back
-- Cards can contain study instructions for LLM
+- **Browsing**:
+  - Browse by group or subset within group
+  - Display less recently reviewed cards first
+- **SRS Integration**:
+  - Track last review date for each card
+  - User can influence next review timing
+  - Default timing based on SRS algorithm
+- **Context Management**:
+  - Add reviewed cards to translation drill context
+  - Cards added this way appear in special "Pinned" group
 
-### Language_Islands
+### Translation Drills
 
-- Thematic study sets with full sentences and vocab lists
-- Function alongside Cards in SRS
-- Special LLM behaviors:
-  - Present exact sentences for translation
-  - Provide slight sentence variations
-  - Generate new sentences using Island vocab
+- **Interface**:
+  - Conversation-style interaction with LLM
+  - Current context of available cards for LLM use
+- **Card Context Management**:
+  - Cards organized primarily by group
+  - Separate SRS system for translation context
+  - User can snooze/disable current cards
+  - User can dismiss cards (scheduled by SRS algorithm)
+  - User can draw more cards from any group into context
+- **Translation Process**:
+  - LLM creates English sentences using cards in context
+  - User translates to target language
+  - LLM evaluates and provides feedback
 
-### Language_Island_Builder
+### Card Entry
 
-- Separate mode from Conversation
-- User creates new Language Islands:
-  - Manually input sentences
-  - Generate candidate sentences via LLM (accept/reject/modify)
-  - LLM can engage user in topic-specific dialog to elicit relevant content, then distill it into sentences
-- Add finalized Language Island to SRS queue
+- **Inbox System**:
+  - Special "inbox" queue for rough notes
+  - Low-friction entry process
+  - Processing inbox is top-level application activity
+- **Card Processing**:
+  - Convert rough notes to structured cards
+  - Add groups, mnemonics, example sentences
+  - Equal priority with Card Review and Translation Drills
 
-### Multi-Language_Support
+### Multi-Language Support
 
-- User can study multiple languages (one at a time)
-- Separate Conversation and SRS per language
-- Custom queues per language (e.g., "Chengyu" queue for Chinese)
-- Users can add new languages as needed
-- Users can import Language Islands from other languages:
-  - When adding a new Language Island, user chooses to create from scratch or import
-  - Imported Language Island copies English content from another language mode
-  - Sentences are automatically translated into the new target language
+- **Language Isolation**:
+  - Users study one language at a time
+  - Each language has separate cards, groups, and translation context
+  - Clear UI indication of current language mode
+- **Language Management**:
+  - Users can switch between languages
+  - Users can add new languages as needed
 
-### LLM_Behavior
+## LLM Behavior Requirements
 
-- System prompt designed for:
-  - Creative sentence formation
-  - Balanced use of multiple Cards (one or two per sentence)
-  - Concise, specific feedback on grammar and usage
-- Context window management:
-  - Retain system prompt + active Cards (not entire conversation)
-- Separate LLMs for sentence formation and feedback?
+### Sentence Generation
 
-## Non-Functional_Requirements
+- Be creative when forming sentences
+- Prefer 1-2 cards per sentence
+- Use cards from different groups when possible
 
-- Simple and intuitive UI/UX
-- Fast, low-friction Card and Language Island creation
-- Cloudflare-based serverless architecture
-- Efficient data storage and retrieval (D1 for main data, R2 for session logs)
-- Modular design to allow future LLM fine-tuning
-- Secure authentication and user data management
+### Feedback Provision
+
+- Give concise but specific feedback
+- Focus on grammar and usage corrections
+
+## Future Enhancement Plans
+
+### Logging and Analytics
+
+- Log full translation sessions
+- Store logs using R2
+
+### Model Customization
+
+- Fine-tune custom models using HuggingFace/spaCy
+- Implement RAG context with current cards and user feedback
+- Modular design for swapping GPT-4 with custom models
+
+### Scope Expansion
+
+- Bring in additional aspects of language learning and study
+- Expand beyond vocabulary and translation practice
