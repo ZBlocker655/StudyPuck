@@ -9,4 +9,4 @@
 
 - [Cards](functionality/cards.md)
 - [Card Review](functionality/card-review.md)
-
+- [Translation Drills](docs/requirements/functionality/translation-drills.md)
