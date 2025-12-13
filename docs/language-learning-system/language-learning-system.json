@@ -1,0 +1,33 @@
+{
+  "LanguageLearningModel": {
+    "Resources": [
+      {"id": "Vocab", "name": "Vocabulary", "description": "Central repository for refined words, phrases, and grammar points."},
+      {"id": "VocabInbox", "name": "Vocabulary inbox", "description": "Semi-structured queue for rough notes awaiting processing."},
+      {"id": "MassSentences", "name": "Mass sentences", "description": "Unstructured collection of thousands of sentences."},
+      {"id": "LanguageIslands", "name": "Language islands", "description": "Groups of short sentences around specific topics."},
+      {"id": "Coursework", "name": "Coursework", "description": "Various book and online courses."},
+      {"id": "ListeningMaterials", "name": "Listening materials", "description": "TV shows, podcasts, generated audio files."},
+      {"id": "ReadingMaterials", "name": "Reading materials", "description": "Books, articles in target language."}
+    ],
+    "Exercises": [
+      {"name": "Review vocab with sentences", "attachedTo": ["Vocab"]},
+      {"name": "Translation drill", "attachedTo": ["Vocab"]},
+      {"name": "Review", "attachedTo": ["MassSentences"]},
+      {"name": "Review", "attachedTo": ["LanguageIslands"]},
+      {"name": "Create", "attachedTo": ["LanguageIslands"]},
+      {"name": "Study", "attachedTo": ["Coursework"]},
+      {"name": "Listening practice", "attachedTo": ["ListeningMaterials"]},
+      {"name": "Read", "attachedTo": ["ReadingMaterials"]}
+    ],
+    "DataFlows": [
+      {"name": "Process vocabulary inbox", "from": "VocabInbox", "to": "Vocab", "type": "Refinement"},
+      {"name": "Mine vocab", "from": "MassSentences", "to": "VocabInbox", "type": "Extraction"},
+      {"name": "Mine vocab", "from": "LanguageIslands", "to": "VocabInbox", "type": "Extraction"},
+      {"name": "Mine vocab", "from": "Coursework", "to": "VocabInbox", "type": "Extraction"},
+      {"name": "Mine vocab", "from": "ListeningMaterials", "to": "VocabInbox", "type": "Extraction"},
+      {"name": "Mine vocab", "from": "ReadingMaterials", "to": "VocabInbox", "type": "Extraction"},
+      {"name": "Generate audio", "from": "LanguageIslands", "to": "ListeningMaterials", "type": "Transformation"},
+      {"name": "Generate audio", "from": "MassSentences", "to": "ListeningMaterials", "type": "Transformation"}
+    ]
+  }
+}
