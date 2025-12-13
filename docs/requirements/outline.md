@@ -35,7 +35,9 @@
   - Stored in user-defined, named groups (e.g., "concrete nouns", "grammar patterns")
   - Groups are language-specific, not shared across languages
   - Cards can belong to multiple groups
-  - Cards can be snoozed, evaluated, or disabled from study
+- **Architectural Role**:
+  - Core database consumed by multiple mini-applications
+  - Each mini-application maintains separate metadata for cards
 
 ### Card Review
 
@@ -48,6 +50,9 @@
   - Default timing based on SRS algorithm
 - **Context Management**:
   - Add reviewed cards to translation drill context
+- **Card States** (Card Review specific):
+  - Active, snoozed, disabled, evaluated, pinned states
+  - States are independent from other mini-applications
   - Cards added this way appear in special "Pinned" group
 
 ### Translation Drills

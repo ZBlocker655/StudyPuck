@@ -8,3 +8,5 @@
 ## Functional Requirements
 
 - [Cards](functionality/cards.md)
+- [Card Review](functionality/card-review.md)
+

@@ -1,6 +1,15 @@
 # Cards
 
-Cards are the primary study assets owned by the user in StudyPuck. They represent the vocabulary, grammar patterns, and language concepts that form the foundation of your language learning practice.
+Cards are the core database of study assets in StudyPuck. They serve as the primary shared data repository that multiple mini-applications consume to provide different learning experiences.
+
+## Architectural Role
+
+Cards function as the central data layer of the StudyPuck system:
+
+- **Core Database**: Cards contain the vocabulary, grammar patterns, and language concepts that form the foundation of language learning
+- **Mini-Application Consumer Model**: Multiple applications (Card Review, Translation Drills, future applications) consume card data
+- **Read-Only for Applications**: Mini-applications read card content but maintain their own separate metadata (SRS schedules, review history, application-specific states)
+- **Shared Resource**: The same card can be used simultaneously across different learning contexts with independent tracking
 
 ## Content Types
 
@@ -31,22 +40,23 @@ Cards are organized using a flexible grouping system:
 - **User-defined groups**: Named collections like "concrete nouns", "grammar patterns", or "common verbs"
 - **Language-specific**: Groups are separate for each language being studied. For example a "Storytelling" group would belong to one language, even though another language could have its own "Storytelling" group.
 - **Multiple membership**: Cards can belong to more than one group simultaneously. For example, a Card for the word 经历 could belong to a group called "Storytelling" and also "_历 word family" (meaning words ending in the 历 hanzi character).
-- **Status management**: Cards can be snoozed, evaluated, or disabled from current study. This status isn't actually tied to the card itself, but to the card's membership in a group or the context of a translation drill study session.
+- **Application-Independent**: Card organization exists at the core database level and is shared across all mini-applications
 
-## Card States
+## Mini-Application Integration
 
-Cards have various states that affect how they appear in study sessions:
+Cards serve different purposes across the various mini-applications:
 
-- **Active**: Available for review and translation drill context
-- **Snoozed**: Temporarily hidden from study rotation
-- **Disabled**: Removed from current study but preserved in collection
-- **Evaluated**: Marked for review timing adjustment based on user performance
+- **Card Review**: Uses cards for systematic spaced repetition review, maintaining its own SRS metadata
+- **Translation Drills**: Incorporates cards into LLM context for translation practice, with separate SRS tracking
+- **Card Entry**: Provides interface for creating and editing card content in the core database
+- **Future Applications**: Additional mini-applications can be built that consume the same card database with their own learning mechanics
 
 ## Example Cards
 
 ### Word Card example
 
 **经历** - this is both the title and the study prompt itself
+
 - **Type**: word
 - **Groups**: storytelling, 经_ word family, _历 word family
 - **Meaning**: experience (that one has gone through)
@@ -55,7 +65,7 @@ Cards have various states that affect how they appear in study sessions:
 
 ### Complex prompt Card example
 
-**经历 (experience you go through) vs. 经验 (experience to gain knowledge and skill)**
+- **Content**: 经历 (experience you go through) vs. 经验 (experience to gain knowledge and skill)
 - **Type**: complex prompt
 - **Groups**: storytelling
 

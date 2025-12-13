@@ -4,6 +4,14 @@
 
 * The main features for the first version are: entering new vocabulary to study, reviewing that vocabulary systematically, and translation drills where an LLM has in context the vocabulary that the user wants to review, and crafts English sentences for the user to translate into the target language, then providing feedback on the user's work.
 
+* **System Architecture**:
+
+  * **Core Database**: Cards are the primary data asset - a shared database of vocabulary and study prompts.
+  * **Mini-Applications**: Multiple applications consume the core card database (Card Review, Translation Drills, Card Entry).
+  * **Independent SRS**: Each mini-application maintains its own separate spaced repetition metadata for cards. A single card may have different review histories and schedules across applications.
+  * **Extensibility**: Future mini-applications can be added that use the same card database, each with their own SRS system or learning mechanics.
+  * **Example**: Card X might be reviewed today in Card Review but not used in Translation Drills for 2 weeks - each tracks separately.
+
 * **Cards**:
 
   * Primary asset owned by the user. Can represent single words, or language/grammar chunks that form sentence patterns.
@@ -19,22 +27,24 @@
   * Cards can include optional instructions to the LLM on how to use the card when generating sentences.
   * Cards can be snoozed, evaluated, or turned off from current study.
 
-* **Card review**
+* **Card review** (Mini-Application #1)
 
+  * Operates on the core card database with its own SRS metadata.
   * In this feature the user can browse a specified group of study Cards.
   * User can browse by group or by subset within that group (by number perhaps?)
-  * Similar to how a spaced repetition system works, app keeps track of when a card was last reviewed.
+  * Similar to how a spaced repetition system works, app keeps track of when a card was last reviewed IN CARD REVIEW.
   * App tries to put less recently reviewed cards in front of user.
   * User, after reviewing a card, can help app choose how long to wait to see it next.
   * App knows the default options for how long to wait, based on SRS algorithm.
   * User should be able to add any Card being reviewed into the study context (for translation drills - see below).
     * If a card is added into context like this it would appear in a specialized group "Pinned".
 
-* **Translation drills**
+* **Translation drills** (Mini-Application #2)
 
+  * Operates on the core card database with its own separate SRS metadata.
   * User interacts with an LLM in a conversation-style interface.
   * There is also a current context of which Cards the LLM can use to craft translation prompts.
-  * In context, Cards are organized by group primarily. There is an SRS system (separate from the one for vocab review) that governs which Cards are top of each group, and in context for review.
+  * In context, Cards are organized by group primarily. There is an SRS system (completely separate from the Card Review SRS) that governs which Cards are top of each group, and in context for review.
   * The user can snooze/disable current Cards.
   * The user can dismiss current Cards (in which case they are given a next date where they come up according to the SRS algorithm.)
   * The user can draw more Cards from any group into the context.
@@ -53,11 +63,15 @@
   * UI will clearly show current language mode.
   * Users can switch between languages or add new ones.
 
-* **Card entry**
+* **Card entry** (Mini-Application #3 - Future-Extensible)
 
+  * Operates on the core card database (adds/edits cards).
+  * Currently the primary way to edit and enter cards into the system.
+  * Future extensibility: Could be one of multiple card editing/entry applications.
   * Ideally should be as low friction as possible.
   * There is a special "inbox" queue of rough notes that will be turned into Cards and organized with groups, mnemonics, example sentences, etc.
   * Processing this inbox queue should be another top-level application activity (on equal billing as Card Review, and Translation Drill).
+  * May or may not have its own SRS system in future versions.
 
 * Future enhancement plans include:
 
