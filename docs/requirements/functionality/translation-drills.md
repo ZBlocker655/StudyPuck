@@ -96,17 +96,20 @@ The LLM creates English sentences following specific behavioral requirements:
 ## Integration Points
 
 ### With Core Card Database
+
 - **Read-only Content Access**: Retrieval of card content (vocabulary, examples, mnemonics, LLM instructions)
 - **Real-time Updates**: Context reflects changes when cards are modified or group membership changes
 - **Note Storage**: Card-specific notes are stored with the card itself for cross-application access
 
 ### With Translation Drills SRS System
+
 - **Independent Metadata Storage**: Dedicated SRS data specific to Translation Drills usage
 - **Usage Event Recording**: Tracking of translation exercises and user performance
-- **Scheduling Calculations**: Next appearance timing based solely on Translation Drills history
+- **Scheduling Calculations**: Next appearance timing based partly on SRS algorithm from Translation Drills and partly on user overrides
 - **No Cross-contamination**: Complete separation from Card Review or other mini-application SRS data
 
 ### With Other Mini-Applications
+
 - **Shared Card Access**: Same cards available across Card Review and future applications
 - **Independent State**: Translation context state separate from Card Review states
 - **Note Sharing**: Card-specific notes accessible across applications
@@ -129,7 +132,7 @@ The LLM creates English sentences following specific behavioral requirements:
 ### Context Management
 
 - **Group Organization**: Clear visual association between active cards and their source groups
-- **Easy Manipulation**: Simple controls for snoozzing, dismissing, or drawing additional cards
+- **Easy Manipulation**: Simple controls for snoozing, dismissing, or drawing additional cards
 - **State Persistence**: Reliable maintenance of context state across sessions
 
 ## Technical Considerations
