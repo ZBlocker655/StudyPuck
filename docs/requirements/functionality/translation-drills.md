@@ -168,3 +168,18 @@ The LLM creates English sentences following specific behavioral requirements:
 - **Shared Card Notes**: Notes added in Translation Drills available in other applications
 - **Database Consistency**: Changes to core card content reflected in active translation context
 - **User Experience Continuity**: Smooth transitions when switching between mini-applications
+
+## Future Enhancements
+
+### Logging and Analytics
+
+- **Session Logging**: Log full translation sessions for analysis and progress tracking
+- **Data Storage**: Store session logs using R2 for scalable analytics
+- **Performance Insights**: Track user progress and identify learning patterns
+
+### Model Customization
+
+- **Custom Model Training**: Fine-tune custom models using HuggingFace/spaCy based on user interaction data
+- **RAG Integration**: Implement Retrieval-Augmented Generation context using current cards and user feedback/evaluation history
+- **Modular LLM Architecture**: Design system for swapping GPT-4 with custom models while maintaining functionality
+- **Personalized AI**: Adapt LLM behavior to individual user learning patterns and preferences
