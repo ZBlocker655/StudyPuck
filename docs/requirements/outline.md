@@ -122,3 +122,4 @@
 
 - Bring in additional aspects of language learning and study
 - Expand beyond vocabulary and translation practice
+- Language-specific UI enhancements (input modes, keyboards, fonts, behaviors)
