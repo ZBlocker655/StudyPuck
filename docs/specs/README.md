@@ -45,6 +45,11 @@ StudyPuck is a hobby project focused on language learning through AI-powered tra
    - Questions: Social login flow, session persistence, role management
 
 #### Phase 2: Frontend & Development Environment
+3. **Monorepo Structure Design** 📁
+   - File: `monorepo-structure-design.md` (to be created)
+   - Scope: Folder organization, shared packages, build tooling coordination
+   - Questions: Package management, shared types/utilities, deployment strategies per app
+
 4. **CSS Architecture & Methodology** 📝
    - File: `css-architecture-analysis.md` (to be created)
    - Scope: CUBE CSS evaluation, modern CSS features, responsive design patterns
@@ -86,6 +91,7 @@ Based on completed explorations:
 - **Development**: GitHub Codespaces
 - **Deployment**: Cloudflare Pages (direct GitHub integration)
 - **Cross-platform**: PWA initially, Tauri for desktop later
+- **Project Structure**: Monorepo with extensible folder structure for web/desktop/mobile apps
 
 ## Key Decisions Made
 - ✅ Multi-platform via PWA approach first
