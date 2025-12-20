@@ -1,0 +1,359 @@
+-- StudyPuck Database Schema Draft v1.0
+-- Status: Initial Draft for Review
+-- Created: December 19, 2024  
+-- Based On: Query analysis from functional requirements
+
+-- Design Principles Applied:
+--
+-- Data Partitioning:
+-- - All tables partitioned by (user_id, language_id) as primary isolation
+-- - Every query naturally scoped to user+language preventing cross-contamination
+--
+-- Vertical Application Separation:
+-- - Separate SRS tables per application: card_review_srs, translation_drill_srs
+-- - Independent schema evolution per mini-application
+-- - Shared core entities: users, cards, groups
+--
+-- Query-Driven Design:
+-- - Optimized for identified high-frequency query patterns
+-- - Normalized tables where individual operations needed
+-- - JSON metadata where flexibility required
+
+-- ============================================================================
+-- CORE ENTITY TABLES
+-- ============================================================================
+
+-- Users
+CREATE TABLE users (
+    user_id TEXT PRIMARY KEY,
+    email TEXT UNIQUE NOT NULL,
+    created_at INTEGER DEFAULT (strftime('%s', 'now')),
+    metadata TEXT -- JSON: preferences, settings, etc.
+);
+
+CREATE INDEX idx_users_email ON users(email);
+
+-- Study Languages
+CREATE TABLE study_languages (
+    user_id TEXT NOT NULL,
+    language_id TEXT NOT NULL, -- ISO language code (en, zh, fr, etc.)
+    language_name TEXT NOT NULL, -- Display name
+    is_active INTEGER DEFAULT 1,
+    created_at INTEGER DEFAULT (strftime('%s', 'now')),
+    settings TEXT, -- JSON: language-specific settings
+    PRIMARY KEY (user_id, language_id),
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+
+-- Groups
+CREATE TABLE groups (
+    user_id TEXT NOT NULL,
+    language_id TEXT NOT NULL,
+    group_id TEXT NOT NULL, -- user-defined ID
+    group_name TEXT NOT NULL,
+    description TEXT,
+    created_at INTEGER DEFAULT (strftime('%s', 'now')),
+    metadata TEXT, -- JSON: group settings, color, etc.
+    PRIMARY KEY (user_id, language_id, group_id),
+    FOREIGN KEY (user_id, language_id) REFERENCES study_languages(user_id, language_id)
+);
+
+-- Cards (Core Shared Entity)
+CREATE TABLE cards (
+    user_id TEXT NOT NULL,
+    language_id TEXT NOT NULL,
+    card_id TEXT NOT NULL, -- UUID or user-friendly ID
+    content TEXT NOT NULL, -- Main study prompt
+    card_type TEXT DEFAULT 'word' CHECK(card_type IN ('word', 'pattern', 'complex_prompt')),
+    meaning TEXT,
+    llm_instructions TEXT, -- Instructions for AI features
+    created_at INTEGER DEFAULT (strftime('%s', 'now')),
+    updated_at INTEGER DEFAULT (strftime('%s', 'now')),
+    metadata TEXT, -- JSON: additional flexible data
+    PRIMARY KEY (user_id, language_id, card_id),
+    FOREIGN KEY (user_id, language_id) REFERENCES study_languages(user_id, language_id)
+);
+
+-- Full-text search on card content (with automatic sync)
+CREATE VIRTUAL TABLE cards_fts USING fts5(
+    user_id UNINDEXED,
+    language_id UNINDEXED, 
+    card_id UNINDEXED,
+    content,
+    meaning,
+    content='cards',
+    content_rowid='rowid'
+);
+
+-- Automatic FTS synchronization triggers
+CREATE TRIGGER cards_fts_insert AFTER INSERT ON cards BEGIN
+    INSERT INTO cards_fts(rowid, user_id, language_id, card_id, content, meaning) 
+    VALUES (new.rowid, new.user_id, new.language_id, new.card_id, new.content, new.meaning);
+END;
+
+CREATE TRIGGER cards_fts_delete AFTER DELETE ON cards BEGIN
+    INSERT INTO cards_fts(cards_fts, rowid, user_id, language_id, card_id, content, meaning) 
+    VALUES('delete', old.rowid, old.user_id, old.language_id, old.card_id, old.content, old.meaning);
+END;
+
+CREATE TRIGGER cards_fts_update AFTER UPDATE ON cards BEGIN
+    INSERT INTO cards_fts(cards_fts, rowid, user_id, language_id, card_id, content, meaning) 
+    VALUES('delete', old.rowid, old.user_id, old.language_id, old.card_id, old.content, old.meaning);
+    INSERT INTO cards_fts(rowid, user_id, language_id, card_id, content, meaning) 
+    VALUES (new.rowid, new.user_id, new.language_id, new.card_id, new.content, new.meaning);
+END;
+
+CREATE INDEX idx_cards_type ON cards(user_id, language_id, card_type);
+CREATE INDEX idx_cards_updated ON cards(user_id, language_id, updated_at);
+
+-- Card Groups (Many-to-Many)
+CREATE TABLE card_groups (
+    user_id TEXT NOT NULL,
+    language_id TEXT NOT NULL,
+    card_id TEXT NOT NULL,
+    group_id TEXT NOT NULL,
+    assigned_at INTEGER DEFAULT (strftime('%s', 'now')),
+    PRIMARY KEY (user_id, language_id, card_id, group_id),
+    FOREIGN KEY (user_id, language_id, card_id) REFERENCES cards(user_id, language_id, card_id),
+    FOREIGN KEY (user_id, language_id, group_id) REFERENCES groups(user_id, language_id, group_id)
+);
+
+CREATE INDEX idx_card_groups_by_group ON card_groups(user_id, language_id, group_id);
+CREATE INDEX idx_card_groups_by_card ON card_groups(user_id, language_id, card_id);
+
+-- Card Examples
+CREATE TABLE card_examples (
+    user_id TEXT NOT NULL,
+    language_id TEXT NOT NULL,
+    card_id TEXT NOT NULL,
+    example_id INTEGER, -- auto-increment within card
+    example_text TEXT NOT NULL,
+    translation TEXT, -- optional translation
+    created_at INTEGER DEFAULT (strftime('%s', 'now')),
+    PRIMARY KEY (user_id, language_id, card_id, example_id),
+    FOREIGN KEY (user_id, language_id, card_id) REFERENCES cards(user_id, language_id, card_id)
+);
+
+-- Card Mnemonics
+CREATE TABLE card_mnemonics (
+    user_id TEXT NOT NULL,
+    language_id TEXT NOT NULL,
+    card_id TEXT NOT NULL,
+    mnemonic_id INTEGER, -- auto-increment within card
+    mnemonic_text TEXT NOT NULL,
+    created_at INTEGER DEFAULT (strftime('%s', 'now')),
+    PRIMARY KEY (user_id, language_id, card_id, mnemonic_id),
+    FOREIGN KEY (user_id, language_id, card_id) REFERENCES cards(user_id, language_id, card_id)
+);
+
+-- ============================================================================
+-- CARD ENTRY APPLICATION TABLES
+-- ============================================================================
+
+-- Inbox Notes (Simplified - Discard After Processing)
+CREATE TABLE inbox_notes (
+    user_id TEXT NOT NULL,
+    language_id TEXT NOT NULL,
+    note_id TEXT NOT NULL, -- UUID
+    content TEXT NOT NULL,
+    state TEXT DEFAULT 'unprocessed' CHECK(state IN ('unprocessed', 'deferred', 'deleted')),
+    source_type TEXT DEFAULT 'manual' CHECK(source_type IN ('manual', 'api', 'browser_extension', 'ifttt', 'zapier', 'n8n')),
+    source_metadata TEXT, -- JSON: URL, browser context, integration details
+    created_at INTEGER DEFAULT (strftime('%s', 'now')),
+    PRIMARY KEY (user_id, language_id, note_id),
+    FOREIGN KEY (user_id, language_id) REFERENCES study_languages(user_id, language_id)
+);
+
+CREATE INDEX idx_inbox_state ON inbox_notes(user_id, language_id, state, created_at);
+CREATE INDEX idx_inbox_source ON inbox_notes(user_id, language_id, source_type);
+
+-- Processing workflow is simple:
+-- 1. Notes processed → cards created directly in cards table
+-- 2. Processed notes are deleted (not tracked permanently)
+-- 3. No note→card relationship tracking (requirements say this is optional)
+-- 4. Duplicate detection is future AI enhancement, not core functionality
+
+-- ============================================================================
+-- CARD REVIEW APPLICATION TABLES
+-- ============================================================================
+
+-- Card Review SRS
+CREATE TABLE card_review_srs (
+    user_id TEXT NOT NULL,
+    language_id TEXT NOT NULL,
+    card_id TEXT NOT NULL,
+    next_due INTEGER NOT NULL DEFAULT 0, -- epoch timestamp
+    interval_days INTEGER DEFAULT 1,
+    ease_factor REAL DEFAULT 2.5,
+    review_count INTEGER DEFAULT 0,
+    last_reviewed INTEGER,
+    metadata TEXT, -- JSON: algorithm-specific data, performance history
+    PRIMARY KEY (user_id, language_id, card_id),
+    FOREIGN KEY (user_id, language_id, card_id) REFERENCES cards(user_id, language_id, card_id)
+);
+
+-- Critical index for SRS queries
+CREATE INDEX idx_card_review_srs_due ON card_review_srs(user_id, language_id, next_due);
+CREATE INDEX idx_card_review_srs_interval ON card_review_srs(user_id, language_id, interval_days);
+
+-- ============================================================================
+-- TRANSLATION DRILL APPLICATION TABLES
+-- ============================================================================
+
+-- Translation Drill SRS (Independent)
+CREATE TABLE translation_drill_srs (
+    user_id TEXT NOT NULL,
+    language_id TEXT NOT NULL,
+    card_id TEXT NOT NULL,
+    next_due INTEGER NOT NULL DEFAULT 0, -- epoch timestamp
+    interval_days INTEGER DEFAULT 1,
+    usage_count INTEGER DEFAULT 0,
+    last_used INTEGER,
+    performance_score REAL, -- success rate in translation context
+    metadata TEXT, -- JSON: algorithm-specific data, dismissal history
+    PRIMARY KEY (user_id, language_id, card_id),
+    FOREIGN KEY (user_id, language_id, card_id) REFERENCES cards(user_id, language_id, card_id)
+);
+
+CREATE INDEX idx_translation_drill_srs_due ON translation_drill_srs(user_id, language_id, next_due);
+
+-- Translation Drill Draw Pile Configuration
+CREATE TABLE translation_drill_draw_piles (
+    user_id TEXT NOT NULL,
+    language_id TEXT NOT NULL,
+    group_id TEXT NOT NULL,
+    enabled INTEGER DEFAULT 1,
+    draw_pile_name TEXT, -- optional custom display name
+    pile_size_limit INTEGER DEFAULT 10, -- max cards to draw from this pile
+    created_at INTEGER DEFAULT (strftime('%s', 'now')),
+    PRIMARY KEY (user_id, language_id, group_id),
+    FOREIGN KEY (user_id, language_id, group_id) REFERENCES groups(user_id, language_id, group_id)
+);
+
+CREATE INDEX idx_draw_piles_enabled ON translation_drill_draw_piles(user_id, language_id, enabled);
+
+-- Translation Drill Active Context
+CREATE TABLE translation_drill_context (
+    user_id TEXT NOT NULL,
+    language_id TEXT NOT NULL,
+    card_id TEXT NOT NULL,
+    state TEXT NOT NULL DEFAULT 'active' CHECK(state IN ('active', 'snoozed', 'dismissed')),
+    added_from TEXT, -- 'draw_pile:group_id', 'pinned_from_review'
+    added_at INTEGER DEFAULT (strftime('%s', 'now')),
+    state_until INTEGER, -- timestamp for snooze/dismiss duration
+    metadata TEXT, -- JSON: context-specific data
+    PRIMARY KEY (user_id, language_id, card_id),
+    FOREIGN KEY (user_id, language_id, card_id) REFERENCES cards(user_id, language_id, card_id)
+);
+
+CREATE INDEX idx_translation_context_state ON translation_drill_context(user_id, language_id, state);
+CREATE INDEX idx_translation_context_added ON translation_drill_context(user_id, language_id, added_at);
+
+-- ============================================================================
+-- VIEWS FOR COMMON QUERIES
+-- ============================================================================
+
+-- Active Cards for Translation Context
+CREATE VIEW translation_active_cards AS
+SELECT 
+    c.user_id,
+    c.language_id, 
+    c.card_id,
+    c.content,
+    c.meaning,
+    c.llm_instructions,
+    tc.added_from,
+    tc.added_at
+FROM cards c
+JOIN translation_drill_context tc ON (
+    c.user_id = tc.user_id AND 
+    c.language_id = tc.language_id AND 
+    c.card_id = tc.card_id
+)
+WHERE tc.state = 'active';
+
+-- Cards Due for Review
+CREATE VIEW card_review_due AS
+SELECT 
+    c.user_id,
+    c.language_id,
+    c.card_id,
+    c.content,
+    c.meaning,
+    s.next_due,
+    s.interval_days
+FROM cards c
+JOIN card_review_srs s ON (
+    c.user_id = s.user_id AND 
+    c.language_id = s.language_id AND 
+    c.card_id = s.card_id
+)
+WHERE s.next_due <= strftime('%s', 'now');
+
+-- ============================================================================
+-- TRIGGERS FOR DATA INTEGRITY
+-- ============================================================================
+
+-- Auto-increment example_id within card scope
+CREATE TRIGGER tr_card_examples_auto_id 
+    AFTER INSERT ON card_examples
+    WHEN NEW.example_id IS NULL
+BEGIN
+    UPDATE card_examples 
+    SET example_id = (
+        SELECT COALESCE(MAX(example_id), 0) + 1 
+        FROM card_examples 
+        WHERE user_id = NEW.user_id 
+          AND language_id = NEW.language_id 
+          AND card_id = NEW.card_id
+    )
+    WHERE rowid = NEW.rowid;
+END;
+
+-- Auto-increment mnemonic_id within card scope  
+CREATE TRIGGER tr_card_mnemonics_auto_id 
+    AFTER INSERT ON card_mnemonics
+    WHEN NEW.mnemonic_id IS NULL
+BEGIN
+    UPDATE card_mnemonics 
+    SET mnemonic_id = (
+        SELECT COALESCE(MAX(mnemonic_id), 0) + 1 
+        FROM card_mnemonics 
+        WHERE user_id = NEW.user_id 
+          AND language_id = NEW.language_id 
+          AND card_id = NEW.card_id
+    )
+    WHERE rowid = NEW.rowid;
+END;
+
+-- Update cards.updated_at on modification
+CREATE TRIGGER tr_cards_updated_at 
+    AFTER UPDATE ON cards
+BEGIN
+    UPDATE cards 
+    SET updated_at = strftime('%s', 'now') 
+    WHERE user_id = NEW.user_id 
+      AND language_id = NEW.language_id 
+      AND card_id = NEW.card_id;
+END;
+
+-- ============================================================================
+-- PERFORMANCE CONSIDERATIONS
+-- ============================================================================
+
+-- Primary Query Optimization:
+-- 1. Card Review SRS queries: (user_id, language_id, next_due) index
+-- 2. Translation context retrieval: (user_id, language_id, state) index  
+-- 3. Group-based filtering: (user_id, language_id, group_id) index
+-- 4. Full-text search: FTS5 virtual table for card content
+
+-- Potential Scaling Bottlenecks:
+-- 1. Card-group many-to-many: May need optimization if users have thousands of cards
+-- 2. SRS updates: High frequency individual updates - consider WAL mode
+-- 3. Translation context queries: Should remain fast due to small context sizes
+
+-- Notes for Review:
+-- 1. UUID vs Integer IDs: Using text UUIDs for flexibility but could optimize with integers
+-- 2. JSON metadata fields: Positioned for algorithm evolution, may need schema migration strategy
+-- 3. FTS5 integration: Needs careful maintenance for card content synchronization
+-- 4. Trigger complexity: Auto-increment triggers may need optimization for high-volume operations
