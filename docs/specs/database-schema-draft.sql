@@ -1,6 +1,6 @@
 -- StudyPuck Database Schema Draft
 -- Status: Simplified - JSON Arrays for Card Components
--- Updated: December 20, 2024  
+-- Updated: December 20, 2025  
 -- Changes: Eliminated separate card_examples/card_mnemonics tables, simplified triggers
 
 -- Design Principles Applied:

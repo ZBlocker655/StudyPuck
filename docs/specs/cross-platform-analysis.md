@@ -28,7 +28,7 @@
 - Platform-specific development needs
 - More complex deployment pipeline
 
-## Modern Cross-Platform Desktop Frameworks (2024/2025)
+## Modern Cross-Platform Desktop Frameworks (2025)
 
 ### Tauri (Recommended for evaluation)
 - **Technology**: Rust backend + web frontend

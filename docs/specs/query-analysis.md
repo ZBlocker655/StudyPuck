@@ -1,12 +1,21 @@
 # Query Analysis for StudyPuck Database Design
 
-## Status: In Progress
-**Last Updated**: December 19, 2024  
-**Current Phase**: Initial query pattern identification from functional requirements
+## Status: Complete ✅
+**Last Updated**: December 21, 2025  
+**Used for**: Database schema design and indexing strategy
 
 ## Overview
 
-This document analyzes actual query patterns needed to support StudyPuck's functional requirements. The goal is to make data-driven decisions about schema design (JSON vs normalized, indexing strategy, etc.) based on real usage patterns rather than theoretical preferences.
+This document analyzed actual query patterns needed to support StudyPuck's functional requirements. The analysis directly informed the final database schema design in [database-schema-draft.sql](database-schema-draft.sql).
+
+## Analysis Impact on Final Schema
+
+The query pattern analysis led to key schema decisions:
+
+1. **SRS Query Optimization**: Dedicated indexes on `(user_id, language_id, next_due)` for card scheduling
+2. **Translation Context Performance**: Optimized for small active context sizes with targeted indexes
+3. **Full-Text Search**: FTS5 integration for content discovery across cards
+4. **JSON vs Normalized**: Chose JSON for examples/mnemonics based on usage patterns
 
 ## Analysis Methodology
 

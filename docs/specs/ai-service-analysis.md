@@ -1,6 +1,6 @@
 # AI Service Analysis
 
-## Cost Comparison (as of Dec 2024)
+## Cost Comparison (as of Dec 2025)
 
 ### OpenAI GPT Models
 - **GPT-4o**: $2.50/1M input tokens, $10/1M output tokens

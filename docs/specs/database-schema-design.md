@@ -1,132 +1,60 @@
 # Database Schema Design
 
-## Status: Ready to Begin
-**Last Updated**: December 19, 2024  
-**Current Section**: Ready for Section 1 - Entity Relationship Analysis
+## Status: Complete ✅
+**Last Updated**: December 21, 2025  
+**Final Schema**: Available in [database-schema-draft.sql](database-schema-draft.sql)
 
-## Design Process Overview
+## Design Outcome Summary
 
-This document follows a structured 5-section approach to design the complete database schema for StudyPuck, based on functional requirements analysis.
+This document captured the complete database schema design process for StudyPuck. The final schema implements a multi-application architecture with independent SRS systems and flexible JSON metadata.
 
-## Section Plan
+### Key Architectural Decisions Made
+
+1. **Multi-Application SRS Independence**: Separate `card_review_srs` and `translation_drill_srs` tables
+2. **Partitioned Data Model**: All tables partitioned by `(user_id, language_id)`
+3. **JSON Flexibility**: Simplified card structure with JSON arrays for examples/mnemonics
+4. **Full-Text Search**: FTS5 integration with automatic synchronization
+5. **Translation Context Management**: Dedicated tables for active context and draw pile configuration
+
+## Final Schema Highlights
+
+- **Core Entities**: Users, study_languages, cards, groups, card_groups
+- **Card Review App**: card_review_srs with next_due, interval_days, ease_factor
+- **Translation Drill App**: translation_drill_srs, translation_drill_context, translation_drill_draw_piles
+- **Inbox Processing**: Simple inbox_notes table for capture workflow
+- **Performance Optimizations**: Strategic indexing and views for common queries
+
+## Design Process Record
 
 ### ✅ Section 0: Preparation (Complete)
-- **Functional Requirements Reviewed**:
-  - Cards: Core data layer, multi-type content, flexible grouping
-  - Card Review: Independent SRS, browsing interface, card state management
-  - Translation Drills: Separate SRS, context management, AI integration
-  - Core Application Structure: Multi-language, user-centric organization
+- **Functional Requirements Reviewed**: Cards, Card Review, Translation Drills, Core Application Structure
+- **Technology Constraints Established**: Cloudflare D1 (SQLite), FTS5, ACID transactions
 
-- **Technology Constraints Established**:
-  - **Database**: Cloudflare D1 (SQLite)
-  - **Secondary Storage**: Cloudflare KV for caching/sessions
-  - **Key Features Needed**: Full-text search (FTS5), ACID transactions, efficient joins
+### ✅ Section 1-5: Complete Schema Design (Complete)
+All sections were completed through iterative discussion and analysis:
 
-### 🔄 Section 1: Entity Relationship Analysis (Next)
-**Goal**: Identify core entities and their relationships from functional requirements
+1. **Entity Relationship Analysis**: Identified core entities and multi-application independence
+2. **Query Pattern Analysis**: Mapped functional requirements to database operations
+3. **Table Design with SQL DDL**: Complete CREATE TABLE statements and constraints
+4. **Performance Optimization**: Strategic indexing and view definitions
+5. **Validation & Testing**: Real-world scenario verification
 
-**Key Questions to Resolve**:
-- Primary entities: Users, StudyLanguages, Cards, Groups, Reviews
-- How to handle multi-application SRS independence (Card Review vs Translation Drills)
-- Card-to-Group relationships (many-to-many)
-- User hierarchy: User → StudyLanguage → Cards/Groups
-- Note storage: Card-level vs application-specific
+### Key Design Insights Discovered
+- **JSON Simplification**: Eliminated separate tables for card examples/mnemonics 
+- **Multi-App Independence**: Clean SRS separation while sharing core entities
+- **Partitioning Strategy**: User+language isolation for security and performance
+- **Index Strategy**: Focused on high-frequency SRS and context queries
 
-**Expected Outputs**:
-- Complete entity list with attributes
-- Relationship diagram/description
-- Architectural decisions on SRS data separation
+### 📋 Future Implementation Considerations
+- **Testing Strategy**: Modern test database spawning for D1
+- **Migration Tooling**: Schema evolution procedures  
+- **Performance Monitoring**: Query optimization in production
 
-### 📋 Section 2: Query Pattern Analysis (Pending)
-**Goal**: Map functional requirements to specific database operations
+## References
 
-**Key Areas**:
-- Full-text search scenarios across card content
-- SRS "due cards" queries by application and language  
-- Hierarchical browsing patterns
-- Group-based filtering and subset selection
-- Cross-application data sharing (notes, card content)
-
-**Expected Outputs**:
-- Detailed query scenarios with expected performance
-- Index requirements identification
-- Data access patterns by application component
-
-### 📋 Section 3: Table Design with SQL DDL (Pending)
-**Goal**: Create actual database schema with proper SQLite syntax
-
-**Key Areas**:
-- Table definitions with data types
-- Primary/foreign key relationships
-- Constraints and validation rules
-- Full-text search table setup (FTS5)
-
-**Expected Outputs**:
-- Complete CREATE TABLE statements
-- Relationship constraints (FOREIGN KEY)
-- Initial data migration considerations
-
-### 📋 Section 4: Indexing and Performance Optimization (Pending)
-**Goal**: Optimize for identified query patterns
-
-**Key Areas**:
-- Index strategy for SRS queries
-- Full-text search optimization
-- Composite indexes for common query patterns
-- Query performance validation
-
-**Expected Outputs**:
-- Complete index creation statements
-- Performance testing scenarios
-- Query optimization recommendations
-
-### 📋 Section 5: Validation Scenarios (Pending)
-**Goal**: Test schema against real-world functional requirements
-
-**Key Areas**:
-- Multi-application SRS independence verification
-- Cross-language data isolation
-- Complex query scenario testing
-- Data integrity validation
-
-**Expected Outputs**:
-- Sample data scenarios
-- Test query validations
-- Schema refinement recommendations
-
-### 📋 Section 6: Testing Strategy & Database Operations (Added)
-**Goal**: Design comprehensive testing approach and database operational procedures
-
-**Key Areas**:
-- Modern test database spawning strategies
-- Integration testing patterns for Cloudflare D1
-- Database schema migration tooling and processes
-- CI/CD integration for database operations
-- Test data management and cleanup
-
-**Expected Outputs**:
-- Testing strategy recommendations
-- Migration workflow design
-- Test database configuration
-- CI/CD pipeline integration plan
-
-## Context Restoration Instructions
-
-**To resume this exploration:**
-1. Reference this file for current status and next section
-2. Review completed sections for established decisions
-3. Begin with Section 1: Entity Relationship Analysis
-4. Use functional requirements files as reference:
-   - `docs/requirements/functionality/cards.md`
-   - `docs/requirements/functionality/card-review.md`
-   - `docs/requirements/functionality/translation-drills.md`
-   - `docs/requirements/overview/core-application-structure.md`
-
-## Key Architectural Decisions Made
-
-### Data Partitioning Principle
-- **Principle**: All data partitioned first by user, then by language
-- **Decision**: Every table includes user_id and language_id as primary partitioning keys
+- **Final Schema**: [database-schema-draft.sql](database-schema-draft.sql)
+- **Query Analysis**: [query-analysis.md](query-analysis.md)
+- **Requirements**: Located in `docs/requirements/` directory
 - **Rationale**: Complete isolation between users and between languages within user
 - **Database Impact**: All tables follow pattern (user_id, language_id, ...) for primary keys and queries
 - **Query Implications**: All queries naturally scoped by user+language, preventing cross-contamination

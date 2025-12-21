@@ -1,8 +1,8 @@
 # StudyPuck Architecture Project
 
 ## Project Status: Architecture Design Phase
-**Last Updated**: December 19, 2024  
-**Current Phase**: Requirements gathering and technology stack analysis
+**Last Updated**: December 21, 2025  
+**Current Phase**: Backend architecture finalization and AI integration design
 
 ## Project Context
 StudyPuck is a hobby project focused on language learning through AI-powered translation drills and spaced repetition cards. The goal is to build a multi-platform application (web-first, then desktop/mobile) with minimal operating costs while learning modern development technologies.
@@ -25,21 +25,20 @@ StudyPuck is a hobby project focused on language learning through AI-powered tra
 5. **DevOps & Development Environment** → [devops-environment-analysis.md](devops-environment-analysis.md)
    - **Decision**: GitHub Codespaces + Cloudflare Pages direct integration
 
+6. **Database Schema Design** → [database-schema-design.md](database-schema-design.md)
+   - **Decision**: Multi-application SRS architecture with JSON flexibility
+   - **Artifacts**: Complete schema in [database-schema-draft.sql](database-schema-draft.sql)
+
 ### 🔄 In Progress Explorations
-**Database Schema Design** 📊 *Active*
-- File: `database-schema-design.md` (in progress)
-- Scope: Detailed table structure, relationships, indexing strategy  
-- Questions: Card grouping model, multi-language support, SRS data structure
+**AI Integration Architecture** 🤖 *Active*
+- File: `ai-integration-architecture.md` (in progress)
+- Scope: Drill complexity, prompt engineering, caching strategy
+- Questions: Translation sophistication, context generation, API rate limiting
 
 ### 📋 Pending Explorations (Priority Order)
 
 #### Phase 1: Backend Architecture Finalization
-1. **AI Integration Architecture** 🤖
-   - File: `ai-integration-architecture.md` (to be created)
-   - Scope: Drill complexity, prompt engineering, caching strategy
-   - Questions: Translation sophistication, context generation, API rate limiting
-
-2. **Authentication Implementation** 🔐
+1. **Authentication Implementation** 🔐
    - File: `auth-implementation-plan.md` (to be created)
    - Scope: Auth0 integration, user session management, security patterns
    - Questions: Social login flow, session persistence, role management
@@ -110,4 +109,4 @@ To restore context after window refresh:
 5. Reference [architecture-requirements.md](architecture-requirements.md) for foundational requirements
 
 ## Next Action
-**Immediate focus**: Database Schema Design Section 1 - Entity Relationship Analysis. Ready to identify core entities, relationships, and architectural decisions for multi-application SRS independence.
+**Immediate focus**: AI Integration Architecture - Design prompt engineering strategies, caching layers, and API integration patterns for translation drill generation and card review assistance.
