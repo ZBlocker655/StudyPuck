@@ -36,6 +36,9 @@ StudyPuck is a hobby project focused on language learning through AI-powered tra
 8. **Authentication Implementation** → [auth-implementation-plan.md](auth-implementation-plan.md)
    - **Decision**: Auth0 (OIDC) + Auth.js + 7-day PWA sessions
 
+9. **Monorepo Structure Design** → [monorepo-structure-design.md](monorepo-structure-design.md)
+   - **Decision**: Standard monorepo with PNPM workspaces + Turborepo
+
 ### 🔄 In Progress Explorations
 **Authentication Implementation** 🔐 *Completed*
 - File: `auth-implementation-plan.md` (Auth0 + Auth.js, all decisions made)
@@ -47,12 +50,12 @@ StudyPuck is a hobby project focused on language learning through AI-powered tra
 #### Phase 1: Backend Architecture Finalization
 
 #### Phase 2: Frontend & Development Environment
-3. **Monorepo Structure Design** 📁
-   - File: `monorepo-structure-design.md` (to be created)
-   - Scope: Folder organization, shared packages, build tooling coordination
-   - Questions: Package management, shared types/utilities, deployment strategies per app
+*1 topic completed, 4 remaining*
 
-4. **CSS Architecture & Methodology** 📝
+1. ✅ **Monorepo Structure Design** → [monorepo-structure-design.md](monorepo-structure-design.md)
+   - **Decision**: Standard monorepo with PNPM workspaces + Turborepo
+
+2. **CSS Architecture & Methodology** 📝
    - File: `css-architecture-analysis.md` (to be created)
    - Scope: CUBE CSS evaluation, modern CSS features, responsive design patterns
    - Questions: Container queries, view transitions, logical properties
