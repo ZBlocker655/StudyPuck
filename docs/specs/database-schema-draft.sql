@@ -39,6 +39,7 @@ CREATE TABLE study_languages (
     language_id TEXT NOT NULL, -- ISO language code (en, zh, fr, etc.)
     language_name TEXT NOT NULL, -- Display name
     is_active INTEGER DEFAULT 1,
+    cefr_level TEXT DEFAULT 'A1' CHECK(cefr_level IN ('A1', 'A2', 'B1', 'B2', 'C1', 'C2')),
     created_at INTEGER DEFAULT (strftime('%s', 'now')),
     settings TEXT, -- JSON: language-specific settings
     PRIMARY KEY (user_id, language_id),
@@ -220,7 +221,10 @@ CREATE TABLE translation_drill_context (
     state TEXT NOT NULL DEFAULT 'active' CHECK(state IN ('active', 'snoozed', 'dismissed')),
     added_from TEXT, -- 'draw_pile:group_id', 'pinned_from_review'
     added_at INTEGER DEFAULT (strftime('%s', 'now')),
+    last_used INTEGER, -- timestamp of most recent selection for sentence generation
+    usage_count INTEGER DEFAULT 0, -- total times selected for sentence generation
     state_until INTEGER, -- timestamp for snooze/dismiss duration
+    cefr_override TEXT CHECK(cefr_override IN ('A1', 'A2', 'B1', 'B2', 'C1', 'C2')), -- optional drill-level CEFR override
     metadata TEXT, -- JSON: context-specific data
     PRIMARY KEY (user_id, language_id, card_id),
     FOREIGN KEY (user_id, language_id, card_id) REFERENCES cards(user_id, language_id, card_id)
@@ -228,6 +232,7 @@ CREATE TABLE translation_drill_context (
 
 CREATE INDEX idx_translation_context_state ON translation_drill_context(user_id, language_id, state);
 CREATE INDEX idx_translation_context_added ON translation_drill_context(user_id, language_id, added_at);
+CREATE INDEX idx_translation_context_rotation ON translation_drill_context(user_id, language_id, state, last_used);
 
 -- ============================================================================
 -- VIEWS FOR COMMON QUERIES

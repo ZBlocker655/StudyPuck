@@ -29,11 +29,15 @@ StudyPuck is a hobby project focused on language learning through AI-powered tra
    - **Decision**: Multi-application SRS architecture with JSON flexibility
    - **Artifacts**: Complete schema in [database-schema-draft.sql](database-schema-draft.sql)
 
+7. **AI Integration Architecture** → [ai-integration-architecture.md](ai-integration-architecture.md)
+   - **Decision**: Batch caching with rotation-based card selection and CEFR personalization
+   - **Approach**: Cost-optimized with vendor flexibility and universal templates
+
 ### 🔄 In Progress Explorations
-**AI Integration Architecture** 🤖 *Active*
-- File: `ai-integration-architecture.md` (in progress)
-- Scope: Drill complexity, prompt engineering, caching strategy
-- Questions: Translation sophistication, context generation, API rate limiting
+**Authentication Implementation** 🔐 *Next*
+- File: `auth-implementation-plan.md` (to be created)
+- Scope: Auth0 integration, user session management, security patterns
+- Questions: Social login flow, session persistence, role management
 
 ### 📋 Pending Explorations (Priority Order)
 
@@ -109,4 +113,4 @@ To restore context after window refresh:
 5. Reference [architecture-requirements.md](architecture-requirements.md) for foundational requirements
 
 ## Next Action
-**Immediate focus**: AI Integration Architecture - Design prompt engineering strategies, caching layers, and API integration patterns for translation drill generation and card review assistance.
+**Immediate focus**: Authentication Implementation - Design Auth0 integration patterns, session management, and security architecture for multi-user StudyPuck deployment.

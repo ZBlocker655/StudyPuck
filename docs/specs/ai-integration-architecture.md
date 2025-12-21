@@ -11,19 +11,26 @@ This document defines the architecture for AI integration within StudyPuck, focu
 ## Core AI Use Cases
 
 ### 1. Translation Drill Generation
-**Primary Function**: Generate sentences incorporating active vocabulary cards for translation practice.
+**Primary Function**: Generate single sentences incorporating 1-4 active vocabulary cards for translation practice.
 
 **Input Context**:
-- Active cards from `translation_drill_context` table
-- Card content, meanings, examples, LLM instructions
+- Active cards from `translation_drill_context` table (with usage weighting)
+- Card selection algorithm: 1-4 cards per sentence, weighted by usage frequency
 - User language proficiency level
 - Session history/difficulty preferences
 
 **Output Requirements**:
-- Contextually appropriate sentences using target vocabulary
-- Multiple difficulty levels
-- Cultural/situational variety
-- Translation hints when needed
+- Single contextually appropriate sentence using selected vocabulary
+- Explicit reporting of which cards/words were incorporated
+- Natural sentence structure appropriate for target language
+- Difficulty scaling based on user preferences
+
+**Selection Strategy**:
+- **Rotation Algorithm**: Deterministic preference for least-recently-used cards
+- **AI Flexibility**: Choose 1-4 cards naturally based on sentence construction potential
+- **Natural Selection**: AI prioritizes good sentence flow over forcing incompatible cards together
+- **Isolation Handling**: Difficult-to-combine cards will naturally appear in separate sentences
+- **Coverage Guarantee**: Systematic rotation ensures all context cards get used over time
 
 ### 2. Card Review Assistance
 **Primary Function**: Provide contextual explanations, mnemonics, and usage examples during card review.
@@ -69,37 +76,57 @@ Google Gemini Flash / GPT-4o-mini
 
 ### Prompt Engineering Strategy
 
-#### Template System
-- **Base Templates**: Core prompt structures per use case
-- **Context Injection**: Dynamic card/session data insertion
-- **Difficulty Scaling**: Adjustable complexity parameters
-- **Language Pairs**: Specialized templates per language combination
+#### V1 Implementation: Single Sentence Generation
+- **Context Window**: Send 6-8 least-recently-used cards as candidates
+- **Card Selection**: AI chooses 1-4 cards naturally from candidate pool
+- **Modular Selection**: Isolated algorithm for card candidate selection (easily tunable)
+- **Response Format**: Structured JSON with sentence + used_card_ids array
+- **Natural Flow**: AI prioritizes sentence quality over forcing card combinations
+- **Variety Strategy**: Intentional complexity mix in each batch for active recall stimulation
+  - 2-3 single-card sentences (isolation practice)
+  - 3-4 two-card sentences (common combinations)
+  - 2-3 three-card+ sentences (complexity challenge)
 
-#### Context Management
-- **Active Cards**: Current translation context cards
-- **Session State**: User performance and preferences
-- **Historical Context**: Previous successful generations
-- **Constraint Propagation**: Difficulty, topic, formality preferences
+#### Future Enhancements
+- **Difficulty Scaling**: User-adjustable complexity (single sentence → paragraphs → dialogues)
+- **Context Expansion**: Multi-sentence scenarios and conversation contexts
+- **Cultural Integration**: Situational appropriateness and cultural context
+
+#### Template System
+- **Base Templates**: Core prompt structures emphasizing natural sentence construction
+- **Card Injection**: Rotation-sorted card candidates with usage metadata
+- **Language Pairs**: Specialized templates per language combination
+- **Flexibility Emphasis**: Prompts encourage natural card selection over forced combinations
 
 ### Caching Strategy
 
-#### Multi-Layer Caching
-1. **Cloudflare KV**: Generated content caching
-2. **Browser Cache**: Session-specific responses
-3. **Database Cache**: Reusable card enhancements
+#### Batch Generation & Caching
+- **Batch Size**: 8-10 sentences per AI request (balance cost vs. waste risk)
+- **Cache Storage**: Cloudflare KV with context-based cache keys
+- **Variety Strategy**: Mix of sentence complexities (1-4 cards) for unpredictable user experience
+- **Background Refill**: Generate new batch when cache drops to 3-4 sentences
+- **Context Invalidation**: Auto-invalidate when active context changes (minimize token waste)
 
-#### Cache Keys
-- Translation drills: `drill_{context_hash}_{difficulty}_{lang_pair}`
-- Card assistance: `assist_{card_id}_{assistance_type}_{user_id}`
-- Content enhancement: `enhance_{content_hash}_{lang_pair}`
+#### Cache Key Strategy
+- **Hash Composition**: `drill_cache_{user_id}_{language_id}_{context_hash}`
+- **Context Hash**: MD5 of sorted active card IDs + rotation state
+- **Rotation Tracking**: Include least-recently-used card priorities in hash
+- **Automatic Invalidation**: Context changes (dismiss/draw) trigger cache cleanup
+
+#### Context Change Detection
+- **Triggers**: Card dismissal, snooze, new draws from pile, manual additions
+- **Background Cleanup**: Remove invalid cache entries when context modified
+- **Cache Miss Handling**: Generate new batch when cache empty or invalid
+- **Performance Target**: Serve cached sentences instantly, batch regenerate in background
 
 ### Cost Management
 
 #### Request Optimization
-- **Batch Operations**: Multiple cards per API call where possible
-- **Smart Caching**: Aggressive caching for expensive operations
-- **Fallback Strategies**: Graceful degradation for rate limits
-- **Usage Monitoring**: Track costs per user/session
+- **Batch Operations**: Generate 8-10 sentences per AI call (balance cost efficiency vs. waste)
+- **Smart Caching**: Context-aware sentence caching with automatic invalidation
+- **Background Regeneration**: Refill cache when dropping to 3-4 sentences
+- **Modular Card Selection**: Isolated algorithm for candidate selection (6-8 LRU cards)
+- **Waste Prevention**: Conservative batch sizes to minimize invalidated sentence loss
 
 #### Rate Limiting
 - **User Quotas**: Daily/monthly AI operation limits
@@ -137,20 +164,94 @@ Google Gemini Flash / GPT-4o-mini
 
 ## Key Questions for Discussion
 
-1. **Prompt Complexity**: How sophisticated should drill generation be initially?
-2. **Context Window Management**: How much card context to include per request?
-3. **Quality Assurance**: How to ensure consistent, educational AI responses?
-4. **User Personalization**: What user preferences should influence AI behavior?
-5. **Multi-language Support**: Language-specific prompt engineering needs?
-6. **Performance Targets**: Response time and cost constraints?
+1. ✅ **Prompt Complexity**: Single sentence generation with 1-4 cards per sentence
+2. ✅ **Context Window Management**: 6-8 LRU cards as candidates, modular selection algorithm
+3. ✅ **Caching Strategy**: Batch generation (8-10 sentences) with variety mix, conservative waste prevention
+4. ✅ **Quality Assurance**: Prompt engineering approach for token efficiency
+5. ✅ **User Personalization**: CEFR levels (A1-C2) stored per language with optional drill-level override
+6. ✅ **Multi-language Support**: Universal template for V1, evolve to language-specific if needed
+7. ✅ **Performance Targets**: Cost optimization with vendor flexibility, 8-10 sentence batches, 2-3s acceptable
+
+## Architecture Decisions Made
+
+### Card Selection & Usage Balancing
+- **Selection Range**: 1-4 cards per generated sentence (AI chooses naturally)
+- **Rotation Strategy**: Deterministic least-recently-used prioritization
+- **AI Flexibility**: Prioritize sentence quality over forcing incompatible combinations
+- **Response Format**: JSON structure with sentence + array of used card IDs
+- **Variety Strategy**: Intentional complexity distribution for active recall stimulation
+
+### Batch Generation & Caching Strategy  
+- **Batch Composition**: 8-10 sentences with complexity variety (2-3 single-card, 3-4 two-card, 2-3 multi-card)
+- **Context Window**: 6-8 LRU cards sent as candidates per batch generation
+- **Refill Strategy**: Generate new batch when cache drops to 3-4 sentences
+- **Waste Prevention**: Conservative batch sizes to minimize invalidation loss
+- **Modular Design**: Isolated card selection algorithm for easy tuning
+- **CEFR Integration**: Use language-level or drill-override CEFR in all generation prompts
+
+### Quality Assurance Strategy
+- **Primary QA**: Strong prompt engineering with detailed guidelines and examples
+- **Token Efficiency**: No AI self-validation to minimize token costs
+- **Minimal Post-Processing**: Basic automated checks (vocabulary inclusion, length, encoding)
+- **V1 Approach**: Manual assessment by developer during initial usage
+- **Future Enhancement**: User feedback system can be added later if needed
+
+### CEFR Personalization Strategy
+- **Language-Level Storage**: Base CEFR level (A1-C2) stored in `study_languages` table
+- **Drill-Level Override**: Optional per-session CEFR override in `translation_drill_context`
+- **Default Behavior**: Use language-level CEFR, fall back to override if set
+- **Cross-App Consistency**: All AI generation uses same CEFR level per language
+- **Prompt Integration**: "Generate sentences appropriate for CEFR level B1..."
+
+### Multi-Language Template Strategy
+- **V1 Approach**: Universal template for all language pairs
+- **Rationale**: Start simple, avoid premature optimization, reduce development complexity
+- **Evolution Path**: Add language-specific refinements based on real usage patterns
+- **Template Focus**: Natural English sentences with varied structures for good translation practice
+- **Future Enhancement**: Language-pair specific templates if construct-nudging proves valuable
+
+### Performance & Cost Strategy
+- **Latency Acceptance**: 2-3s generation delays acceptable for fresh content
+- **Vendor Flexibility**: Avoid lock-in, design for easy AI service switching
+- **Cost Optimization**: Prefer cheaper options (Gemini Flash) if quality acceptable
+- **Batch Size**: Maintain 8-10 sentences for cost/waste balance
+- **Quality Gate**: Switch vendors if quality becomes unacceptable
+
+### Database Schema Implications
+The rotation strategy requires tracking in `translation_drill_context`:
+- `last_used`: Timestamp of most recent selection (primary sort key)
+- `usage_count`: Total usage tracking (secondary metric)
+- `cefr_override`: Optional drill-level CEFR override (A1-C2)
+- **Selection Algorithm**: ORDER BY last_used ASC NULLS FIRST, then let AI choose naturally from top candidates
+- **CEFR Logic**: Use cefr_override if set, otherwise use study_languages.cefr_level
+- **Schema Update**: Added rotation fields and CEFR override to translation_drill_context table
+
+### Schema Update Guidelines
+- **Rule**: Always edit CREATE TABLE statements directly rather than using ALTER TABLE
+- **Rationale**: Maintains clean, authoritative schema definition
+- **Implementation**: Schema changes update the master CREATE statements
+
+### Cache Implementation Details
+- **Batch Size**: 8-10 sentences per AI request (balance cost vs. invalidation waste)
+- **Cache Structure**: JSON array of {sentence, used_card_ids, created_at}
+- **Context Hashing**: MD5 of sorted active card IDs + rotation state
+- **Refill Trigger**: Generate new batch when cache drops to 3-4 sentences
+- **Variety Goal**: Unpredictable sentence complexity to stimulate active recall
+
+### Context Window Strategy
+- **Candidate Selection**: Modular algorithm sends 6-8 least-recently-used cards
+- **AI Flexibility**: Choose 1-4 cards naturally from candidate pool
+- **Rotation Guarantee**: All cards eventually appear as candidates
+- **Tunable Parameters**: Easy adjustment of candidate pool size (6-8 range)
 
 ## Success Criteria
 
 - **Response Quality**: 90%+ of generated content is educationally appropriate
-- **Performance**: <2s response times for drill generation  
-- **Cost Efficiency**: <$0.10/user/month average AI costs
+- **Performance**: <2s cached responses, 2-3s fresh generation acceptable
+- **Cost Efficiency**: <$0.10/user/month average AI costs (optimize for cost with quality gate)
 - **User Experience**: Seamless integration with existing workflows
 - **Scalability**: Architecture supports 10x user growth without major changes
+- **Vendor Flexibility**: Easy switching between AI providers if quality/cost changes
 
 ---
 
