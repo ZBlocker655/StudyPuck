@@ -106,7 +106,8 @@ To restore context after window refresh:
 1. Read this file for current status
 2. Review completed exploration files for detailed decisions
 3. Check the "Next up" exploration for current focus
-4. Reference [architecture-requirements.md](architecture-requirements.md) for foundational requirements
+4. **Read functional requirements** in `docs/requirements/` for complete feature context
+5. Reference [architecture-requirements.md](architecture-requirements.md) for foundational requirements
 
 ## Next Action
 **Immediate focus**: Database Schema Design Section 1 - Entity Relationship Analysis. Ready to identify core entities, relationships, and architectural decisions for multi-application SRS independence.

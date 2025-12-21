@@ -124,10 +124,25 @@ This document follows a structured 5-section approach to design the complete dat
 
 ## Key Architectural Decisions Made
 
-### Multi-Application SRS Architecture
+### Data Partitioning Principle
+- **Principle**: All data partitioned first by user, then by language
+- **Decision**: Every table includes user_id and language_id as primary partitioning keys
+- **Rationale**: Complete isolation between users and between languages within user
+- **Database Impact**: All tables follow pattern (user_id, language_id, ...) for primary keys and queries
+- **Query Implications**: All queries naturally scoped by user+language, preventing cross-contamination
+
+### Multi-Application SRS Architecture  
 - **Principle**: Each mini-application (Card Review, Translation Drills) maintains independent SRS metadata
+- **Decision**: Vertical separation with separate SRS tables per application (NOT shared table with discriminator)
+- **Rationale**: Enables independent app evolution and separate algorithm development
 - **Implication**: Same card can have different review schedules across applications
-- **Database Impact**: Separate SRS tables per application or polymorphic design needed
+- **Database Impact**: `card_review_srs`, `translation_drill_srs`, etc. as separate tables
+
+### Schema Design Philosophy Per Application
+- **Principle**: Hybrid approach - relational core with JSON flexibility where beneficial
+- **Decision**: Core entities (users, cards, groups) remain normalized; SRS metadata uses JSON blobs with key fields extracted
+- **Rationale**: Leverages SQLite JSON support while maintaining query performance and schema evolution flexibility
+- **Database Impact**: Critical query fields as columns, evolving metadata as JSON
 
 ### Card-Centric Data Model
 - **Principle**: Cards are read-only shared resources consumed by applications

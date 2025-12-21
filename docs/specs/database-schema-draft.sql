@@ -1,7 +1,7 @@
--- StudyPuck Database Schema Draft v1.0
--- Status: Initial Draft for Review
--- Created: December 19, 2024  
--- Based On: Query analysis from functional requirements
+-- StudyPuck Database Schema Draft
+-- Status: Simplified - JSON Arrays for Card Components
+-- Updated: December 20, 2024  
+-- Changes: Eliminated separate card_examples/card_mnemonics tables, simplified triggers
 
 -- Design Principles Applied:
 --
@@ -58,7 +58,7 @@ CREATE TABLE groups (
     FOREIGN KEY (user_id, language_id) REFERENCES study_languages(user_id, language_id)
 );
 
--- Cards (Core Shared Entity)
+-- Cards (Core Shared Entity) - SIMPLIFIED
 CREATE TABLE cards (
     user_id TEXT NOT NULL,
     language_id TEXT NOT NULL,
@@ -66,6 +66,8 @@ CREATE TABLE cards (
     content TEXT NOT NULL, -- Main study prompt
     card_type TEXT DEFAULT 'word' CHECK(card_type IN ('word', 'pattern', 'complex_prompt')),
     meaning TEXT,
+    examples TEXT, -- JSON array: [{"text": "这次旅行是一次特别的经历", "translation": "This trip was a special experience"}, ...]
+    mnemonics TEXT, -- JSON array: ["Go through here and experience something nice inside", "Another mnemonic", ...]
     llm_instructions TEXT, -- Instructions for AI features
     created_at INTEGER DEFAULT (strftime('%s', 'now')),
     updated_at INTEGER DEFAULT (strftime('%s', 'now')),
@@ -81,26 +83,27 @@ CREATE VIRTUAL TABLE cards_fts USING fts5(
     card_id UNINDEXED,
     content,
     meaning,
+    examples, -- Include examples in full-text search
     content='cards',
     content_rowid='rowid'
 );
 
 -- Automatic FTS synchronization triggers
 CREATE TRIGGER cards_fts_insert AFTER INSERT ON cards BEGIN
-    INSERT INTO cards_fts(rowid, user_id, language_id, card_id, content, meaning) 
-    VALUES (new.rowid, new.user_id, new.language_id, new.card_id, new.content, new.meaning);
+    INSERT INTO cards_fts(rowid, user_id, language_id, card_id, content, meaning, examples) 
+    VALUES (new.rowid, new.user_id, new.language_id, new.card_id, new.content, new.meaning, new.examples);
 END;
 
 CREATE TRIGGER cards_fts_delete AFTER DELETE ON cards BEGIN
-    INSERT INTO cards_fts(cards_fts, rowid, user_id, language_id, card_id, content, meaning) 
-    VALUES('delete', old.rowid, old.user_id, old.language_id, old.card_id, old.content, old.meaning);
+    INSERT INTO cards_fts(cards_fts, rowid, user_id, language_id, card_id, content, meaning, examples) 
+    VALUES('delete', old.rowid, old.user_id, old.language_id, old.card_id, old.content, old.meaning, old.examples);
 END;
 
 CREATE TRIGGER cards_fts_update AFTER UPDATE ON cards BEGIN
-    INSERT INTO cards_fts(cards_fts, rowid, user_id, language_id, card_id, content, meaning) 
-    VALUES('delete', old.rowid, old.user_id, old.language_id, old.card_id, old.content, old.meaning);
-    INSERT INTO cards_fts(rowid, user_id, language_id, card_id, content, meaning) 
-    VALUES (new.rowid, new.user_id, new.language_id, new.card_id, new.content, new.meaning);
+    INSERT INTO cards_fts(cards_fts, rowid, user_id, language_id, card_id, content, meaning, examples) 
+    VALUES('delete', old.rowid, old.user_id, old.language_id, old.card_id, old.content, old.meaning, old.examples);
+    INSERT INTO cards_fts(rowid, user_id, language_id, card_id, content, meaning, examples) 
+    VALUES (new.rowid, new.user_id, new.language_id, new.card_id, new.content, new.meaning, new.examples);
 END;
 
 CREATE INDEX idx_cards_type ON cards(user_id, language_id, card_type);
@@ -121,30 +124,7 @@ CREATE TABLE card_groups (
 CREATE INDEX idx_card_groups_by_group ON card_groups(user_id, language_id, group_id);
 CREATE INDEX idx_card_groups_by_card ON card_groups(user_id, language_id, card_id);
 
--- Card Examples
-CREATE TABLE card_examples (
-    user_id TEXT NOT NULL,
-    language_id TEXT NOT NULL,
-    card_id TEXT NOT NULL,
-    example_id INTEGER, -- auto-increment within card
-    example_text TEXT NOT NULL,
-    translation TEXT, -- optional translation
-    created_at INTEGER DEFAULT (strftime('%s', 'now')),
-    PRIMARY KEY (user_id, language_id, card_id, example_id),
-    FOREIGN KEY (user_id, language_id, card_id) REFERENCES cards(user_id, language_id, card_id)
-);
 
--- Card Mnemonics
-CREATE TABLE card_mnemonics (
-    user_id TEXT NOT NULL,
-    language_id TEXT NOT NULL,
-    card_id TEXT NOT NULL,
-    mnemonic_id INTEGER, -- auto-increment within card
-    mnemonic_text TEXT NOT NULL,
-    created_at INTEGER DEFAULT (strftime('%s', 'now')),
-    PRIMARY KEY (user_id, language_id, card_id, mnemonic_id),
-    FOREIGN KEY (user_id, language_id, card_id) REFERENCES cards(user_id, language_id, card_id)
-);
 
 -- ============================================================================
 -- CARD ENTRY APPLICATION TABLES
@@ -280,6 +260,8 @@ SELECT
     c.card_id,
     c.content,
     c.meaning,
+    c.examples,
+    c.mnemonics,
     s.next_due,
     s.interval_days
 FROM cards c
@@ -293,38 +275,6 @@ WHERE s.next_due <= strftime('%s', 'now');
 -- ============================================================================
 -- TRIGGERS FOR DATA INTEGRITY
 -- ============================================================================
-
--- Auto-increment example_id within card scope
-CREATE TRIGGER tr_card_examples_auto_id 
-    AFTER INSERT ON card_examples
-    WHEN NEW.example_id IS NULL
-BEGIN
-    UPDATE card_examples 
-    SET example_id = (
-        SELECT COALESCE(MAX(example_id), 0) + 1 
-        FROM card_examples 
-        WHERE user_id = NEW.user_id 
-          AND language_id = NEW.language_id 
-          AND card_id = NEW.card_id
-    )
-    WHERE rowid = NEW.rowid;
-END;
-
--- Auto-increment mnemonic_id within card scope  
-CREATE TRIGGER tr_card_mnemonics_auto_id 
-    AFTER INSERT ON card_mnemonics
-    WHEN NEW.mnemonic_id IS NULL
-BEGIN
-    UPDATE card_mnemonics 
-    SET mnemonic_id = (
-        SELECT COALESCE(MAX(mnemonic_id), 0) + 1 
-        FROM card_mnemonics 
-        WHERE user_id = NEW.user_id 
-          AND language_id = NEW.language_id 
-          AND card_id = NEW.card_id
-    )
-    WHERE rowid = NEW.rowid;
-END;
 
 -- Update cards.updated_at on modification
 CREATE TRIGGER tr_cards_updated_at 
@@ -351,9 +301,37 @@ END;
 -- 1. Card-group many-to-many: May need optimization if users have thousands of cards
 -- 2. SRS updates: High frequency individual updates - consider WAL mode
 -- 3. Translation context queries: Should remain fast due to small context sizes
+-- 4. JSON extraction: D1's JSON functions are optimized but consider generated columns for heavy queries
 
 -- Notes for Review:
--- 1. UUID vs Integer IDs: Using text UUIDs for flexibility but could optimize with integers
+-- 1. Simplified card content: Examples/mnemonics as JSON arrays eliminate complex triggers
 -- 2. JSON metadata fields: Positioned for algorithm evolution, may need schema migration strategy
--- 3. FTS5 integration: Needs careful maintenance for card content synchronization
--- 4. Trigger complexity: Auto-increment triggers may need optimization for high-volume operations
+-- 3. FTS5 integration: Now includes examples content for richer search
+-- 4. Atomic card operations: Single-table read/write for complete card data
+
+-- ============================================================================
+-- EXAMPLE JSON STRUCTURES
+-- ============================================================================
+
+-- examples field JSON structure:
+-- [
+--   {
+--     "text": "这次旅行是一次特别的经历。",
+--     "translation": "This trip was a special experience."
+--   },
+--   {
+--     "text": "他有很多工作经历。",
+--     "translation": "He has a lot of work experience."
+--   }
+-- ]
+
+-- mnemonics field JSON structure:
+-- [
+--   "Go through here and experience something nice inside, which might not be legal!",
+--   "经历 sounds like 'jing-li' = experience you go through"
+-- ]
+
+-- Query examples for JSON fields:
+-- SELECT examples ->> '$[0].text' FROM cards WHERE card_id = ?;  -- First example text
+-- SELECT json_array_length(examples) FROM cards WHERE card_id = ?;  -- Count examples
+-- SELECT * FROM cards WHERE examples LIKE '%旅行%';  -- Search within examples
