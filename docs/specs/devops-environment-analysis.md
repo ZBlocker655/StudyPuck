@@ -52,29 +52,7 @@
 - Environment setup complexity
 - Potential version inconsistencies
 
-## Authentication Free Tier Comparison
 
-### Social Login Support
-
-#### Auth0 Free Tier
-- **Users**: 7,500 active users
-- **Social providers**: Google, GitHub, Facebook, etc.
-- **Features**: Full social login support
-- **Pricing**: Free tier very generous
-
-#### Supabase Auth Free Tier  
-- **Users**: 50,000 active users
-- **Social providers**: 20+ providers included
-- **Features**: Row Level Security, real-time subscriptions
-- **Integration**: Works well if you use Supabase for database
-
-#### Clerk Free Tier
-- **Users**: 10,000 monthly active users
-- **Social providers**: All major providers
-- **Features**: Pre-built UI components, webhooks
-- **DX**: Excellent developer experience
-
-**Recommendation**: Auth0 or Clerk for pure auth, Supabase if you want to explore their database instead of Cloudflare D1.
 
 ## Offline Strategy Decision Framework
 

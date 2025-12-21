@@ -33,19 +33,18 @@ StudyPuck is a hobby project focused on language learning through AI-powered tra
    - **Decision**: Batch caching with rotation-based card selection and CEFR personalization
    - **Approach**: Cost-optimized with vendor flexibility and universal templates
 
+8. **Authentication Implementation** → [auth-implementation-plan.md](auth-implementation-plan.md)
+   - **Decision**: Auth0 (OIDC) + Auth.js + 7-day PWA sessions
+
 ### 🔄 In Progress Explorations
-**Authentication Implementation** 🔐 *Next*
-- File: `auth-implementation-plan.md` (to be created)
-- Scope: Auth0 integration, user session management, security patterns
-- Questions: Social login flow, session persistence, role management
+**Authentication Implementation** 🔐 *Completed*
+- File: `auth-implementation-plan.md` (Auth0 + Auth.js, all decisions made)
+- Scope: Complete authentication architecture designed
+- Status: Ready for implementation - Auth0 OIDC + Auth.js + 7-day PWA sessions
 
 ### 📋 Pending Explorations (Priority Order)
 
 #### Phase 1: Backend Architecture Finalization
-1. **Authentication Implementation** 🔐
-   - File: `auth-implementation-plan.md` (to be created)
-   - Scope: Auth0 integration, user session management, security patterns
-   - Questions: Social login flow, session persistence, role management
 
 #### Phase 2: Frontend & Development Environment
 3. **Monorepo Structure Design** 📁
@@ -79,10 +78,20 @@ StudyPuck is a hobby project focused on language learning through AI-powered tra
    - Scope: Service worker design, sync patterns, conflict resolution
    - Questions: Cache strategies, background sync, user experience
 
-8. **Performance & Monitoring** 📈
+9. **Performance & Monitoring** 📈
    - File: `performance-monitoring-plan.md` (to be created)
    - Scope: Performance metrics, error tracking, user analytics
    - Questions: Monitoring tools, alerting, optimization strategies
+
+10. **Internationalization Architecture** 🌐
+    - File: `internationalization-architecture.md` (to be created)
+    - Scope: Future i18n support, locale handling, RTL languages, content management
+    - Questions: SvelteKit i18n patterns, URL structure, translation workflows
+
+11. **Monetization Architecture** 💰
+    - File: `monetization-architecture.md` (to be created)
+    - Scope: Future subscription tiers, payment processing, feature gating
+    - Questions: Stripe integration, freemium models, usage tracking
 
 ## Current Recommended Stack
 Based on completed explorations:
