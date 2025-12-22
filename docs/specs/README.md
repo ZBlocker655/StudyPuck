@@ -39,23 +39,29 @@ StudyPuck is a hobby project focused on language learning through AI-powered tra
 9. **Monorepo Structure Design** → [monorepo-structure-design.md](monorepo-structure-design.md)
    - **Decision**: Standard monorepo with PNPM workspaces + Turborepo
 
+10. **CSS Architecture & Methodology** → [css-architecture-analysis.md](css-architecture-analysis.md)
+    - **Decision**: Progressive design system + CUBE CSS + dark mode + selective animations
+
 ### 🔄 In Progress Explorations
-**Authentication Implementation** 🔐 *Completed*
-- File: `auth-implementation-plan.md` (Auth0 + Auth.js, all decisions made)
-- Scope: Complete authentication architecture designed
-- Status: Ready for implementation - Auth0 OIDC + Auth.js + 7-day PWA sessions
+**Testing Strategy & Database Operations** 🧪 *Next*
+- File: `testing-database-strategy.md` (to be created)
+- Scope: Unit/integration testing patterns, test database spawning, schema migrations
+- Questions: Modern test database strategies, migration tooling, CI/CD integration
 
 ### 📋 Pending Explorations (Priority Order)
 
 #### Phase 1: Backend Architecture Finalization
 
 #### Phase 2: Frontend & Development Environment
-*1 topic completed, 4 remaining*
+*2 topics completed, 3 remaining*
 
 1. ✅ **Monorepo Structure Design** → [monorepo-structure-design.md](monorepo-structure-design.md)
    - **Decision**: Standard monorepo with PNPM workspaces + Turborepo
 
-2. **CSS Architecture & Methodology** 📝
+2. ✅ **CSS Architecture & Methodology** → [css-architecture-analysis.md](css-architecture-analysis.md)
+   - **Decision**: Progressive design system + CUBE CSS + dark mode + selective animations
+
+3. **Testing Strategy & Database Operations** 🧪
    - File: `css-architecture-analysis.md` (to be created)
    - Scope: CUBE CSS evaluation, modern CSS features, responsive design patterns
    - Questions: Container queries, view transitions, logical properties

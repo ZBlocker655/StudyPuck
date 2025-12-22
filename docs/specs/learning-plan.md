@@ -79,11 +79,41 @@
 ### Modern CSS Architecture
 **Why needed**: Choosing styling approach for StudyPuck
 **Learning goals**:
-- CUBE CSS methodology evaluation
+- CUBE CSS methodology evaluation and implementation
+- Progressive design system development patterns
+- CSS custom properties for theming and dark mode
 - Modern CSS features (container queries, logical properties)
-- CSS custom properties and theming
-- Responsive design patterns
-- Performance implications of different CSS approaches
+- CSS transitions and performance-optimized animations
+- Accessibility considerations (reduced motion, color contrast)
+- Responsive design patterns and mobile-first approach
+
+### CSS Custom Properties & Theming
+**Why needed**: Dark mode implementation and design system consistency
+**Learning goals**:
+- CSS custom properties (variables) mastery
+- Dynamic theming with CSS and JavaScript
+- System preference detection (`prefers-color-scheme`)
+- Local storage for theme persistence
+- Accessibility in dark mode design (contrast ratios)
+
+### Animation & Interaction Design
+**Why needed**: Selective animations for enhanced UX
+**Learning goals**:
+- CSS transitions and transform performance optimization
+- View Transitions API exploration (cutting-edge)
+- Micro-interactions and hover states
+- Loading states and skeleton screens
+- Accessibility with `prefers-reduced-motion`
+- 60fps animation techniques (transform/opacity only)
+
+### Monorepo & Build Tools
+**Why needed**: Implementing PNPM + Turborepo monorepo structure
+**Learning goals**:
+- Turborepo configuration and pipeline setup
+- PNPM workspaces management
+- Build caching and optimization strategies
+- Monorepo development workflows
+- Package dependency management across workspace
 
 ### Testing Strategies
 **Why needed**: Ensuring application quality and database operations
@@ -100,23 +130,31 @@
 ### High Priority (Architecture Dependencies)
 1. **OAuth 2.0/OpenID Connect** - Needed for auth implementation
 2. **Auth.js patterns** - Needed for SvelteKit integration
-3. **CSS Architecture** - Needed for UI development
+3. **CSS Architecture & Design Systems** - Needed for UI development
+4. **CSS Custom Properties & Theming** - Needed for dark mode implementation
+5. **Animation & Interaction Design** - Needed for enhanced UX
+6. **Turborepo & PNPM** - Needed for monorepo implementation
 
 ### Medium Priority (Development Quality)
-4. **Testing strategies** - Needed before major development
-5. **Cloudflare Workers security** - Needed for production deployment
+7. **Testing strategies** - Needed before major development
+8. **Cloudflare Workers security** - Needed for production deployment
 
 ### Low Priority (Future Features)
-6. **Internationalization** - Future monetization consideration
-7. **Monetization patterns** - Future business model
+9. **Internationalization** - Future monetization consideration
+10. **Monetization patterns** - Future business model
 
 ## Learning Resources
 
 ### Bookmarked for Later
 - Auth.js SvelteKit documentation
 - Cloudflare Workers security guide
-- CUBE CSS methodology
+- CUBE CSS methodology guide
+- CSS custom properties and theming patterns
+- Modern CSS animation techniques and accessibility
+- View Transitions API documentation
 - Modern testing patterns for SvelteKit
+- Turborepo documentation and examples
+- PNPM workspaces guide
 
 ### Community Resources
 - SvelteKit Discord for auth questions
