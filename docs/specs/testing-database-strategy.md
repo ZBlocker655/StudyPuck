@@ -276,10 +276,172 @@ test('user can sign in and create a study card', async ({ page }) => {
 - **Environment parity**: Ensure tests match production environment
 - **Performance testing**: Database query performance validation
 
-**Pipeline Integration Options**:
-- **GitHub Actions**: Run tests on push/PR, block deployment on failure
-- **Cloudflare Pages CI**: Built-in testing integration
-- **Preview deployments**: Test against preview environments
-- **Database staging**: Test migrations on staging D1 database
+**Pipeline Integration Approaches**:
 
-*Questions pending your input on testing philosophy, framework preferences, and database testing approach*
+#### Option A: GitHub Actions Only (Complete Control)
+- **Full test pipeline** in GitHub Actions before Cloudflare deployment
+- **Benefits**: Complete control, rich ecosystem, detailed reporting
+- **Trade-offs**: Longer pipeline, separate from deployment process
+
+#### Option B: Cloudflare Pages CI (Integrated)
+- **Built-in testing** as part of Cloudflare Pages deployment
+- **Benefits**: Tight integration, faster feedback
+- **Trade-offs**: Limited testing tools, less flexibility
+
+#### Option C: Hybrid Pipeline (Recommended)
+✅ **Selected approach for StudyPuck**
+
+**GitHub Actions + Cloudflare Pages Integration Strategy**:
+
+**GitHub Actions Workflow**:
+```yaml
+name: Test and Deploy
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      
+      - name: Install dependencies
+        run: pnpm install
+      
+      - name: Setup test environment
+        run: |
+          # Setup Wrangler for D1 local testing
+          npx wrangler d1 execute test-db --local --file=schema.sql
+          # Setup test Auth0 environment variables
+          echo "AUTH_SECRET=${{ secrets.AUTH_SECRET }}" >> .env.test
+      
+      - name: Run unit tests
+        run: pnpm turbo test:unit --filter=web
+      
+      - name: Run integration tests  
+        run: pnpm turbo test:integration --filter=web
+        env:
+          DATABASE_URL: ".wrangler/state/v3/d1/miniflare-D1DatabaseObject/test.sqlite"
+          AUTH0_TEST_DOMAIN: ${{ secrets.AUTH0_TEST_DOMAIN }}
+      
+      - name: Run E2E tests (on PR only)
+        if: github.event_name == 'pull_request'
+        run: pnpm turbo test:e2e --filter=web
+        env:
+          PLAYWRIGHT_BASE_URL: "http://localhost:5173"
+          TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
+          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: studypuck
+          directory: apps/web/build
+```
+
+**Testing Pipeline Strategy**:
+
+**1. Fast Feedback Loop**:
+- **Every push**: Unit tests (mocked, <2 min)
+- **Every push**: Integration tests with D1 local (<5 min)
+- **Pull requests only**: E2E tests (realistic, <10 min)
+
+**2. Environment Management**:
+```javascript
+// Test environment configuration
+const testConfig = {
+  development: {
+    database: '.wrangler/state/v3/d1/test.sqlite',
+    auth: 'mocked',
+    ai: 'mocked'
+  },
+  integration: {
+    database: 'wrangler d1 local',
+    auth: 'test-tenant', 
+    ai: 'test-api-keys'
+  },
+  e2e: {
+    database: 'preview-db',
+    auth: 'test-tenant',
+    ai: 'test-api-keys'
+  }
+};
+```
+
+**3. Database Migration Testing**:
+```bash
+# Migration testing pipeline
+test-migrations:
+  - name: Test database migrations
+    run: |
+      # Create clean test database
+      npx wrangler d1 execute test-db --local --command="DROP TABLE IF EXISTS cards;"
+      # Apply all migrations
+      npx wrangler d1 execute test-db --local --file=migrations/*.sql
+      # Run data integrity tests
+      pnpm test:migrations
+```
+
+**4. Preview Environment Testing**:
+- **Cloudflare Pages preview deployments** for each PR
+- **Automated tests** against preview URLs
+- **Database migrations** tested on temporary D1 instances
+
+**CI/CD Integration Benefits**:
+
+**Development Workflow**:
+- **Immediate feedback**: Fast unit tests on every commit
+- **Confidence building**: Integration tests catch D1/Auth issues
+- **Production safety**: E2E tests validate user journeys before merge
+
+**Deployment Safety**:
+- **Zero-downtime deployments**: Tests pass before Cloudflare deployment
+- **Migration validation**: Database schema changes tested before production
+- **Rollback capability**: Previous version available if issues detected
+
+**Cost Optimization**:
+- **GitHub Actions**: 2000 free minutes/month for private repos
+- **Selective E2E testing**: Only on PRs to minimize Auth0 test usage
+- **Preview deployments**: Cloudflare Pages built-in feature (free tier)
+
+**Learning Opportunities**:
+- **Modern CI/CD patterns**: GitHub Actions workflows and deployment gates
+- **Test environment management**: Multiple test configurations and data isolation
+- **Cloudflare integration**: Pages deployment automation and D1 testing
+- **Professional practices**: Industry-standard testing pipelines
+
+✅ **Decision**: Hybrid CI/CD integration approach
+- **GitHub Actions**: Comprehensive testing pipeline with environment management
+- **Cloudflare Pages**: Automated deployment after successful tests  
+- **Preview environments**: PR-based testing with temporary D1 instances
+- **Cost-optimized**: Fast feedback with selective comprehensive testing
+
+**Final Testing Strategy Summary**:
+
+**Complete Testing Architecture for StudyPuck**:
+1. ✅ **Philosophy**: Comprehensive testing with testable code design
+2. ✅ **Framework**: Vitest + Playwright for optimal developer experience
+3. ✅ **Database**: D1 local simulator for consistency with production
+4. ✅ **Authentication**: Hybrid approach (mocked + test tenant + E2E)
+5. ✅ **CI/CD**: GitHub Actions + Cloudflare Pages with preview testing
+
+**Implementation Timeline**:
+- **Week 1**: Basic test setup (Vitest + Playwright configuration)
+- **Week 2**: Unit test patterns and D1 simulator integration  
+- **Week 3**: Authentication testing utilities and test Auth0 tenant
+- **Week 4**: CI/CD pipeline and preview environment testing
+
+**Ready for implementation** with clear testing strategy supporting confident development and deployment.
