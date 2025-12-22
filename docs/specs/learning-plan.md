@@ -125,6 +125,16 @@
 - Database schema migration testing
 - AI service mocking for tests
 
+### Testing Frameworks & Tools
+**Why needed**: Implementing comprehensive testing strategy
+**Learning goals**:
+- Vitest configuration and modern testing patterns
+- Playwright E2E testing and browser automation
+- Component testing with Playwright + Svelte
+- Test database management with D1 simulator
+- Mocking strategies for external services (Auth0, AI)
+- CI/CD testing pipeline integration
+
 ## Learning Priority Queue
 
 ### High Priority (Architecture Dependencies)
@@ -137,11 +147,12 @@
 
 ### Medium Priority (Development Quality)
 7. **Testing strategies** - Needed before major development
-8. **Cloudflare Workers security** - Needed for production deployment
+8. **Testing Frameworks & Tools** - Needed for comprehensive testing implementation
+9. **Cloudflare Workers security** - Needed for production deployment
 
 ### Low Priority (Future Features)
-9. **Internationalization** - Future monetization consideration
-10. **Monetization patterns** - Future business model
+10. **Internationalization** - Future monetization consideration
+11. **Monetization patterns** - Future business model
 
 ## Learning Resources
 
@@ -153,6 +164,8 @@
 - Modern CSS animation techniques and accessibility
 - View Transitions API documentation
 - Modern testing patterns for SvelteKit
+- Vitest configuration and best practices
+- Playwright testing guide and component testing
 - Turborepo documentation and examples
 - PNPM workspaces guide
 
