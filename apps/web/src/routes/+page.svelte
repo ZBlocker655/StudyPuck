@@ -17,7 +17,7 @@
 
 	<footer>
 		<p>Milestone 1.1: Monorepo + Basic SvelteKit App ✅</p>
-		<p><small>GitHub Actions deployment pipeline fixed - Dec 26, 2024</small></p>
+		<p><small>GitHub Actions + PR workflow active - Dec 26, 2024</small></p>
 	</footer>
 </main>
 
