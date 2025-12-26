@@ -1,8 +1,8 @@
 # StudyPuck Implementation Guide
 
-**Status**: Milestone 1.1 complete - Ready for deployment testing  
-**Current Branch**: `feature/impl1.1`  
-**Next Action**: Push branch and verify deployment
+**Status**: Milestone 1.1 complete - Deployment pipeline needs fixing before 1.2  
+**Current Branch**: `main`  
+**Next Action**: Fix test gating in deployment pipeline, then proceed to authentication
 
 ## Implementation Overview
 
@@ -39,8 +39,8 @@ docs/implementation/
 
 **Milestone 1.1** ✅ *Complete* → [1.1-monorepo-setup.md](milestones/1.1-monorepo-setup.md)
 - **Goal**: Get studypuck.app loading with basic SvelteKit app from monorepo
-- **Status**: Code implementation complete, ready for deployment testing
-- **Branch**: `feature/impl1.1` (committed, ready to push)
+- **Status**: Successfully deployed to production (https://studypuck.app)
+- **Issue**: Deployment pipeline needs proper test gating before Milestone 1.2
 
 **Milestone 1.2** → [1.2-authentication.md](milestones/1.2-authentication.md)
 - **Goal**: Working login/logout flow using Auth0 + Auth.js

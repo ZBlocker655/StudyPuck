@@ -16,20 +16,33 @@
 
 ### ✅ Milestone 1.1 Complete - Monorepo + Basic SvelteKit App
 - [x] PNPM workspace with Turborepo configuration
-- [x] SvelteKit app in apps/web with Cloudflare adapter
+- [x] SvelteKit app in apps/web with static adapter
 - [x] Custom StudyPuck branding and styling
 - [x] GitHub Actions CI/CD pipeline
 - [x] Comprehensive .gitignore and .gitattributes
 - [x] Local development verified working
 - [x] Production build verified working
-- [x] Committed to feature/impl1.1 branch
+- [x] Successfully deployed to https://studypuck.app
 
-### 🔄 Next: Deployment Testing
-- [ ] Push feature/impl1.1 branch to trigger GitHub Actions
-- [ ] Verify GitHub Actions build and deploy successfully  
-- [ ] Confirm studypuck.app loads StudyPuck page (not Cloudflare error)
-- [ ] Merge to main branch after successful deployment
-- [ ] Set up GitHub Codespaces development container
+### 🚨 CRITICAL ISSUE: Deployment Pipeline Not Properly Gated
+**Problem**: Cloudflare Pages auto-deploys on main branch push, bypassing GitHub Actions testing
+- Cloudflare direct integration deploys immediately when code is pushed to main
+- GitHub Actions runs in parallel but doesn't gate deployment  
+- Failed tests won't prevent broken code from reaching production
+- Need to fix before Milestone 1.2 to ensure authentication testing works properly
+
+**Solutions to evaluate**:
+- Option A: Disable Cloudflare auto-deploy, use GitHub Actions API deployment only
+- Option B: Configure GitHub branch protection to require status checks before merge
+- Option C: Keep Cloudflare for preview, GitHub Actions for production
+
+**Status**: Must resolve before proceeding to Milestone 1.2 Authentication
+
+### 🔄 Next: Fix Deployment Gating
+- [ ] Investigate why GitHub Actions workflow didn't trigger on main branch push
+- [ ] Choose deployment gating strategy (Option A/B/C above)  
+- [ ] Configure proper test gates before production deployment
+- [ ] Verify testing pipeline blocks broken deployments
 
 ## Future Considerations
 
