@@ -48,9 +48,10 @@ StudyPuck/
 ## ✅ **Before Making Changes**
 
 1. **Read current implementation status**: `docs/implementation/README.md`
-2. **Check active milestone**: Currently ready for Milestone 1.2 Authentication
-3. **Understand the workflow**: Feature branch → PR → Tests pass → Merge
-4. **Verify tests locally**: `pnpm turbo lint --filter=web`
+2. **Check project requirements**: `docs/requirements/`
+3. **Review architecture decisions**: `docs/specs/`
+4. **Understand the workflow**: Feature branch → PR → Tests pass → Merge
+5. **Verify tests locally**: See build/test commands below
 
 ## 🛡️ **Production Safety Rules**
 
@@ -69,19 +70,52 @@ StudyPuck/
 - **Failed deployment**: Check Cloudflare Pages dashboard and GitHub Actions logs
 - **Test failures**: Fix in feature branch, do not bypass
 
-## 📚 **Key Documentation Locations**
+## 📚 **Essential Documentation Locations**
 
+- **Project Requirements**: `docs/requirements/`
+- **Architecture & Specs**: `docs/specs/`
 - **Implementation Guide**: `docs/implementation/README.md`
 - **Deployment Pipeline**: `docs/implementation/guides/deployment-pipeline-best-practices.md`
 - **Setup Instructions**: `docs/implementation/setup/`
 - **Progress Tracking**: `docs/implementation/progress-checklist.md`
 
-## 🚀 **Current Development Status**
+## 🔧 **Common Build/Test Commands**
 
-- **Milestone 1.1**: ✅ Complete (Monorepo + Deployment Pipeline)
-- **Next Goal**: Milestone 1.2 Authentication (Auth0 + Auth.js)
-- **Production Status**: Live at https://studypuck.app
-- **Ready For**: Feature development with full CI/CD protection
+### **Development Setup**
+```bash
+# Install dependencies
+pnpm install
+
+# Start development server
+pnpm dev
+
+# Start development server for specific app
+cd apps/web && pnpm dev
+```
+
+### **Testing & Linting**
+```bash
+# Run linting (same as CI)
+pnpm turbo lint --filter=web
+
+# Build verification (same as CI) 
+pnpm turbo build --filter=web
+
+# Run all tasks for web app
+pnpm turbo dev lint build --filter=web
+```
+
+### **Project Management**
+```bash
+# Install new dependency to web app
+cd apps/web && pnpm add package-name
+
+# Install dev dependency to web app
+cd apps/web && pnpm add -D package-name
+
+# Update all dependencies
+pnpm update --recursive
+```
 
 ## ❗ **Common Mistakes to Avoid**
 
