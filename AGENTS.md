@@ -36,6 +36,15 @@ git push -u origin feature/descriptive-name
 - **Branch Protection**: Enforced with required status checks
 - **Test Gating**: Failed tests block production deployment
 
+### **Technology Stack** ✅ ESTABLISHED
+- **Frontend**: SvelteKit + TypeScript + CUBE CSS
+- **Backend**: Cloudflare Workers + D1 + KV
+- **Auth**: Auth0 + Auth.js
+- **AI**: Google Gemini Flash (primary), GPT-4o-mini (secondary)
+- **Testing**: Vitest + Playwright
+- **Validation**: Zod for schema validation and type safety
+- **Monorepo**: PNPM + Turborepo
+
 ### **Project Structure**
 ```
 StudyPuck/
