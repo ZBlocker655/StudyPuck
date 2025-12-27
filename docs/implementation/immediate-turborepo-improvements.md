@@ -132,16 +132,16 @@ auto-install-peers = true
 ## 📋 Implementation Checklist
 
 ### ✅ Apply Immediately (Before Starting Milestone 1.2)
-- [ ] Update `turbo.json` with task dependencies
-- [ ] Add `.npmrc` with auto-install-peers
-- [ ] Update root `package.json` scripts
-- [ ] Test that `pnpm lint` still works
-- [ ] Test that `pnpm build` still works
+- [x] Update `turbo.json` with task dependencies
+- [x] Add `.npmrc` with auto-install-peers
+- [x] Update root `package.json` scripts
+- [x] Test that `pnpm lint` still works
+- [x] Test that `pnpm build` still works
 
 ### ✅ During Milestone 1.2 
-- [ ] Update web app scripts in `apps/web/package.json`
+- [x] Update web app scripts in `apps/web/package.json`
 - [ ] Verify environment file caching works with Auth0 vars
-- [ ] Test new `check-types` script
+- [x] Test new `check-types` script
 
 ### ⏳ Deferred to Future Milestones
 - Shared ESLint config package (Milestone 1.3)
@@ -166,11 +166,11 @@ auto-install-peers = true
 ## ✅ Success Criteria
 
 After applying these changes:
-- [ ] `pnpm lint` works the same as before
-- [ ] `pnpm build` works the same as before  
+- [x] `pnpm lint` works the same as before
+- [x] `pnpm build` works the same as before  
 - [ ] Local development (`pnpm dev`) works as before
 - [ ] CI/CD pipeline continues working
-- [ ] New `pnpm check-types` command works
+- [x] New `pnpm check-types` command works
 - [ ] Turbo UI shows improved task display
 
 ## 🔗 References
