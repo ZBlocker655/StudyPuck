@@ -90,6 +90,7 @@
 - [ ] **Create packages/eslint-config** for consistent linting
 - [ ] **Add Prettier setup** for code formatting
 - [ ] **Modern ESLint configuration** with flat config
+- [ ] **Create packages/schemas** with shared Zod validation schemas
 
 #### Phase 3: Enhanced Tooling (Milestone 1.4)
 - [ ] **Setup Playwright** for E2E testing
