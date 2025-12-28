@@ -39,16 +39,17 @@
 - [x] **Fixed turbo.json configuration** (tasks vs pipeline)
 - [x] **Resolved VS Code linting errors**
 
-## 🚀 Ready for Milestone 1.2 - Authentication
+## 🚀 Milestone 1.2 - Authentication (In Progress - Logout Issue)
 
 ### 📋 Next Steps - December 26, 2024
-- [ ] Begin Milestone 1.2 Authentication implementation
-- [ ] Configure Auth0 application and settings  
-- [ ] Implement Auth.js integration with SvelteKit
-- [ ] Add login/logout UI components
+- [x] Begin Milestone 1.2 Authentication implementation
+- [x] Configure Auth0 application and settings
+- [x] Implement Auth.js integration with SvelteKit
+- [x] Add login/logout UI components
 - [ ] Test authentication flow end-to-end
 - [ ] Deploy authentication to production via PR workflow
 
+**Ongoing Issue**: The logout functionality is currently problematic, preventing a full, consistent session termination with Auth0 and local UI update. This issue is being tracked in `docs/implementation/issues/authentication-logout-issue.md`.
 ### ⭐ Turborepo Best Practices Integration
 **Reference**: `docs/implementation/turborepo-svelte-best-practices-analysis.md`
 
@@ -144,7 +145,7 @@
 
 ### Current Risks
 - **Domain dependency**: studypuck.app ownership critical
-- **API token security**: Rotate tokens periodically
+- ** token security**: Rotate tokens periodically
 - **Cloudflare service limits**: Monitor D1 usage and Pages builds
 
 ### Contingency Plans
