@@ -1,2 +1,8 @@
-// This enables static generation for the entire site
-export const prerender = true;
+import type { LayoutLoad } from './$types';
+
+export const load: LayoutLoad = ({ data }) => {
+  // Pass session data from the server to the client
+  return {
+    session: data.session,
+  };
+};

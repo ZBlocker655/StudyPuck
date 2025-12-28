@@ -33,6 +33,11 @@ StudyPuck requires user authentication to enable personalized language learning 
 
 ## Auth0 Configuration Design
 
+### Application Type
+✅ **Decision**: Regular Web Application
+
+**Rationale**: Based on the project's use of SvelteKit with server-side rendering and server-side authentication handling (`@auth/sveltekit`), StudyPuck is defined as a **Regular Web Application** in the context of OAuth 2.0 and Auth0's configuration. It is **not** a Single Page Application (SPA). All Auth0 configuration must be based on the 'Regular Web Application' flow.
+
 ### Social Login Providers
 ✅ **Decision**: Google + GitHub for initial launch
 

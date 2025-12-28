@@ -1,8 +1,12 @@
 <script lang="ts">
-  import { signIn, signOut } from '@auth/sveltekit/client';
+  import { signIn } from '@auth/sveltekit/client';
   import type { Session } from '$lib/schemas/auth.js';
 
   export let session: Session | null;
+
+  function handleSignOut() {
+    window.location.href = '/auth/logout';
+  }
 </script>
 
 {#if session?.user}
@@ -10,9 +14,9 @@
   <div class="auth-container">
     <div class="user-info">
       {#if session.user.image}
-        <img 
-          src={session.user.image} 
-          alt="Profile" 
+        <img
+          src={session.user.image}
+          alt="Profile"
           class="avatar"
         />
       {/if}
@@ -20,13 +24,12 @@
         {session.user.name || session.user.email}
       </span>
     </div>
-    
-    <button 
-      on:click={() => signOut()} 
-      class="auth-button signout-button"
-    >
-      Sign Out
-    </button>
+
+    <form action="/auth/logout" method="POST">
+      <button type="submit" class="auth-button signout-button">
+        Sign Out
+      </button>
+    </form>
   </div>
 {:else}
   <!-- User is not authenticated -->
