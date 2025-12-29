@@ -3,10 +3,6 @@
   import type { Session } from '$lib/schemas/auth.js';
 
   export let session: Session | null;
-
-  function handleSignOut() {
-    window.location.href = '/auth/logout';
-  }
 </script>
 
 {#if session?.user}

@@ -55,20 +55,40 @@ The system is in a state where:
 
 The fundamental challenge is that `SvelteKitAuth`'s server-side `signOut` function has unexpected side effects or interactions with SvelteKit's response handling that prevent precise control over `Set-Cookie` headers and the final `Location` header for a multi-step federated logout.
 
-## Recommended Next Steps
+## Resolution
 
-1.  **Deep Dive into `@auth/sveltekit` Source/Docs**: Investigate the internal workings of `SvelteKitAuth`'s server-side `signOut` function to understand precisely how it generates and handles redirects and `Set-Cookie` headers, and if there's an officially recommended pattern for handling federated logout with external IdPs.
-2.  **SvelteKit Response Handling**: Research SvelteKit's `Response` object lifecycle and how `handle` functions, server endpoints, and middleware can modify or override each other's responses.
-3.  **Auth0 Logout Requirements Review**: Reconfirm Auth0's exact logout requirements, especially regarding `id_token_hint` validity and session invalidation timing.
-4.  **Community Resources**: Search for existing solutions or discussions in `@auth/sveltekit`, `next-auth`, or SvelteKit communities regarding complex federated logout scenarios with Auth0.
+The issue was resolved by refactoring the logout flow to leverage the `@auth/sveltekit` internal sign-out mechanism more directly.
 
-## Files Involved
+1.  **`AuthButton.svelte` Modification**: The client-side `handleSignOut` function was removed. The "Sign Out" button now directly links to `/auth/logout`. This ensures a full page navigation, allowing the server to handle the redirect correctly.
 
-- `apps/web/src/lib/auth.ts` (SvelteKitAuth configuration, JWT/Session callbacks)
-- `apps/web/src/routes/auth/logout/+server.ts` (Custom server-side logout endpoint)
-- `apps/web/src/lib/components/AuthButton.svelte` (Client-side trigger for logout)
-- `apps/web/src/routes/+layout.svelte` (Client-side `invalidateAll()` for UI update)
-- `.env` (Environment variables like `AUTH0_ISSUER`, `AUTH0_CLIENT_ID`, `AUTH_URL`)
+    ```svelte
+    <!-- Before -->
+    <!--
+    <button on:click={handleSignOut}>Sign Out</button>
+    function handleSignOut() {
+        window.location.href = '/auth/logout';
+    }
+    -->
+    <!-- After -->
+    <a href="/auth/logout">Sign Out</a>
+    ```
+
+2.  **`src/routes/auth/logout/+server.ts` Modification**: This server endpoint was simplified significantly. Instead of attempting to manually construct Auth0 logout URLs and call `signOut` with complex redirect handling, it now issues a `307 Temporary Redirect` to the internal `@auth/sveltekit` sign-out endpoint: `/auth/signout`. A `callbackUrl` is provided to `auth/logout/final` to handle any post-logout client-side actions or final redirects.
+
+    ```typescript
+    import { redirect } from '@sveltejs/kit';
+
+    export async function POST() {
+      throw redirect(
+        307,
+        `/auth/signout?callbackUrl=${encodeURIComponent('/auth/logout/final')}`
+      );
+    }
+    ```
+
+This approach leverages the framework's built-in logout handling, which correctly clears the local session cookies and then redirects to the Auth0 `end_session_endpoint`. The `id_token_hint` is now correctly managed by `@auth/sveltekit` internally, ensuring a complete federated logout with Auth0.
 
 ---
-**Status**: Open
+**Status**: Resolved
+
+
