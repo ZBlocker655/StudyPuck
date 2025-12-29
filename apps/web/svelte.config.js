@@ -14,7 +14,8 @@ const config = {
 			routes: {
 				include: ['/*'],
 				exclude: ['<all>']
-			}
+			},
+			outDir: './build'
 		})
 	}
 };
