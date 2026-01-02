@@ -19,8 +19,8 @@ export const createAuth = (env: PrivateEnv) => {
       strategy: 'jwt',
       maxAge: 7 * 24 * 60 * 60, // 7 days
     },
-    trustHost: true, // Fix for Cloudflare Pages
-    basePath: '/auth', // Explicit basePath to fix Cloudflare URL generation
+    trustHost: true,
+    basePath: '/auth',
     callbacks: {
           async jwt({ token, user, account, profile }) {
             // Persist the id_token to the JWT token if it exists
