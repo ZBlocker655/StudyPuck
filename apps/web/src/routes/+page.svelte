@@ -4,12 +4,13 @@
 
   export let data: PageData;
   
-  // Type assertion to handle Auth.js session type compatibility
+  // Type assertion to handle Auth.js session type compatibility  
   $: typedSession = data.session as any;
+  $: authError = (data as any).authError;
   
   // Monitor auth failures in production
-  $: if (data.authError?.failed) {
-    console.error('🚨 AUTH SYSTEM DOWN:', data.authError);
+  $: if (authError?.failed) {
+    console.error('🚨 AUTH SYSTEM DOWN:', authError);
     // Could add user-visible error message here
   }
 </script>
@@ -28,7 +29,7 @@
 			</div>
 			
 			<!-- Show auth error indicator if auth is failing -->
-			{#if data.authError?.failed}
+			{#if authError?.failed}
 				<div class="auth-error">
 					⚠️ Authentication temporarily unavailable
 				</div>

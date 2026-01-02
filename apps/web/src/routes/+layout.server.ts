@@ -13,10 +13,11 @@ export const load: LayoutServerLoad = async (event) => {
     return { session };
   } catch (error) {
     // CRITICAL: Auth is failing - log detailed error for debugging
+    const err = error as Error;
     console.error('🚨 CRITICAL: Auth session failed completely');
-    console.error('Error type:', error.constructor.name);
-    console.error('Error message:', error.message);
-    console.error('Error stack:', error.stack);
+    console.error('Error type:', err.constructor?.name || 'Unknown');
+    console.error('Error message:', err.message || 'No message');
+    console.error('Error stack:', err.stack || 'No stack trace');
     console.error('Request URL:', event.url.href);
     console.error('User-Agent:', event.request.headers.get('user-agent'));
     
@@ -25,7 +26,7 @@ export const load: LayoutServerLoad = async (event) => {
       session: null,
       authError: {
         failed: true,
-        error: error.message,
+        error: err.message || 'Auth system error',
         timestamp: new Date().toISOString()
       }
     };
