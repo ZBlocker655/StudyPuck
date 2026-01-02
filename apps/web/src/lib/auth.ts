@@ -60,6 +60,7 @@ export const createAuth = (env: PrivateEnv) => {
                 email: token.email as string,
                 name: token.name as string || null,
                 image: token.picture as string || null,
+                emailVerified: null, // Required by AdapterUser type
               };
             }
       

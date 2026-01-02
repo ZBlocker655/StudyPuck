@@ -3,6 +3,9 @@
   import type { PageData } from './$types.js';
 
   export let data: PageData;
+  
+  // Type assertion to handle Auth.js session type compatibility
+  $: typedSession = data.session as any;
 </script>
 
 <svelte:head>
@@ -17,7 +20,7 @@
 				<h1>🏒 StudyPuck</h1>
 				<p>AI-Powered Language Learning</p>
 			</div>
-			<AuthButton session={data.session} />
+			<AuthButton session={typedSession} />
 		</div>
 	</header>
 	
