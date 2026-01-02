@@ -6,6 +6,12 @@
   
   // Type assertion to handle Auth.js session type compatibility
   $: typedSession = data.session as any;
+  
+  // Monitor auth failures in production
+  $: if (data.authError?.failed) {
+    console.error('🚨 AUTH SYSTEM DOWN:', data.authError);
+    // Could add user-visible error message here
+  }
 </script>
 
 <svelte:head>
@@ -20,7 +26,15 @@
 				<h1>🏒 StudyPuck</h1>
 				<p>AI-Powered Language Learning</p>
 			</div>
-			<AuthButton session={typedSession} />
+			
+			<!-- Show auth error indicator if auth is failing -->
+			{#if data.authError?.failed}
+				<div class="auth-error">
+					⚠️ Authentication temporarily unavailable
+				</div>
+			{:else}
+				<AuthButton session={typedSession} />
+			{/if}
 		</div>
 	</header>
 	
@@ -198,5 +212,15 @@
 		h1 {
 			font-size: 2rem;
 		}
+	}
+	/* Auth error styling */
+	.auth-error {
+		background: #fee2e2;
+		border: 1px solid #fca5a5;
+		color: #dc2626;
+		padding: 0.5rem 0.75rem;
+		border-radius: 0.375rem;
+		font-size: 0.875rem;
+		font-weight: 500;
 	}
 </style>
