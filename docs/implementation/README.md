@@ -42,16 +42,13 @@ docs/implementation/
 - **Status**: Successfully deployed to production (https://studypuck.app)
 - **Deployment Pipeline**: Production-ready with industry best practices
 
-### Phase 2: Authentication 🚨 *In Progress - Migration Required*
+### Phase 2: Authentication 🔧 *Fixing Environment Variables*
 
 **Milestone 1.2** → [1.2-authentication.md](milestones/1.2-authentication.md)
-- **Goal**: Working login/logout flow using Auth0 + Better Auth (migrated from Auth.js)
+- **Goal**: Working login/logout flow using Auth0 + Auth.js
 - **Dependencies**: Milestone 1.1 complete ✅
-- **Status**: 🔄 Auth.js implementation complete but needs Better Auth migration
-- **Critical Issues**: 
-  - ZodError in Cloudflare Pages deployment (500 error on load)
-  - Required hacky multi-hop logout workaround (bypasses Auth.js signOut entirely)
-  - Better Auth migration planned to resolve both issues
+- **Status**: 🔧 Auth.js implementation complete, fixing Cloudflare deployment
+- **Current Issue**: Environment variable access in Cloudflare Pages runtime
 
 **Milestone 1.3** → [1.3-database-setup.md](milestones/1.3-database-setup.md)
 - **Goal**: Connect to Cloudflare D1, create user profiles
