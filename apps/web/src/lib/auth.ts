@@ -20,7 +20,7 @@ export const createAuth = (env: PrivateEnv) => {
       maxAge: 7 * 24 * 60 * 60, // 7 days
     },
     trustHost: true, // Fix for Cloudflare Pages
-    // Remove explicit basePath - let Auth.js auto-detect
+    basePath: '/auth', // Explicit basePath to fix Cloudflare URL generation
     callbacks: {
           async jwt({ token, user, account, profile }) {
             // Persist the id_token to the JWT token if it exists
