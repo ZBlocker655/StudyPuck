@@ -39,16 +39,34 @@
 - [x] **Fixed turbo.json configuration** (tasks vs pipeline)
 - [x] **Resolved VS Code linting errors**
 
-## 🚀 Ready for Milestone 1.2 - Authentication
+## 🔧 Milestone 1.2 - Authentication (Fixing Environment Variables)
 
-### 📋 Next Steps - December 26, 2024
-- [ ] Begin Milestone 1.2 Authentication implementation
-- [ ] Configure Auth0 application and settings  
-- [ ] Implement Auth.js integration with SvelteKit
-- [ ] Add login/logout UI components
-- [ ] Test authentication flow end-to-end
-- [ ] Deploy authentication to production via PR workflow
+### ✅ Auth.js Implementation Complete - December 29, 2024
+- [x] Begin Milestone 1.2 Authentication implementation
+- [x] Configure Auth0 application and settings
+- [x] Implement Auth.js integration with SvelteKit
+- [x] Add login/logout UI components
+- [x] Test authentication flow end-to-end
+- [x] Deploy authentication to production via PR workflow
+- [x] Resolve `[auth][warn][env-url-basepath-redundant]` warning
 
+### 🔧 Current Issue: Cloudflare Environment Variable Access - January 2, 2025
+- **Problem**: Auth.js authentication working locally but failing in Cloudflare Pages
+- **Error**: "process is not defined" error in Cloudflare runtime
+- **Root Cause**: Environment variable access complexity in Cloudflare Pages vs local dev
+- **Solution Attempted**: Multiple approaches for env var access (platform.env, process.env, SvelteKit env)
+
+### ✅ Working Multi-Hop Logout Implementation
+- **Status**: Functional workaround for federated logout with Auth0
+- **Implementation**: Custom logout flow via `/auth/logout` → `/auth/logout/final`
+- **Benefit**: Properly clears both local session and Auth0 session
+- **Note**: While "hacky", it works reliably and handles edge cases
+
+### 📋 Next Steps - Focus on Environment Variable Fix
+- [ ] **Resolve Cloudflare environment variable access**
+- [ ] **Test authentication flow in production**  
+- [ ] **Complete Milestone 1.2 with working Auth.js + Auth0**
+- [ ] **Proceed to Milestone 1.3**: Database setup with Cloudflare D1
 ### ⭐ Turborepo Best Practices Integration
 **Reference**: `docs/implementation/turborepo-svelte-best-practices-analysis.md`
 
@@ -144,7 +162,7 @@
 
 ### Current Risks
 - **Domain dependency**: studypuck.app ownership critical
-- **API token security**: Rotate tokens periodically
+- ** token security**: Rotate tokens periodically
 - **Cloudflare service limits**: Monitor D1 usage and Pages builds
 
 ### Contingency Plans

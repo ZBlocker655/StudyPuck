@@ -1,6 +1,7 @@
 # Secrets and sensitive files
 secrets.txt
 build.log
+.downloads/
 
 # Dependencies
 node_modules/
