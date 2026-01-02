@@ -69,7 +69,6 @@ export const createAuth = (env: PrivateEnv) => {
         pages: {
           error: '/auth/error',
         },
-        trustHost: true,
       });
 }
 
