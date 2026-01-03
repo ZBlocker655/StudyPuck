@@ -39,7 +39,14 @@
 - [x] **Fixed turbo.json configuration** (tasks vs pipeline)
 - [x] **Resolved VS Code linting errors**
 
-## 🔧 Milestone 1.2 - Authentication (Fixing Environment Variables)
+### ✅ Environment Variable Resolution - January 3, 2026
+- [x] **Comprehensive environment variable testing across all runtimes**
+- [x] **Confirmed $env/dynamic/private works in local dev, GitHub Actions, and Cloudflare**
+- [x] **GitHub Actions workflow configured with repository secrets**
+- [x] **Clean environment variable access implementation**
+- [x] **Eliminated complex fallback chains - simple approach works**
+
+## 🔧 Milestone 1.2 - Authentication (Auth.js Runtime Issue)
 
 ### ✅ Auth.js Implementation Complete - December 29, 2024
 - [x] Begin Milestone 1.2 Authentication implementation
@@ -50,11 +57,21 @@
 - [x] Deploy authentication to production via PR workflow
 - [x] Resolve `[auth][warn][env-url-basepath-redundant]` warning
 
-### 🔧 Current Issue: Cloudflare Environment Variable Access - January 2, 2025
+### 🔧 Current Issue: Auth.js Internal Error in Cloudflare Pages - January 3, 2026
 - **Problem**: Auth.js authentication working locally but failing in Cloudflare Pages
-- **Error**: "process is not defined" error in Cloudflare runtime
-- **Root Cause**: Environment variable access complexity in Cloudflare Pages vs local dev
-- **Solution Attempted**: Multiple approaches for env var access (platform.env, process.env, SvelteKit env)
+- **Error**: `TypeError: basePath?.replace is not a function` in Auth.js createActionURL
+- **MAJOR BREAKTHROUGH**: Environment variables ARE working perfectly in Cloudflare
+- **Root Cause**: Issue is internal to Auth.js, not environment variable access
+- **Evidence**: Cloudflare logs show all 5 auth env vars found via `$env/dynamic/private`
+- **Real Issue**: Auth.js `createActionURL` function receiving invalid basePath internally
+
+### ✅ Environment Variable Access RESOLVED - January 3, 2026
+- **Solution**: `$env/dynamic/private` works perfectly in all environments
+- **Local Dev**: ✅ Uses .env file via `$env/dynamic/private`
+- **GitHub Actions**: ✅ Uses workflow env vars via `$env/dynamic/private`  
+- **Cloudflare Pages**: ✅ Uses build-time env injection via `$env/dynamic/private`
+- **No Need**: for `event.platform.env` or complex fallback chains
+- **Lesson Learned**: SvelteKit's dynamic env vars work consistently across all runtimes
 
 ### ✅ Working Multi-Hop Logout Implementation
 - **Status**: Functional workaround for federated logout with Auth0
@@ -62,8 +79,10 @@
 - **Benefit**: Properly clears both local session and Auth0 session
 - **Note**: While "hacky", it works reliably and handles edge cases
 
-### 📋 Next Steps - Focus on Environment Variable Fix
-- [ ] **Resolve Cloudflare environment variable access**
+### 📋 Next Steps - Focus on Auth.js Cloudflare Compatibility
+- [ ] **Investigate Auth.js createActionURL error in Cloudflare Workers runtime**
+- [ ] **Research Auth.js configuration for Cloudflare Pages deployment**
+- [ ] **Check trustHost, basePath, and URL handling differences**
 - [ ] **Test authentication flow in production**  
 - [ ] **Complete Milestone 1.2 with working Auth.js + Auth0**
 - [ ] **Proceed to Milestone 1.3**: Database setup with Cloudflare D1
