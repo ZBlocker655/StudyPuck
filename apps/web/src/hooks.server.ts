@@ -11,7 +11,7 @@ export const handle = async ({ event, resolve }) => {
       if (dynamicVal) return dynamicVal;
       
       // 2. Cloudflare Pages platform env (runtime only)
-      const platformVal = event.platform?.env?.[name];
+      const platformVal = (event.platform as any)?.env?.[name];
       if (platformVal) return platformVal;
       
       return undefined;
