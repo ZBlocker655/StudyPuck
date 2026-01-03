@@ -8,12 +8,19 @@ export const handle = async ({ event, resolve }) => {
     const getEnvVar = (name: string): string | undefined => {
       // 1. SvelteKit dynamic (works in local dev + GitHub Actions)
       const dynamicVal = env[name as keyof typeof env];
-      if (dynamicVal) return dynamicVal;
+      if (dynamicVal) {
+        console.log(`[ENV] ${name}: Found via $env/dynamic/private`);
+        return dynamicVal;
+      }
       
       // 2. Cloudflare Pages platform env (runtime only)
       const platformVal = (event.platform as any)?.env?.[name];
-      if (platformVal) return platformVal;
+      if (platformVal) {
+        console.log(`[ENV] ${name}: Found via event.platform.env`);
+        return platformVal;
+      }
       
+      console.log(`[ENV] ${name}: NOT FOUND - dynamic: ${!!dynamicVal}, platform: ${!!platformVal}`);
       return undefined;
     };
 
@@ -24,6 +31,8 @@ export const handle = async ({ event, resolve }) => {
       AUTH0_ISSUER: getEnvVar('AUTH0_ISSUER'),
       AUTH0_AUDIENCE: getEnvVar('AUTH0_AUDIENCE'),
     };
+    
+    console.log('[ENV] Final envSource:', Object.keys(envSource).map(k => `${k}: ${!!envSource[k as keyof typeof envSource]}`).join(', '));
     
     const validatedEnv = PrivateEnv.parse(envSource);
     const { handle } = createAuth(validatedEnv);
