@@ -1,24 +1,29 @@
 import { SvelteKitAuth } from '@auth/sveltekit';
 import Auth0 from '@auth/core/providers/auth0';
-import { 
-  AUTH_SECRET, 
-  AUTH0_CLIENT_ID, 
-  AUTH0_CLIENT_SECRET, 
-  AUTH0_ISSUER, 
-  AUTH0_AUDIENCE 
-} from '$env/static/private';
+import { env } from '$env/dynamic/private';
+
+// Clean environment variable access for all runtimes (proven working solution)
+const getEnvVar = (name: string): string => {
+  // 1. SvelteKit dynamic (works in local dev + GitHub Actions + Cloudflare)
+  const dynamicVal = env[name as keyof typeof env];
+  if (dynamicVal) {
+    return dynamicVal;
+  }
+
+  throw new Error(`Required environment variable ${name} not found`);
+};
 
 export const { handle, signIn, signOut } = SvelteKitAuth({
   providers: [
     Auth0({
-      clientId: AUTH0_CLIENT_ID,
-      clientSecret: AUTH0_CLIENT_SECRET,
-      issuer: AUTH0_ISSUER,
-      authorization: { params: { audience: AUTH0_AUDIENCE } },
-      wellKnown: `${AUTH0_ISSUER}.well-known/openid-configuration`,
+      clientId: getEnvVar('AUTH0_CLIENT_ID'),
+      clientSecret: getEnvVar('AUTH0_CLIENT_SECRET'),
+      issuer: getEnvVar('AUTH0_ISSUER'),
+      authorization: { params: { audience: getEnvVar('AUTH0_AUDIENCE') } },
+      wellKnown: `${getEnvVar('AUTH0_ISSUER')}.well-known/openid-configuration`,
     }),
   ],
-  secret: AUTH_SECRET,
+  secret: getEnvVar('AUTH_SECRET'),
   session: {
     strategy: 'jwt',
     maxAge: 7 * 24 * 60 * 60, // 7 days
