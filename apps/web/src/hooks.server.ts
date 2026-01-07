@@ -34,10 +34,11 @@ export const { handle, signIn, signOut } = SvelteKitAuth({
 
       // Store user data in JWT when user first signs in
       if (user && profile) {
-        token.sub = profile.sub;
-        token.email = profile.email;
-        token.name = profile.name;
-        token.picture = profile.picture;
+        // Handle Auth0 profile fields that can be null
+        token.sub = profile.sub ?? undefined;
+        token.email = profile.email ?? undefined;
+        token.name = profile.name ?? undefined;
+        token.picture = profile.picture ?? undefined;
       }
 
       return token;
