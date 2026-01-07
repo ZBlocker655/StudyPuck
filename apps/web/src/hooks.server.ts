@@ -8,7 +8,7 @@ import {
   AUTH0_AUDIENCE 
 } from '$env/static/private';
 
-export const handle = SvelteKitAuth({
+export const { handle, signIn, signOut } = SvelteKitAuth({
   providers: [
     Auth0({
       clientId: AUTH0_CLIENT_ID,
