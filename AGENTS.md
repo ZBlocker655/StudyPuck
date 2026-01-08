@@ -2,7 +2,7 @@
 
 **Purpose**: Essential guidelines for AI agents working on this codebase  
 **Enforcement**: CRITICAL - Must follow for all code changes  
-**Updated**: December 26, 2024
+**Updated**: January 8, 2026
 
 ## 🚨 MANDATORY WORKFLOW RULES
 
@@ -28,6 +28,15 @@ git push -u origin feature/descriptive-name
 - **Documentation**: `docs/update-readme`, `docs/api-documentation`
 - **Refactoring**: `refactor/simplify-auth-flow`
 
+## 🎯 **Implementation Philosophy**
+
+### **Incremental Working Deployments**
+Every implementation step must result in a deployable application that loads and functions at studypuck.app, even if limited in features. We favor working features over completed layers.
+
+**Core Principle**: Instead of building complete backend then complete frontend, build working features that deploy at each milestone. Every step should result in something that loads and functions, even if limited.
+
+**Deployment Strategy**: Each milestone must maintain studypuck.app as a working application with incremental feature additions.
+
 ## 🏗️ **Current Architecture Status**
 
 ### **Deployment Pipeline** ✅ PRODUCTION READY
@@ -49,16 +58,18 @@ git push -u origin feature/descriptive-name
 ```
 StudyPuck/
 ├── apps/web/          # SvelteKit application
-├── docs/              # Human documentation  
+├── docs/              # Human documentation 
+├── docs/requirements  # Application requirements
+├── docs/specs         # Architecture specs and discussions 
 ├── .github/workflows/ # CI/CD pipeline
 └── AGENTS.md          # This file
 ```
 
 ## ✅ **Before Making Changes**
 
-1. **Read current implementation status**: `docs/implementation/README.md`
-2. **Check project requirements**: `docs/requirements/`
-3. **Review architecture decisions**: `docs/specs/`
+1. **Check project requirements**: `docs/requirements/`
+2. **Review architecture decisions**: `docs/specs/`
+3. **Check GitHub Issues**: For current tasks and known issues (use `gh issue list` if authenticated)
 4. **Understand the workflow**: Feature branch → PR → Tests pass → Merge
 5. **Verify tests locally**: See build/test commands below
 
@@ -83,10 +94,79 @@ StudyPuck/
 
 - **Project Requirements**: `docs/requirements/`
 - **Architecture & Specs**: `docs/specs/`
-- **Implementation Guide**: `docs/implementation/README.md`
-- **Deployment Pipeline**: `docs/implementation/guides/deployment-pipeline-best-practices.md`
-- **Setup Instructions**: `docs/implementation/setup/`
-- **Progress Tracking**: `docs/implementation/progress-checklist.md`
+- **Current Issues & Milestones**: GitHub Issues and Project Boards
+
+## 🔧 **GitHub Issues & Project Management**
+
+### **Accessing Issues and Milestones**
+You may access GitHub Issues and Milestones through the `gh` CLI tool for project management tasks:
+
+```bash
+# View current issues
+gh issue list
+
+# View specific milestone
+gh issue list --milestone "1.2 Authentication"
+
+# View issue details  
+gh issue view 15
+
+# Create new issues (if needed)
+gh issue create --title "Title" --body "Description"
+```
+
+### **Authentication Requirements**
+If GitHub CLI is not authenticated, you will see an error like:
+```
+gh: Bad credentials (HTTP 401)
+```
+
+**Action Required**: Prompt the human to authenticate and await confirmation:
+- Ask: "Please run `gh auth login` to authenticate with GitHub and confirm when ready"
+- Wait for human confirmation before proceeding with GitHub CLI commands
+- Do not attempt GitHub CLI operations without confirmed authentication
+
+## 🏗️ **Turborepo Best Practices**
+
+### **Current State vs. Best Practices**
+Our current setup works but can be enhanced with Vercel's official best practices:
+
+#### **High Priority Improvements**
+- **Enhanced turbo.json**: Add task dependencies (`"dependsOn": ["^build"]`)
+- **Shared eslint-config**: Create `packages/eslint-config` for consistent linting
+- **Better caching**: Include `.env*` files in cache inputs
+
+#### **Implementation Strategy**
+- **Phase 1** (During auth work): Apply immediate turbo.json improvements
+- **Phase 2** (During database setup): Add shared configuration packages  
+- **Phase 3** (During testing): Implement enhanced tooling (Playwright + Vitest)
+- **Phase 4** (Post core features): Full shared packages and advanced workflows
+
+#### **Enhanced turbo.json Template**
+```json
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "ui": "tui",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "outputs": [".svelte-kit/**", ".vercel/**"]
+    },
+    "lint": { "dependsOn": ["^lint"] },
+    "check-types": { "dependsOn": ["^check-types"] },
+    "dev": { "cache": false, "persistent": true }
+  }
+}
+```
+
+### **Shared Package Structure (Future)**
+```
+packages/
+├── eslint-config/          # Shared ESLint rules
+├── typescript-config/      # Shared TypeScript configs  
+└── ui/                     # Shared Svelte components
+```
 
 ## 🔧 **Common Build/Test Commands**
 
@@ -133,6 +213,7 @@ pnpm update --recursive
 3. **Manual deployment**: Everything is automated via Cloudflare
 4. **Force pushing**: Breaks history and bypasses protection
 5. **Ignoring PR feedback**: Status checks exist for a reason
+6. **Breaking incremental deployments**: Each change should maintain working app at studypuck.app
 
 ## 🤝 **Working with Human Developer**
 
