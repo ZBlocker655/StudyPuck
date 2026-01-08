@@ -58,7 +58,9 @@ Every implementation step must result in a deployable application that loads and
 ```
 StudyPuck/
 ├── apps/web/          # SvelteKit application
-├── docs/              # Human documentation  
+├── docs/              # Human documentation 
+├── docs/requirements  # Application requirements
+├── docs/specs         # Architecture specs and discussions 
 ├── .github/workflows/ # CI/CD pipeline
 └── AGENTS.md          # This file
 ```
