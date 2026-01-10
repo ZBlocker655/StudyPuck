@@ -2,7 +2,7 @@
 
 **Purpose**: Essential guidelines for AI agents working on this codebase  
 **Enforcement**: CRITICAL - Must follow for all code changes  
-**Updated**: January 8, 2026
+**Updated**: January 10, 2026
 
 ## 🚨 MANDATORY WORKFLOW RULES
 
@@ -27,6 +27,10 @@ git push -u origin feature/descriptive-name
 - **Bug fixes**: `fix/login-button-styling`, `fix/deploy-script-error`
 - **Documentation**: `docs/update-readme`, `docs/api-documentation`
 - **Refactoring**: `refactor/simplify-auth-flow`
+- **GitHub Issues**: When working on a specific issue, prefix with issue number:
+  - `feature/15-auth-cloudflare-workers`
+  - `fix/15-basepath-error`
+  - `docs/15-auth-setup-guide`
 
 ## 🎯 **Implementation Philosophy**
 
@@ -36,6 +40,30 @@ Every implementation step must result in a deployable application that loads and
 **Core Principle**: Instead of building complete backend then complete frontend, build working features that deploy at each milestone. Every step should result in something that loads and functions, even if limited.
 
 **Deployment Strategy**: Each milestone must maintain studypuck.app as a working application with incremental feature additions.
+
+## 🏗️ **Development Environments**
+
+### **Standard Development (Node.js)**
+```bash
+pnpm dev  # Fast development with hot reload
+```
+- **Runtime**: Node.js 
+- **URL**: http://localhost:5173
+- **Best for**: UI development, rapid iteration, most features
+- **Limitations**: May not catch Cloudflare Workers-specific issues
+
+### **Cloudflare Workers Development** 
+```bash
+cd apps/web && pnpm dev:workers  # Production-like testing
+```
+- **Runtime**: Cloudflare Workers (V8 Isolates)
+- **URL**: http://127.0.0.1:8788  
+- **Best for**: Testing auth, deployment compatibility, edge cases
+- **Limitations**: Requires rebuild on changes, slower feedback
+
+### **When to Use Each**
+- **Standard development**: Daily feature work, UI changes, quick testing
+- **Workers development**: Auth debugging, pre-deployment testing, runtime-specific issues
 
 ## 🏗️ **Current Architecture Status**
 
@@ -113,6 +141,12 @@ gh issue view 15
 
 # Create new issues (if needed)
 gh issue create --title "Title" --body "Description"
+
+# Add comments to issues
+gh issue comment 15 --body "Your comment text here"
+
+# Add comments from file
+gh issue comment 15 --body-file comment.md
 ```
 
 ### **Authentication Requirements**
