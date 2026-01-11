@@ -3,6 +3,12 @@
 ## Project Context
 StudyPuck requires user authentication to enable personalized language learning experiences, card management, and progress tracking across devices. This analysis explores authentication service options and implementation patterns for the SvelteKit + Cloudflare Workers stack.
 
+## ✅ RESOLVED: Cloudflare Workers Compatibility Issue
+**Date**: January 11, 2026  
+**Issue**: [#15](https://github.com/ZBlocker655/StudyPuck/issues/15) - `basePath?.replace is not a function` error in Cloudflare Workers  
+**Solution**: Upgraded Auth.js from `@auth/core@0.34.3` to `@auth/core@0.41.1`  
+**Status**: ✅ **COMPLETELY RESOLVED** - All environments working perfectly
+
 ## Authentication Service Decision
 
 ### ✅ Selected: Auth0
@@ -112,83 +118,50 @@ StudyPuck requires user authentication to enable personalized language learning 
 **JWT Flexibility Confirmed**: ✅ Claims can be modified later without breaking existing tokens (they expire and refresh naturally)
 
 ### SvelteKit Integration Design
-**Question 4**: How should Auth0 be integrated with SvelteKit for optimal developer experience and security?
 
-#### SDK Decision Breakdown
+#### ✅ PRODUCTION READY: Auth.js v4.x with Cloudflare Workers
 
-**✅ SOLUTION FOUND: Auth.js (`@auth/sveltekit`)**
+**Updated**: January 11, 2026  
+**Implementation**: Auth.js (`@auth/sveltekit@1.11.1` + `@auth/core@0.41.1`)  
+**Status**: ✅ **FULLY COMPATIBLE** - Cloudflare Workers issue resolved
 
 **What Auth.js provides**:
 - **Provider-neutral**: Supports 68+ OAuth providers including Auth0 as OpenID Connect
-- **Edge-compatible**: Designed for Cloudflare Workers from the ground up  
+- **Edge-compatible**: Now confirmed working with Cloudflare Workers v0.41.1+
 - **SvelteKit-native**: Official SvelteKit integration with proper hooks
 - **Secure by default**: CSRF protection, secure cookies, minimal client JS
 
 **How it works with Auth0**:
 ```javascript
-// src/auth.ts
-import { SvelteKitAuth } from "@auth/sveltekit"
+// src/hooks.server.ts - WORKING CONFIGURATION
+import { SvelteKitAuth } from '@auth/sveltekit';
+import Auth0 from '@auth/core/providers/auth0';
 
-export const { handle, signIn, signOut } = SvelteKitAuth(async (event) => {
-  return {
-    providers: [
-      // Auth0 as OpenID Connect provider
-      {
-        id: "auth0",
-        name: "Auth0", 
-        type: "oauth",
-        issuer: `https://${event.platform.env.AUTH0_DOMAIN}`,
-        clientId: event.platform.env.AUTH0_CLIENT_ID,
-        clientSecret: event.platform.env.AUTH0_CLIENT_SECRET
-      },
-      // Plus Google, GitHub natively supported
-      Google({ clientId: "...", clientSecret: "..." }),
-      GitHub({ clientId: "...", clientSecret: "..." })
-    ],
-    secret: event.platform.env.AUTH_SECRET,
-    trustHost: true
-  }
-})
+export const { handle, signIn, signOut } = SvelteKitAuth({
+  providers: [
+    Auth0({
+      clientId: getEnvVar('AUTH0_CLIENT_ID'),
+      clientSecret: getEnvVar('AUTH0_CLIENT_SECRET'),
+      issuer: getEnvVar('AUTH0_ISSUER'),
+      authorization: { params: { audience: getEnvVar('AUTH0_AUDIENCE') } },
+    }),
+  ],
+  secret: getEnvVar('AUTH_SECRET'),
+  session: { strategy: 'jwt', maxAge: 7 * 24 * 60 * 60 }, // 7 days
+  trustHost: true,
+});
 ```
 
-**Benefits for StudyPuck**:
-- ✅ Keep Auth0 (as OpenID Connect provider)
-- ✅ Add Google/GitHub easily later
-- ✅ Edge-compatible (Cloudflare Workers)
-- ✅ Provider-neutral (can switch providers anytime)
-- ✅ Maintained by Vercel team
-- ✅ Extensive SvelteKit community usage
+**Version Requirements** (CRITICAL):
+- **@auth/core**: `0.41.1` or later (fixes basePath Cloudflare Workers bug)
+- **@auth/sveltekit**: `1.11.1` (stable, compatible with core 0.41.1)
 
 **Auth0 Configuration**:
 - Configure Auth0 as OpenID Connect provider
-- Callback URL: `https://studypuck.com/auth/callback/auth0`
-- Get standard OAuth credentials (client ID/secret)
+- Callback URL: `https://studypuck.app/auth/callback/auth0`
+- Standard OAuth credentials (client ID/secret)
 
-✅ **Final Decision**: Auth.js (`@auth/sveltekit`) with Auth0 as OpenID Connect provider
-
-**Verified Package Links**:
-- **Official Documentation**: [authjs.dev/reference/sveltekit](https://authjs.dev/reference/sveltekit)
-- **NPM Package**: [@auth/sveltekit](https://www.npmjs.com/package/@auth/sveltekit)
-- **Example Repository**: [nextauthjs/sveltekit-auth-example](https://github.com/nextauthjs/sveltekit-auth-example)
-
-**Important Note**: The SvelteKit integration is marked as **experimental** - API may change over time
-
-**Auth0 Integration**: Will be configured as OpenID Connect provider through Auth.js provider system
-
-**Learning Areas Identified**:
-- OAuth 2.0 / OpenID Connect fundamentals
-- Auth.js configuration and patterns
-- SvelteKit hooks and session management
-- Cloudflare Workers environment variables and secrets
-
-**Next Steps**:
-1. ✅ **Service Selection**: Auth0 chosen
-2. ✅ **Integration Framework**: Auth.js selected
-3. **Auth0 Configuration**: Set up tenant as OpenID Connect provider
-4. **Auth.js Implementation**: Configure SvelteKit integration
-5. **Cloudflare Workers Setup**: Environment variables and deployment
-6. **Database Integration**: User profile management in D1
-7. **Security Implementation**: Session handling and API protection
+✅ **Final Decision**: Auth.js (`@auth/sveltekit`) with Auth0 - **PRODUCTION READY**
 
 ## Implementation Architecture Questions
 
