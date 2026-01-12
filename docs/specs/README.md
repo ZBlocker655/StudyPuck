@@ -101,13 +101,13 @@ StudyPuck is a hobby project focused on language learning through AI-powered tra
     - Questions: Stripe integration, freemium models, usage tracking
 
 ## Current Recommended Stack
-Based on completed architecture explorations:
+Based on completed architecture explorations (Updated January 2026):
 
 - **Frontend**: SvelteKit + TypeScript + Pure CSS (CUBE methodology)
-- **Backend**: Cloudflare Workers + D1 + KV
+- **Backend**: Cloudflare Workers + Neon Postgres + pgvector
 - **AI**: Google Gemini Flash (proxied through Workers)
 - **Auth**: Auth0 (OIDC) + Auth.js + 7-day PWA sessions
-- **Testing**: Vitest + Playwright + D1 simulator + hybrid auth testing
+- **Testing**: Vitest + Playwright + Neon database branches + hybrid auth testing
 - **CI/CD**: GitHub Actions + Cloudflare Pages hybrid pipeline
 - **Development**: GitHub Codespaces + PNPM + Turborepo monorepo
 - **Deployment**: Cloudflare Pages (direct GitHub integration)
@@ -116,9 +116,9 @@ Based on completed architecture explorations:
 
 ## Key Decisions Made
 - ✅ Multi-platform via PWA approach first
-- ✅ Cost-optimized Cloudflare-centric stack
+- ✅ Database architecture: Neon Postgres with pgvector (changed from D1, see Issue #29)
 - ✅ AI-powered translation drills with commercial LLM
-- ✅ Relational database with full-text search (no vector search initially)
+- ✅ Vector search for Card Entry features (Group Suggestions, Duplicate Detection)
 - ✅ Modern CSS with CUBE methodology without preprocessors
 - ✅ Comprehensive testing strategy with fast CI/CD feedback
 - ✅ Simplified deployment pipeline with GitHub Actions integration

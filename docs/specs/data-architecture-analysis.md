@@ -73,12 +73,18 @@ Based on your requirements, **probably not initially**:
 
 ## Recommended Architecture
 
-**Phase 1**: Cloudflare D1 + KV hybrid
-- D1 for structured data with full-text search
-- KV for caching and sessions
-- Keeps everything in Cloudflare ecosystem
-- Free tier sufficient for initial scale
-- Easy to migrate to external DB later if needed
+**Updated Decision (January 2026)**: Neon Postgres with pgvector
+- **Previous decision**: Cloudflare D1 + KV hybrid approach
+- **Reason for change**: Vector search requirements for Card Entry features (Group Suggestions, Duplicate Detection)
+- **Benefits**: Unified database for relational + vector data, advanced full-text search, JSON support
+- **Cost**: Minimal premium over D1+Vectorize hybrid ($1-2/month)
+- **Decision documented in**: GitHub Issue #29
+
+**Architecture**:
+- Neon Postgres with pgvector extension for vector similarity search
+- Advanced full-text search with multi-language support  
+- JSONB for flexible schema evolution
+- Database branching for development workflows
 
 **Data hierarchy**:
 ```

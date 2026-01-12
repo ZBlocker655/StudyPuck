@@ -78,25 +78,36 @@ The system is designed for extensive external integration to reduce friction in 
 
 Initial versions rely on manual structuring with user-driven card creation and organization.
 
-### Future AI Integration
+### AI Integration for Version 1.0
 
-AI assistance is planned to dramatically reduce processing friction:
+AI assistance is essential for creating a low-friction Card Entry system:
 
-#### Content Generation
+#### Core 1.0 Features (Vector Search Required)
+
+- **Group Suggestions**: AI analysis using vector embeddings to recommend the top 3-5 most semantically similar groups for each card. This requires comparing card content embeddings against existing group embeddings to identify thematic relationships, word families, and conceptual categories that pure text search cannot capture.
+
+- **Duplicate Detection**: Vector similarity search to identify potentially duplicate or heavily overlapping cards before creation. Users often re-enter vocabulary terms months later in different phrasings, and semantic similarity detection is essential for maintaining data quality.
+
+- **Batch Processing Architecture (To Explore)**: To optimize performance and user experience, vector search operations (Group Suggestions and Duplicate Detection) may benefit from asynchronous processing rather than real-time execution. This approach requires exploration to address key challenges:
+  - **Data consistency concerns**: Pre-computed suggestions may become stale if cards or groups are modified after batch processing runs
+  - **Implementation strategies to evaluate**:
+    - **Periodic batch processing**: Cron-triggered background jobs processing entire inbox at regular intervals, with invalidation strategies for changed data
+    - **Prefetch processing**: Background processing of next 5-10 inbox items when user loads Card Entry interface
+    - **Hybrid approach**: Real-time processing with background pre-warming of expensive operations
+  - **Cache invalidation requirements**: Mechanisms to detect when pre-computed suggestions are outdated due to card/group changes
+  - **Fallback strategies**: Graceful degradation to real-time processing when cached results are unavailable or stale
+  - **User experience considerations**: Interface design that handles both instant (cached) and delayed (real-time) suggestion scenarios
+
+#### Additional 1.0 Features
 
 - **Prompt Drafting**: AI analysis of rough notes to suggest clear, effective study prompts
 - **Example Sentence Creation**: Generation of contextually appropriate usage examples
 - **Definition Refinement**: Conversion of rough explanations into precise, study-friendly content
+- **Mnemonic Brainstorming**: AI-generated memory aids based on existing mnemonic patterns from related groups. Uses Group Suggestions results to query related cards and their mnemonics, then prompts LLM with this context to suggest relevant memory aids for the new card.
 
-#### Organizational Intelligence
+#### Future Enhancement Features
 
-- **Group Suggestions**: AI analysis of card content to recommend appropriate group assignments (NOTE: RAG useful here?)
 - **Pattern Recognition**: Identification of related vocabulary and grammar patterns
-- **Duplicate Detection**: Try to detect when a duplicate or heavily overlapping Card is about to be created (again, is this RAG?)
-
-#### Personalization Features
-
-- **Mnemonic Brainstorming**: AI-generated memory aids based on user's existing mnemonic patterns
 
 ## User Experience Considerations
 
