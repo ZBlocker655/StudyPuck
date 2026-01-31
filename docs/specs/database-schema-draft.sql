@@ -157,11 +157,26 @@ CREATE TABLE inbox_notes (
 CREATE INDEX idx_inbox_state ON inbox_notes(user_id, language_id, state, created_at);
 CREATE INDEX idx_inbox_source ON inbox_notes(user_id, language_id, source_type);
 
--- Processing workflow is simple:
--- 1. Notes processed → cards created directly in cards table
--- 2. Processed notes are deleted (not tracked permanently)
--- 3. No note→card relationship tracking (requirements say this is optional)
--- 4. Duplicate detection is future AI enhancement, not core functionality
+-- Note-Card Relationships (For Draft Card Workflow)
+CREATE TABLE note_card_links (
+    user_id TEXT NOT NULL,
+    language_id TEXT NOT NULL,
+    note_id TEXT NOT NULL,
+    card_id TEXT NOT NULL,
+    created_at INTEGER DEFAULT (strftime('%s', 'now')),
+    PRIMARY KEY (user_id, language_id, note_id, card_id),
+    FOREIGN KEY (user_id, language_id, note_id) REFERENCES inbox_notes(user_id, language_id, note_id),
+    FOREIGN KEY (user_id, language_id, card_id) REFERENCES cards(user_id, language_id, card_id)
+);
+
+CREATE INDEX idx_note_card_links_note ON note_card_links(user_id, language_id, note_id);
+CREATE INDEX idx_note_card_links_card ON note_card_links(user_id, language_id, card_id);
+
+-- Processing workflow with draft cards:
+-- 1. Notes processed → draft cards created in cards table → note-card links established  
+-- 2. Users review draft cards with note context visible
+-- 3. Draft cards promoted to active status → note optionally deleted
+-- 4. Links maintained until note deletion for full traceability
 
 -- ============================================================================
 -- CARD REVIEW APPLICATION TABLES
@@ -315,7 +330,7 @@ END;
 -- 1. Card-group many-to-many: May need optimization if users have thousands of cards
 -- 2. SRS updates: High frequency individual updates - consider WAL mode
 -- 3. Translation context queries: Should remain fast due to small context sizes
--- 4. JSON extraction: D1's JSON functions are optimized but consider generated columns for heavy queries
+-- 4. JSON extraction: Neon Postgres's JSON functions are optimized but consider generated columns for heavy queries
 
 -- Notes for Review:
 -- 1. Simplified card content: Examples/mnemonics as JSON arrays eliminate complex triggers
@@ -354,3 +369,7 @@ END;
 -- SELECT * FROM cards WHERE user_id = ? AND language_id = ? AND status = 'active';  -- Active cards only
 -- SELECT * FROM cards WHERE user_id = ? AND language_id = ? AND status = 'draft';   -- Draft cards only
 -- UPDATE cards SET status = 'active' WHERE user_id = ? AND language_id = ? AND card_id = ?;  -- Promote draft to active
+
+-- Query examples for note-card relationships:
+-- SELECT c.*, n.content as note_content FROM cards c JOIN note_card_links l ON (c.user_id = l.user_id AND c.language_id = l.language_id AND c.card_id = l.card_id) JOIN inbox_notes n ON (l.user_id = n.user_id AND l.language_id = n.language_id AND l.note_id = n.note_id) WHERE c.user_id = ? AND c.language_id = ? AND c.status = 'draft';  -- Draft cards with their source notes
+-- SELECT card_id FROM note_card_links WHERE user_id = ? AND language_id = ? AND note_id = ?;  -- All cards created from a note
