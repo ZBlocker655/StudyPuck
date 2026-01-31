@@ -17,7 +17,7 @@ StudyPuck is a hobby project focused on language learning through AI-powered tra
    - **Decision**: Google Gemini Flash (primary), GPT-4o-mini (secondary)
    
 3. **Data Architecture Foundation** → [data-architecture-analysis.md](data-architecture-analysis.md)
-   - **Decision**: Cloudflare D1 + KV hybrid approach
+   - **Decision**: Neon Postgres + KV hybrid approach
    
 4. **SvelteKit Evaluation** → [sveltekit-analysis.md](sveltekit-analysis.md)
    - **Decision**: Use SvelteKit for routing, SSR, and API organization
@@ -43,12 +43,12 @@ StudyPuck is a hobby project focused on language learning through AI-powered tra
     - **Decision**: Progressive design system + CUBE CSS + dark mode + selective animations
 
 11. **Testing Strategy & Database Operations** → [testing-database-strategy.md](testing-database-strategy.md)
-    - **Decision**: Comprehensive testing with Vitest + Playwright, D1 simulator, hybrid auth testing, GitHub Actions CI/CD
+    - **Decision**: Comprehensive testing with Vitest + Playwright, Local Postgres, hybrid auth testing, GitHub Actions CI/CD
 
 ### 🔄 In Progress Explorations
 **Testing Strategy & Database Operations** 🧪 *Final Question*
 - File: `testing-database-strategy.md` (4 of 5 questions complete)
-- Decisions: Comprehensive testing, Vitest + Playwright, D1 simulator, hybrid auth testing
+- Decisions: Comprehensive testing, Vitest + Playwright, Local Postgres, hybrid auth testing
 - Remaining: Question 5 - CI/CD pipeline integration
 
 ### 📋 Pending Explorations (Priority Order)
@@ -66,7 +66,7 @@ StudyPuck is a hobby project focused on language learning through AI-powered tra
    - **Decision**: Progressive design system + CUBE CSS + dark mode + selective animations
 
 3. ✅ **Testing Strategy & Database Operations** → [testing-database-strategy.md](testing-database-strategy.md)
-   - **Decision**: Comprehensive testing with Vitest + Playwright, D1 simulator, hybrid auth testing, GitHub Actions CI/CD
+   - **Decision**: Comprehensive testing with Vitest + Playwright, Local Postgres, hybrid auth testing, GitHub Actions CI/CD
 
 #### Phase 3: Advanced Features
 *Ready for future exploration when needed*

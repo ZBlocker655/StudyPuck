@@ -28,7 +28,7 @@ This document captured the complete database schema design process for StudyPuck
 
 ### ✅ Section 0: Preparation (Complete)
 - **Functional Requirements Reviewed**: Cards, Card Review, Translation Drills, Core Application Structure
-- **Technology Constraints Established**: Cloudflare D1 (SQLite), FTS5, ACID transactions
+- **Technology Constraints Established**: Neon Postgres with pgvector, advanced full-text search, ACID transactions
 
 ### ✅ Section 1-5: Complete Schema Design (Complete)
 All sections were completed through iterative discussion and analysis:
@@ -46,7 +46,7 @@ All sections were completed through iterative discussion and analysis:
 - **Index Strategy**: Focused on high-frequency SRS and context queries
 
 ### 📋 Future Implementation Considerations
-- **Testing Strategy**: Modern test database spawning for D1
+- **Testing Strategy**: Modern test database spawning for Neon Postgres
 - **Migration Tooling**: Schema evolution procedures  
 - **Performance Monitoring**: Query optimization in production
 
@@ -69,7 +69,7 @@ All sections were completed through iterative discussion and analysis:
 ### Schema Design Philosophy Per Application
 - **Principle**: Hybrid approach - relational core with JSON flexibility where beneficial
 - **Decision**: Core entities (users, cards, groups) remain normalized; SRS metadata uses JSON blobs with key fields extracted
-- **Rationale**: Leverages SQLite JSON support while maintaining query performance and schema evolution flexibility
+- **Rationale**: Leverages PostgreSQL JSONB support while maintaining query performance and schema evolution flexibility
 - **Database Impact**: Critical query fields as columns, evolving metadata as JSON
 
 ### Card-Centric Data Model
@@ -90,7 +90,7 @@ All sections were completed through iterative discussion and analysis:
 ### Schema Migration Strategy
 - **Principle**: Forward-compatible database evolution
 - **Implication**: Versioned schema changes with rollback capability
-- **Database Impact**: Migration tooling integration with Cloudflare D1
+- **Database Impact**: Migration tooling integration with Neon Postgres and Drizzle ORM
 
 ## Next Session Action Plan
 

@@ -43,11 +43,11 @@ Instead of building complete backend then complete frontend, we'll build working
 **Success criteria**: Users can login/logout on studypuck.app with Auth0
 
 ### Milestone 1.3: Basic Database Connection
-**Goal**: Connect to Cloudflare D1, create user profiles
+**Goal**: Connect to Neon Postgres, create user profiles
 
 **Tasks**:
-1. **Setup D1 database** (from database-schema-design.md)
-   - Create Cloudflare D1 database  
+1. **Setup Neon Postgres database** (from database-schema-design.md)
+   - Create Neon Postgres database with pgvector
    - Deploy basic user table schema
    - Connect from SvelteKit app
 
@@ -56,7 +56,7 @@ Instead of building complete backend then complete frontend, we'll build working
    - Display user info on authenticated pages
    - Test user isolation works
 
-**Success criteria**: Logged-in users see personalized pages with data from D1
+**Success criteria**: Logged-in users see personalized pages with data from Neon Postgres
 
 ## Phase 2: Core Language Learning Features
 
@@ -70,7 +70,7 @@ Instead of building complete backend then complete frontend, we'll build working
    - Edit/delete cards
 
 2. **Database integration**
-   - Deploy card tables to D1
+   - Deploy card tables to Neon Postgres
    - Implement user data isolation
    - Test card persistence
 
@@ -131,7 +131,7 @@ Instead of building complete backend then complete frontend, we'll build working
 ### Completed Architecture Requirements
 - [x] Cross-platform strategy (PWA first)
 - [x] AI service selection (Google Gemini Flash)
-- [x] Data architecture (Cloudflare D1 + KV)
+- [x] Data architecture (Neon Postgres + KV)
 - [x] SvelteKit evaluation
 - [x] DevOps environment (Cloudflare Pages + GitHub)
 - [x] Database schema design

@@ -1,7 +1,7 @@
 # Testing Strategy & Database Operations
 
 ## Project Context
-StudyPuck requires a testing strategy that supports the SvelteKit + Cloudflare D1 + Auth.js stack while enabling confident database migrations and reliable CI/CD pipelines. The approach should handle both unit/integration testing and database-specific testing challenges.
+StudyPuck requires a testing strategy that supports the SvelteKit + Neon Postgres + Auth.js stack while enabling confident database migrations and reliable CI/CD pipelines. The approach should handle both unit/integration testing and database-specific testing challenges.
 
 ## Testing Strategy Questions
 
@@ -238,18 +238,18 @@ test('user can sign in and create a study card', async ({ page }) => {
 - **Complete coverage**: E2E tests with full authentication user journeys
 
 ### Question 3: Database Testing Strategy
-**How should database operations and migrations be tested with Cloudflare D1?**
+**How should database operations and migrations be tested with Neon Postgres?**
 
 **Database Testing Challenges**:
-- **D1 is SQLite**: Local development vs production differences
-- **Edge runtime**: Limited testing tools for Workers environment
-- **Migrations**: Testing schema changes and data integrity
+- **Neon vs Local**: Production uses Neon, development uses local Postgres
+- **Network dependencies**: Testing with external database service
+- **Migrations**: Testing schema changes and data integrity with Drizzle ORM
 - **Isolation**: Test database setup and teardown
 
 **Database Testing Approaches**:
-- **In-memory SQLite**: Fast tests with sqlite3 `:memory:`
-- **File-based test DB**: Separate test database file per test suite
-- **D1 local simulator**: Use Wrangler's local D1 emulation
+- **Local Postgres**: Fast tests with local PostgreSQL instance
+- **Test database**: Separate test database with cleanup between tests
+- **Neon branches**: Use Neon's database branching for test isolation
 - **Mock database**: Mock all database calls for unit tests
 
 ### Question 4: Authentication Testing
@@ -316,8 +316,8 @@ jobs:
       
       - name: Setup test environment
         run: |
-          # Setup Wrangler for D1 local testing
-          npx wrangler d1 execute test-db --local --file=schema.sql
+          # Setup local Postgres for testing
+          docker run -d --name test-postgres -e POSTGRES_PASSWORD=testpass -e POSTGRES_DB=testdb -p 5432:5432 postgres:15
           # Setup test Auth0 environment variables
           echo "AUTH_SECRET=${{ secrets.AUTH_SECRET }}" >> .env.test
       
@@ -327,7 +327,7 @@ jobs:
       - name: Run integration tests  
         run: pnpm turbo test:integration --filter=web
         env:
-          DATABASE_URL: ".wrangler/state/v3/d1/miniflare-D1DatabaseObject/test.sqlite"
+          DATABASE_URL: "postgresql://postgres:testpass@localhost:5432/testdb"
           AUTH0_TEST_DOMAIN: ${{ secrets.AUTH0_TEST_DOMAIN }}
       
       - name: Run E2E tests (on PR only)
@@ -356,7 +356,7 @@ jobs:
 
 **1. Fast Feedback Loop**:
 - **Every push**: Unit tests (mocked, <2 min)
-- **Every push**: Integration tests with D1 local (<5 min)
+- **Every push**: Integration tests with local Postgres (<5 min)
 - **Pull requests only**: E2E tests (realistic, <10 min)
 
 **2. Environment Management**:
@@ -364,12 +364,12 @@ jobs:
 // Test environment configuration
 const testConfig = {
   development: {
-    database: '.wrangler/state/v3/d1/test.sqlite',
+    database: 'postgresql://postgres:password@localhost:5432/testdb',
     auth: 'mocked',
     ai: 'mocked'
   },
   integration: {
-    database: 'wrangler d1 local',
+    database: 'local-postgres',
     auth: 'test-tenant', 
     ai: 'test-api-keys'
   },
@@ -388,9 +388,9 @@ test-migrations:
   - name: Test database migrations
     run: |
       # Create clean test database
-      npx wrangler d1 execute test-db --local --command="DROP TABLE IF EXISTS cards;"
-      # Apply all migrations
-      npx wrangler d1 execute test-db --local --file=migrations/*.sql
+      psql $TEST_DATABASE_URL -c "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;"
+      # Apply all migrations with Drizzle
+      pnpm drizzle-kit migrate
       # Run data integrity tests
       pnpm test:migrations
 ```
@@ -398,13 +398,13 @@ test-migrations:
 **4. Preview Environment Testing**:
 - **Cloudflare Pages preview deployments** for each PR
 - **Automated tests** against preview URLs
-- **Database migrations** tested on temporary D1 instances
+- **Database migrations** tested on temporary Neon branches
 
 **CI/CD Integration Benefits**:
 
 **Development Workflow**:
 - **Immediate feedback**: Fast unit tests on every commit
-- **Confidence building**: Integration tests catch D1/Auth issues
+- **Confidence building**: Integration tests catch Postgres/Auth issues
 - **Production safety**: E2E tests validate user journeys before merge
 
 **Deployment Safety**:
@@ -420,13 +420,13 @@ test-migrations:
 **Learning Opportunities**:
 - **Modern CI/CD patterns**: GitHub Actions workflows and deployment gates
 - **Test environment management**: Multiple test configurations and data isolation
-- **Cloudflare integration**: Pages deployment automation and D1 testing
+- **Cloudflare integration**: Pages deployment automation and Postgres testing
 - **Professional practices**: Industry-standard testing pipelines
 
 ✅ **Decision**: Hybrid CI/CD integration approach
 - **GitHub Actions**: Comprehensive testing pipeline with environment management
 - **Cloudflare Pages**: Automated deployment after successful tests  
-- **Preview environments**: PR-based testing with temporary D1 instances
+- **Preview environments**: PR-based testing with temporary Neon branches
 - **Cost-optimized**: Fast feedback with selective comprehensive testing
 
 **Final Testing Strategy Summary**:
@@ -434,7 +434,7 @@ test-migrations:
 **Complete Testing Architecture for StudyPuck**:
 1. ✅ **Philosophy**: Comprehensive testing with testable code design
 2. ✅ **Framework**: Vitest + Playwright for optimal developer experience
-3. ✅ **Database**: D1 local simulator for consistency with production
+3. ✅ **Database**: Local Postgres for consistency with production PostgreSQL
 4. ✅ **Authentication**: Hybrid approach (mocked + test tenant + E2E)
 5. ✅ **CI/CD**: GitHub Actions + Cloudflare Pages with preview testing
 

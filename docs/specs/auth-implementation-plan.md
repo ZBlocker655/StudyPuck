@@ -20,7 +20,7 @@ StudyPuck requires user authentication to enable personalized language learning 
 - Stateless JWT approach aligns with edge computing
 - Excellent SvelteKit integration via `@auth0/sveltekit-auth0`
 - 7,500 user free tier sufficient for hobby project
-- No database coupling - maintains D1 architecture choice
+- No database coupling - maintains Neon Postgres architecture choice
 - Universal Login works well with PWA requirements
 
 ### Alternative Options Considered
@@ -29,7 +29,7 @@ StudyPuck requires user authentication to enable personalized language learning 
 - **Users**: 50,000 active users
 - **Social providers**: 20+ providers included
 - **Features**: Row Level Security, real-time subscriptions
-- **Rejected**: Would require switching from Cloudflare D1 to Supabase database
+- **Rejected**: Would require switching from Neon Postgres to Supabase database
 
 #### Clerk Free Tier
 - **Users**: 10,000 monthly active users
@@ -369,7 +369,7 @@ session: {
 2. **Auth0 Configuration**: Set up tenant, configure social providers
 3. **SvelteKit Integration**: Implement `@auth0/sveltekit-auth0` SDK
 4. **Cloudflare Workers Auth**: Design JWT validation patterns
-5. **Database Integration**: User profile management in D1
+5. **Database Integration**: User profile management in Neon Postgres
 6. **Security Implementation**: Token handling and validation
 7. **User Experience**: Design login/signup flows and error handling
 

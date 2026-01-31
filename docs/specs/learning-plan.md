@@ -131,7 +131,7 @@
 - Vitest configuration and modern testing patterns
 - Playwright E2E testing and browser automation
 - Component testing with Playwright + Svelte
-- Test database management with D1 simulator
+- Test database management with Neon Postgres
 - Mocking strategies for external services (Auth0, AI)
 - CI/CD testing pipeline integration
 

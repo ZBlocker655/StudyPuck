@@ -147,6 +147,9 @@ gh issue comment 15 --body "Your comment text here"
 
 # Add comments from file
 gh issue comment 15 --body-file comment.md
+
+# Set dependency relationship between issues
+# NOT SUPPORTED in gh CLI. Instead, give human a quick list of issue->issue dependencies to manually set through GitHub.
 ```
 
 ### **Authentication Requirements**

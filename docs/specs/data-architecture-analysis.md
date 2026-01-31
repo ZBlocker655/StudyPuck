@@ -45,14 +45,14 @@ Users → StudyLanguages → CardGroups → Cards → Reviews
 - SQLite scaling limitations (though adequate for your scale)
 
 ### Option 2: Hybrid Cloudflare Approach
-- **D1**: Core relational data (users, cards, reviews)
+- **Neon Postgres**: Core relational data (users, cards, reviews)
 - **KV**: Session data, caching, user preferences
-- **Vectorize**: Vector embeddings (if RAG needed)
+- **Vectorize**: Secondary vector service (if additional vector capabilities needed beyond pgvector)
 
 ### Option 3: External Database + Cloudflare
 - **Supabase**: PostgreSQL with vector extensions, auth, real-time
 - **PlanetScale**: MySQL with branching (though scaling down)
-- **Turso**: Edge SQLite with replication
+- **Turso**: Alternative edge PostgreSQL with replication
 
 ## RAG/Vector Search Assessment
 
@@ -74,9 +74,9 @@ Based on your requirements, **probably not initially**:
 ## Recommended Architecture
 
 **Updated Decision (January 2026)**: Neon Postgres with pgvector
-- **Previous decision**: Cloudflare D1 + KV hybrid approach
+- **Previous decision**: Cloudflare D1 + KV hybrid approach (early 2025)
 - **Reason for change**: Vector search requirements for Card Entry features (Group Suggestions, Duplicate Detection)
-- **Benefits**: Unified database for relational + vector data, advanced full-text search, JSON support
+- **Benefits**: Unified database for relational + vector data, advanced full-text search, JSONB support
 - **Cost**: Minimal premium over D1+Vectorize hybrid ($1-2/month)
 - **Decision documented in**: GitHub Issue #29
 
@@ -88,9 +88,9 @@ Based on your requirements, **probably not initially**:
 
 **Data hierarchy**:
 ```
-User (D1)
-├── StudyLanguage (D1)
-│   ├── Cards (D1 with FTS)
-│   ├── CardGroups (D1)
-│   └── Reviews (D1)
+User (Neon Postgres)
+├── StudyLanguage (Neon Postgres)
+│   ├── Cards (Neon Postgres with advanced FTS)
+│   ├── CardGroups (Neon Postgres)
+│   └── Reviews (Neon Postgres)
 └── UserPreferences (KV)
