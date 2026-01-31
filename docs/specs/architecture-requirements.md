@@ -19,7 +19,7 @@
 - **CSS approach**: Modern pure CSS (no preprocessors, no CSS-in-JS)
 - **Responsive design**: Showcase excellent modern CSS techniques
 - **Framework**: Svelte
-- **Meta-framework**: SvelteKit (TBD based on requirements analysis)
+- **Meta-framework**: SvelteKit
 - **Design**: Fully mobile-friendly, responsive
 
 ## Cross-Platform Strategy

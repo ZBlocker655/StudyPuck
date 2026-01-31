@@ -57,71 +57,67 @@ StudyPuck requires a testing strategy that supports the SvelteKit + Neon Postgre
 - **Integration**: How different testing tools work together
 
 ### Question 3: Database Testing Strategy
-**How should Cloudflare D1 (SQLite) database operations be tested?**
+**How should Neon Postgres database operations be tested?**
 
 **Database Testing Challenges**:
-- **D1 vs SQLite**: Production uses D1, development uses local SQLite
-- **Edge runtime**: Limited testing tools in Workers environment  
+- **Neon vs Local**: Production uses Neon, development uses local Postgres
+- **Network dependencies**: Testing with external database service
 - **Test isolation**: Each test needs clean database state
-- **Migration testing**: Schema changes and data integrity validation
+- **Migration testing**: Schema changes and data integrity with Drizzle ORM
 
 **Database Testing Approaches**:
 
-#### Option A: In-Memory SQLite (Fast & Isolated)
-- **Setup**: Use sqlite3 `:memory:` database for tests
+#### Option A: In-Memory Database (Fast & Isolated)
+- **Setup**: Use in-memory test database for speed
 - **Benefits**: Extremely fast, perfect isolation, no file cleanup
-- **Trade-offs**: Not identical to D1, memory-only (no persistence testing)
+- **Trade-offs**: Not identical to Postgres, limited feature testing
 
-#### Option B: File-Based Test Databases  
-- **Setup**: Create separate `.test.db` files per test suite
-- **Benefits**: Closer to production, can test file operations
-- **Trade-offs**: Slower than memory, requires cleanup between tests
+#### Option B: Local Postgres Container (Production Parity)
+- **Setup**: Docker Postgres container for tests
+- **Benefits**: Full Postgres feature compatibility, realistic testing
+- **Trade-offs**: Slower than memory, requires Docker/container management
 
-#### Option C: D1 Local Simulator (Most Realistic)
-- **Setup**: Use Wrangler's local D1 emulation for tests
+#### Option C: Neon Database Branches (Most Realistic)
+- **Setup**: Use Neon's database branching for test isolation
 - **Benefits**: Closest to production environment
-- **Trade-offs**: Slower setup, requires Wrangler in test environment
+- **Trade-offs**: Network dependency, potential cost implications
 
-#### Option D: Hybrid Approach (Recommended with Caveats)
+#### Option D: Local Postgres (Recommended)
 ✅ **Selected approach for StudyPuck**
 
-**SQLite vs D1 Compatibility Analysis**:
-Based on research, there are **some important differences** between SQLite and D1:
+**Local Postgres Testing Strategy**:
+StudyPuck uses local PostgreSQL for all database testing to maintain consistency with production while ensuring fast, reliable test execution.
 
-**Key Differences**:
-- **API Access**: D1 uses HTTP API/Worker bindings, SQLite uses direct drivers
-- **Feature Support**: Some SQLite extensions (FTS5, custom collations) may not be available in D1
-- **Performance**: D1 has network latency, charges per row read (expensive COUNT queries)
-- **Size Limits**: D1 has 10GB recommended limit, SQLite is disk-limited
-- **Import/Export**: D1 requires SQL dumps, no direct .sqlite file import/export
-
-**Recommended Strategy**:
-- **Unit tests**: Use **D1 local simulator** instead of pure SQLite to match production environment
-- **Integration tests**: D1 local simulator for realistic API testing
-- **Avoid**: In-memory SQLite for database logic tests (too divergent from D1)
-
-**Why this approach**:
-- **Consistency**: Same D1 behavior in unit and integration tests
-- **Confidence**: Tests match production environment more closely
-- **Learning value**: Experience with D1-specific patterns and limitations
-- **Safety**: Avoid false positives from SQLite/D1 differences
+**Why Local Postgres**:
+- **Production parity**: Same PostgreSQL engine as Neon in production
+- **Feature compatibility**: Full support for pgvector and advanced Postgres features
+- **Performance**: Fast local execution without network dependencies
+- **Cost effective**: No external service usage during testing
+- **CI/CD friendly**: Easy to provision in GitHub Actions
 
 **Implementation**:
 ```javascript
-// Use Wrangler D1 simulator for all database tests
+// Use local Postgres for all database tests
 beforeEach(async () => {
-  // Reset D1 test database state
-  await d1TestDb.exec('DELETE FROM cards; DELETE FROM users;');
+  // Reset test database state with Drizzle
+  await db.delete(cards);
+  await db.delete(users);
 });
 ```
 
-✅ **Decision**: D1 local simulator for all database tests (unit and integration)
+**Test Database Setup**:
+- **Local development**: PostgreSQL instance with test database
+- **CI/CD**: Docker Postgres container in GitHub Actions
+- **Isolation**: Separate test database with cleanup between tests
+- **Migrations**: Test schema changes with Drizzle migrate
+
+✅ **Decision**: Local Postgres for all database tests (unit and integration)
 
 **Final Database Testing Strategy**:
-- **All database tests**: Use Wrangler D1 local simulator  
-- **Rationale**: Avoid SQLite/D1 compatibility issues that could create false test confidence
-- **Implementation**: Reset D1 test database state between tests
-- **Benefits**: Consistent behavior, realistic testing, D1-specific learning
+- **All database tests**: Use local PostgreSQL instance
+- **Rationale**: Production parity with Neon while maintaining fast, reliable testing
+- **Implementation**: Drizzle ORM with local Postgres and proper test isolation
+- **Benefits**: Consistent behavior, realistic testing, cost-effective development
 
 ### Question 4: Authentication Testing
 **How should Auth0 + Auth.js authentication be tested?**
@@ -236,21 +232,6 @@ test('user can sign in and create a study card', async ({ page }) => {
 - **Fast feedback**: Mocked auth for unit and component tests
 - **Integration confidence**: Test Auth0 tenant for realistic flows
 - **Complete coverage**: E2E tests with full authentication user journeys
-
-### Question 3: Database Testing Strategy
-**How should database operations and migrations be tested with Neon Postgres?**
-
-**Database Testing Challenges**:
-- **Neon vs Local**: Production uses Neon, development uses local Postgres
-- **Network dependencies**: Testing with external database service
-- **Migrations**: Testing schema changes and data integrity with Drizzle ORM
-- **Isolation**: Test database setup and teardown
-
-**Database Testing Approaches**:
-- **Local Postgres**: Fast tests with local PostgreSQL instance
-- **Test database**: Separate test database with cleanup between tests
-- **Neon branches**: Use Neon's database branching for test isolation
-- **Mock database**: Mock all database calls for unit tests
 
 ### Question 4: Authentication Testing
 **How should Auth0 + Auth.js authentication be tested?**
@@ -440,7 +421,7 @@ test-migrations:
 
 **Implementation Timeline**:
 - **Week 1**: Basic test setup (Vitest + Playwright configuration)
-- **Week 2**: Unit test patterns and D1 simulator integration  
+- **Week 2**: Unit test patterns and local Postgres integration  
 - **Week 3**: Authentication testing utilities and test Auth0 tenant
 - **Week 4**: CI/CD pipeline and preview environment testing
 
