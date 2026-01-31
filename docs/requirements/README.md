@@ -12,3 +12,4 @@
 - [Translation Drills](functionality/translation-drills.md)
 - [Card Entry](functionality/card-entry.md)
 - [Multi-Language Support](functionality/multi-language-support.md)
+- [Usage statistics](functionality/usage-statistics.md)
