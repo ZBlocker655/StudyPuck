@@ -178,6 +178,26 @@ CREATE INDEX idx_note_card_links_card ON note_card_links(user_id, language_id, c
 -- 3. Draft cards promoted to active status → note optionally deleted
 -- 4. Links maintained until note deletion for full traceability
 
+-- Card Entry Daily Statistics
+CREATE TABLE card_entry_daily_stats (
+  user_id TEXT,
+  language_id TEXT,
+  date DATE,
+  -- Inbox activity
+  notes_captured INTEGER DEFAULT 0,
+  notes_processed INTEGER DEFAULT 0,
+  notes_deferred INTEGER DEFAULT 0,
+  notes_deleted INTEGER DEFAULT 0,
+  -- Card creation
+  draft_cards_created INTEGER DEFAULT 0,
+  cards_promoted_to_active INTEGER DEFAULT 0,
+  groups_created INTEGER DEFAULT 0,
+  PRIMARY KEY (user_id, language_id, date),
+  FOREIGN KEY (user_id, language_id) REFERENCES study_languages(user_id, language_id)
+);
+
+CREATE INDEX idx_card_entry_stats_date ON card_entry_daily_stats(user_id, language_id, date DESC);
+
 -- ============================================================================
 -- CARD REVIEW APPLICATION TABLES
 -- ============================================================================
@@ -200,6 +220,28 @@ CREATE TABLE card_review_srs (
 -- Critical index for SRS queries
 CREATE INDEX idx_card_review_srs_due ON card_review_srs(user_id, language_id, next_due);
 CREATE INDEX idx_card_review_srs_interval ON card_review_srs(user_id, language_id, interval_days);
+
+-- Card Review Daily Statistics  
+CREATE TABLE card_review_daily_stats (
+  user_id TEXT,
+  language_id TEXT,
+  date DATE,
+  -- Review session metrics
+  cards_reviewed INTEGER DEFAULT 0,
+  total_review_time_minutes INTEGER DEFAULT 0,
+  -- Performance metrics
+  cards_rated_easy INTEGER DEFAULT 0,
+  cards_rated_medium INTEGER DEFAULT 0,
+  cards_rated_hard INTEGER DEFAULT 0,
+  cards_snoozed INTEGER DEFAULT 0,
+  cards_disabled INTEGER DEFAULT 0,
+  -- Cross-app actions
+  cards_pinned_to_drills INTEGER DEFAULT 0,
+  PRIMARY KEY (user_id, language_id, date),
+  FOREIGN KEY (user_id, language_id) REFERENCES study_languages(user_id, language_id)
+);
+
+CREATE INDEX idx_card_review_stats_date ON card_review_daily_stats(user_id, language_id, date DESC);
 
 -- ============================================================================
 -- TRANSLATION DRILL APPLICATION TABLES
@@ -257,6 +299,25 @@ CREATE TABLE translation_drill_context (
 CREATE INDEX idx_translation_context_state ON translation_drill_context(user_id, language_id, state);
 CREATE INDEX idx_translation_context_added ON translation_drill_context(user_id, language_id, added_at);
 CREATE INDEX idx_translation_context_rotation ON translation_drill_context(user_id, language_id, state, last_used);
+
+-- Translation Drills Daily Statistics
+CREATE TABLE translation_drill_daily_stats (
+  user_id TEXT,
+  language_id TEXT,
+  date DATE,
+  -- Session metrics
+  sentences_translated INTEGER DEFAULT 0,
+  total_session_time_minutes INTEGER DEFAULT 0,
+  -- Context management
+  cards_dismissed INTEGER DEFAULT 0,
+  cards_snoozed INTEGER DEFAULT 0,
+  cards_drawn INTEGER DEFAULT 0,
+  new_context_groups_added INTEGER DEFAULT 0,
+  PRIMARY KEY (user_id, language_id, date),
+  FOREIGN KEY (user_id, language_id) REFERENCES study_languages(user_id, language_id)
+);
+
+CREATE INDEX idx_translation_drill_stats_date ON translation_drill_daily_stats(user_id, language_id, date DESC);
 
 -- ============================================================================
 -- VIEWS FOR COMMON QUERIES
@@ -373,67 +434,3 @@ END;
 -- Query examples for note-card relationships:
 -- SELECT c.*, n.content as note_content FROM cards c JOIN note_card_links l ON (c.user_id = l.user_id AND c.language_id = l.language_id AND c.card_id = l.card_id) JOIN inbox_notes n ON (l.user_id = n.user_id AND l.language_id = n.language_id AND l.note_id = n.note_id) WHERE c.user_id = ? AND c.language_id = ? AND c.status = 'draft';  -- Draft cards with their source notes
 -- SELECT card_id FROM note_card_links WHERE user_id = ? AND language_id = ? AND note_id = ?;  -- All cards created from a note
-
--- ============================================================================
--- APPLICATION STATISTICS TABLES
--- ============================================================================
-
--- Card Entry Daily Statistics
-CREATE TABLE card_entry_daily_stats (
-  user_id TEXT,
-  language_id TEXT,
-  date DATE,
-  -- Inbox activity
-  notes_captured INTEGER DEFAULT 0,
-  notes_processed INTEGER DEFAULT 0,
-  notes_deferred INTEGER DEFAULT 0,
-  notes_deleted INTEGER DEFAULT 0,
-  -- Card creation
-  draft_cards_created INTEGER DEFAULT 0,
-  cards_promoted_to_active INTEGER DEFAULT 0,
-  groups_created INTEGER DEFAULT 0,
-  PRIMARY KEY (user_id, language_id, date),
-  FOREIGN KEY (user_id, language_id) REFERENCES study_languages(user_id, language_id)
-);
-
--- Card Review Daily Statistics  
-CREATE TABLE card_review_daily_stats (
-  user_id TEXT,
-  language_id TEXT,
-  date DATE,
-  -- Review session metrics
-  cards_reviewed INTEGER DEFAULT 0,
-  total_review_time_minutes INTEGER DEFAULT 0,
-  -- Performance metrics
-  cards_rated_easy INTEGER DEFAULT 0,
-  cards_rated_medium INTEGER DEFAULT 0,
-  cards_rated_hard INTEGER DEFAULT 0,
-  cards_snoozed INTEGER DEFAULT 0,
-  cards_disabled INTEGER DEFAULT 0,
-  -- Cross-app actions
-  cards_pinned_to_drills INTEGER DEFAULT 0,
-  PRIMARY KEY (user_id, language_id, date),
-  FOREIGN KEY (user_id, language_id) REFERENCES study_languages(user_id, language_id)
-);
-
--- Translation Drills Daily Statistics
-CREATE TABLE translation_drill_daily_stats (
-  user_id TEXT,
-  language_id TEXT,
-  date DATE,
-  -- Session metrics
-  sentences_translated INTEGER DEFAULT 0,
-  total_session_time_minutes INTEGER DEFAULT 0,
-  -- Context management
-  cards_dismissed INTEGER DEFAULT 0,
-  cards_snoozed INTEGER DEFAULT 0,
-  cards_drawn INTEGER DEFAULT 0,
-  new_context_groups_added INTEGER DEFAULT 0,
-  PRIMARY KEY (user_id, language_id, date),
-  FOREIGN KEY (user_id, language_id) REFERENCES study_languages(user_id, language_id)
-);
-
--- Statistics table indexes for efficient queries
-CREATE INDEX idx_card_entry_stats_date ON card_entry_daily_stats(user_id, language_id, date DESC);
-CREATE INDEX idx_card_review_stats_date ON card_review_daily_stats(user_id, language_id, date DESC);
-CREATE INDEX idx_translation_drill_stats_date ON translation_drill_daily_stats(user_id, language_id, date DESC);
