@@ -19,3 +19,7 @@ A spaced repetition system for browsing and managing Cards. It's not meant to wo
 An LLM-powered conversation interface that provides active practice with Cards. Rather than passive recall, this component generates varied sentences for the user to translate into their target language.
 
 These four components work together cyclically - enter new material, review it systematically, practice it actively through translation, and repeat with new Cards.
+
+## Usage Statistics
+
+Each mini-application tracks daily usage statistics to provide Anki-style progress visualization and motivation features. This includes metrics like cards reviewed, sentences translated, study time, and application-specific actions. Statistics are maintained separately for each application while following the established user/language partitioning pattern.
