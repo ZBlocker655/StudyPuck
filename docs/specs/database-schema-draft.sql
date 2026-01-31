@@ -1,7 +1,7 @@
 -- StudyPuck Database Schema Draft
--- Status: Neon Postgres with pgvector - JSON Arrays for Card Components, Card Status Field Added
+-- Status: Neon Postgres with pgvector - Complete schema with vector search support
 -- Updated: January 31, 2026  
--- Changes: Converted from SQLite to PostgreSQL, added status field to cards table for draft/active workflow
+-- Changes: Converted from SQLite to PostgreSQL, added vector embeddings for Card Entry features
 
 -- Design Principles Applied:
 --
@@ -56,6 +56,9 @@ CREATE TABLE groups (
     group_id TEXT NOT NULL, -- user-defined ID
     group_name TEXT NOT NULL,
     description TEXT,
+    embedding vector(768), -- Vector embedding for group similarity (Card Entry group suggestions)
+    embedding_model TEXT, -- Track which model generated the embedding
+    embedding_generated_at TIMESTAMPTZ, -- When embedding was last computed
     created_at TIMESTAMPTZ DEFAULT NOW(),
     metadata JSONB, -- JSON: group settings, color, etc.
     PRIMARY KEY (user_id, language_id, group_id),
@@ -74,6 +77,9 @@ CREATE TABLE cards (
     examples JSONB, -- JSON array: [{"text": "这次旅行是一次特别的经历", "translation": "This trip was a special experience"}, ...]
     mnemonics JSONB, -- JSON array: ["Go through here and experience something nice inside", "Another mnemonic", ...]
     llm_instructions TEXT, -- Instructions for AI features
+    embedding vector(768), -- Vector embedding for similarity search (Card Entry features)
+    embedding_model TEXT, -- Track which model generated the embedding (e.g., 'openai-text-embedding-3-small')
+    embedding_generated_at TIMESTAMPTZ, -- When embedding was last computed
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     metadata JSONB, -- JSON: additional flexible data
@@ -100,6 +106,15 @@ CREATE INDEX idx_cards_fulltext_simple ON cards USING GIN (
 
 CREATE INDEX idx_cards_status_type ON cards(user_id, language_id, status, card_type);
 CREATE INDEX idx_cards_status_updated ON cards(user_id, language_id, status, updated_at);
+
+-- Vector similarity indexes for Card Entry features
+CREATE INDEX idx_cards_embedding_similarity ON cards 
+    USING hnsw (embedding vector_cosine_ops)
+    WHERE embedding IS NOT NULL;
+
+CREATE INDEX idx_groups_embedding_similarity ON groups 
+    USING hnsw (embedding vector_cosine_ops)
+    WHERE embedding IS NOT NULL;
 CREATE INDEX idx_cards_active_type ON cards(user_id, language_id, card_type) WHERE status = 'active';
 CREATE INDEX idx_cards_active_updated ON cards(user_id, language_id, updated_at) WHERE status = 'active';
 
@@ -417,6 +432,17 @@ CREATE TRIGGER tr_cards_updated_at
 -- Query examples for full-text search:
 -- SELECT * FROM cards WHERE to_tsvector('english', content || ' ' || COALESCE(meaning, '')) @@ to_tsquery('english', 'travel');
 -- SELECT * FROM cards WHERE to_tsvector('simple', content) @@ to_tsquery('simple', '旅行');  -- Multi-language search
+
+-- Query examples for vector similarity search (Card Entry features):
+-- Find duplicate cards by similarity
+-- SELECT card_id, content, (embedding <=> (SELECT embedding FROM cards WHERE card_id = 'target_card')) AS similarity
+-- FROM cards WHERE user_id = ? AND language_id = ? AND embedding IS NOT NULL
+-- ORDER BY similarity LIMIT 5;
+
+-- Find best group suggestions by similarity  
+-- SELECT group_id, group_name, (embedding <=> (SELECT embedding FROM cards WHERE card_id = 'new_card')) AS similarity
+-- FROM groups WHERE user_id = ? AND language_id = ? AND embedding IS NOT NULL
+-- ORDER BY similarity LIMIT 3;
 
 -- Query examples for status field:
 -- SELECT * FROM cards WHERE user_id = ? AND language_id = ? AND status = 'active';  -- Active cards only
