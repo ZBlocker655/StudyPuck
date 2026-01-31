@@ -23,14 +23,34 @@ Card Entry maintains language-specific inboxes, ensuring that material from diff
 - **Flexible Note Content**: Inbox notes can contain any type of unstructured text - single words, phrases, sentences, complex explanations, or contextual observations
 - **Entry Sequence Preservation**: Notes maintain their original entry order while allowing non-sequential processing
 - **Processing Actions**: Notes can be:
-  - **Processed**: Converted into one or more structured cards (meaning the inbox note is discarded)
+  - **Processed**: Converted into one or more structured draft cards (note-card links maintained for context)
   - **Deferred**: Temporarily skipped for later processing
   - **Deleted**: Removed from the inbox without creating cards
+- **Draft Card Workflow**: After cards are promoted to active status, notes can be deleted while preserving the cards
 - **No Complex State Management**: Notes exist in simple states (unprocessed, deferred, or deleted) without elaborate workflow tracking
 
 ### Card Processing Workflow
 
 The transformation from rough notes to structured cards involves several key steps:
+
+#### Draft/Active Card Lifecycle
+
+Cards support a status-based lifecycle to enable better workflow control:
+
+- **Draft Status**: Cards created during processing start as drafts, allowing users to:
+  - Review AI-generated suggestions before making them active
+  - Create multiple cards from complex notes and approve them individually  
+  - Build up cards manually over time without polluting the active study deck
+  - Utilize all card capabilities (group membership, full-text search) while in draft state
+  - View the original note context that generated each draft card
+
+- **Active Status**: Cards marked as active become visible in Card Review and Translation Drill applications
+
+- **Status Promotion**: Users can promote draft cards to active status through the Card Entry interface, providing an approval gate for all new content
+
+- **Note-Card Traceability**: The system maintains links between inbox notes and draft cards created from them, enabling users to see the original context during review
+
+This workflow is particularly valuable when AI assistance generates card suggestions, ensuring user control over which suggestions become part of their active study materials.
 
 #### Note-to-Card Flexibility
 
@@ -44,6 +64,7 @@ The transformation from rough notes to structured cards involves several key ste
 During processing, users structure their cards using these fields:
 
 - **Card Content/Prompt**: The main study material or question
+- **Status**: Cards can be created as 'draft' (for review) or 'active' (immediately available)
 - **Group Assignments**: Selection of one or more groups for organization
 - **Example Sentences**: Contextual usage demonstrations. Zero or more allowed per Card.
 - **Mnemonic Prompts**: Personal memory encoding strategies. Multiple allowed.
@@ -53,9 +74,13 @@ During processing, users structure their cards using these fields:
 
 - **Note Display**: Clear presentation of the original rough note content
 - **Card Preview**: Real-time preview of the structured card being created
+- **Status Selection**: Choice between draft and active status for new cards
 - **Group Selection**: Interface for choosing existing groups or creating new ones
 - **Field Assistance**: Support for adding multiple example sentences and mnemonics
 - **Batch Processing**: Ability to create multiple cards from a single note
+- **Draft Management**: Interface for reviewing, editing, and promoting draft cards to active status
+- **Note Context**: When reviewing draft cards, display the original note that generated each card for context
+- **Link Management**: Ability to see all cards created from a specific note and all notes that contributed to a card
 
 ## Integration Architecture
 
@@ -100,10 +125,11 @@ AI assistance is essential for creating a low-friction Card Entry system:
 
 #### Additional 1.0 Features
 
-- **Prompt Drafting**: AI analysis of rough notes to suggest clear, effective study prompts
+- **Prompt Drafting**: AI analysis of rough notes to suggest clear, effective study prompts (creates draft cards for review)
 - **Example Sentence Creation**: Generation of contextually appropriate usage examples
 - **Definition Refinement**: Conversion of rough explanations into precise, study-friendly content
 - **Mnemonic Brainstorming**: AI-generated memory aids based on existing mnemonic patterns from related groups. Uses Group Suggestions results to query related cards and their mnemonics, then prompts LLM with this context to suggest relevant memory aids for the new card.
+- **Draft Card Review**: Interface for bulk review and approval of AI-generated card suggestions
 
 #### Future Enhancement Features
 

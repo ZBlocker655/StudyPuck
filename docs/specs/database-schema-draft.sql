@@ -1,7 +1,7 @@
 -- StudyPuck Database Schema Draft
--- Status: Simplified - JSON Arrays for Card Components
--- Updated: December 20, 2025  
--- Changes: Eliminated separate card_examples/card_mnemonics tables, simplified triggers
+-- Status: Simplified - JSON Arrays for Card Components, Card Status Field Added
+-- Updated: January 31, 2026  
+-- Changes: Added status field to cards table for draft/active workflow
 
 -- Design Principles Applied:
 --
@@ -65,6 +65,7 @@ CREATE TABLE cards (
     language_id TEXT NOT NULL,
     card_id TEXT NOT NULL, -- UUID or user-friendly ID
     content TEXT NOT NULL, -- Main study prompt
+    status TEXT DEFAULT 'active' CHECK(status IN ('draft', 'active', 'archived', 'deleted')), -- Card lifecycle state
     card_type TEXT DEFAULT 'word' CHECK(card_type IN ('word', 'pattern', 'complex_prompt')),
     meaning TEXT,
     examples TEXT, -- JSON array: [{"text": "这次旅行是一次特别的经历", "translation": "This trip was a special experience"}, ...]
@@ -76,6 +77,12 @@ CREATE TABLE cards (
     PRIMARY KEY (user_id, language_id, card_id),
     FOREIGN KEY (user_id, language_id) REFERENCES study_languages(user_id, language_id)
 );
+
+-- Status field enables draft/active workflow:
+-- - 'draft': Card exists but not visible in Card Review/Translation Drill
+-- - 'active': Card is live and appears in all applications (default for existing data)  
+-- - 'archived': Card is hidden but preserved for potential restoration
+-- - 'deleted': Card is soft-deleted, hidden from normal views
 
 -- Full-text search on card content (with automatic sync)
 CREATE VIRTUAL TABLE cards_fts USING fts5(
@@ -107,8 +114,10 @@ CREATE TRIGGER cards_fts_update AFTER UPDATE ON cards BEGIN
     VALUES (new.rowid, new.user_id, new.language_id, new.card_id, new.content, new.meaning, new.examples);
 END;
 
-CREATE INDEX idx_cards_type ON cards(user_id, language_id, card_type);
-CREATE INDEX idx_cards_updated ON cards(user_id, language_id, updated_at);
+CREATE INDEX idx_cards_status_type ON cards(user_id, language_id, status, card_type);
+CREATE INDEX idx_cards_status_updated ON cards(user_id, language_id, status, updated_at);
+CREATE INDEX idx_cards_active_type ON cards(user_id, language_id, card_type) WHERE status = 'active';
+CREATE INDEX idx_cards_active_updated ON cards(user_id, language_id, updated_at) WHERE status = 'active';
 
 -- Card Groups (Many-to-Many)
 CREATE TABLE card_groups (
@@ -148,11 +157,26 @@ CREATE TABLE inbox_notes (
 CREATE INDEX idx_inbox_state ON inbox_notes(user_id, language_id, state, created_at);
 CREATE INDEX idx_inbox_source ON inbox_notes(user_id, language_id, source_type);
 
--- Processing workflow is simple:
--- 1. Notes processed → cards created directly in cards table
--- 2. Processed notes are deleted (not tracked permanently)
--- 3. No note→card relationship tracking (requirements say this is optional)
--- 4. Duplicate detection is future AI enhancement, not core functionality
+-- Note-Card Relationships (For Draft Card Workflow)
+CREATE TABLE note_card_links (
+    user_id TEXT NOT NULL,
+    language_id TEXT NOT NULL,
+    note_id TEXT NOT NULL,
+    card_id TEXT NOT NULL,
+    created_at INTEGER DEFAULT (strftime('%s', 'now')),
+    PRIMARY KEY (user_id, language_id, note_id, card_id),
+    FOREIGN KEY (user_id, language_id, note_id) REFERENCES inbox_notes(user_id, language_id, note_id),
+    FOREIGN KEY (user_id, language_id, card_id) REFERENCES cards(user_id, language_id, card_id)
+);
+
+CREATE INDEX idx_note_card_links_note ON note_card_links(user_id, language_id, note_id);
+CREATE INDEX idx_note_card_links_card ON note_card_links(user_id, language_id, card_id);
+
+-- Processing workflow with draft cards:
+-- 1. Notes processed → draft cards created in cards table → note-card links established  
+-- 2. Users review draft cards with note context visible
+-- 3. Draft cards promoted to active status → note optionally deleted
+-- 4. Links maintained until note deletion for full traceability
 
 -- ============================================================================
 -- CARD REVIEW APPLICATION TABLES
@@ -255,7 +279,7 @@ JOIN translation_drill_context tc ON (
     c.language_id = tc.language_id AND 
     c.card_id = tc.card_id
 )
-WHERE tc.state = 'active';
+WHERE c.status = 'active' AND tc.state = 'active';
 
 -- Cards Due for Review
 CREATE VIEW card_review_due AS
@@ -275,7 +299,7 @@ JOIN card_review_srs s ON (
     c.language_id = s.language_id AND 
     c.card_id = s.card_id
 )
-WHERE s.next_due <= strftime('%s', 'now');
+WHERE c.status = 'active' AND s.next_due <= strftime('%s', 'now');
 
 -- ============================================================================
 -- TRIGGERS FOR DATA INTEGRITY
@@ -306,7 +330,7 @@ END;
 -- 1. Card-group many-to-many: May need optimization if users have thousands of cards
 -- 2. SRS updates: High frequency individual updates - consider WAL mode
 -- 3. Translation context queries: Should remain fast due to small context sizes
--- 4. JSON extraction: D1's JSON functions are optimized but consider generated columns for heavy queries
+-- 4. JSON extraction: Neon Postgres's JSON functions are optimized but consider generated columns for heavy queries
 
 -- Notes for Review:
 -- 1. Simplified card content: Examples/mnemonics as JSON arrays eliminate complex triggers
@@ -340,3 +364,12 @@ END;
 -- SELECT examples ->> '$[0].text' FROM cards WHERE card_id = ?;  -- First example text
 -- SELECT json_array_length(examples) FROM cards WHERE card_id = ?;  -- Count examples
 -- SELECT * FROM cards WHERE examples LIKE '%旅行%';  -- Search within examples
+
+-- Query examples for status field:
+-- SELECT * FROM cards WHERE user_id = ? AND language_id = ? AND status = 'active';  -- Active cards only
+-- SELECT * FROM cards WHERE user_id = ? AND language_id = ? AND status = 'draft';   -- Draft cards only
+-- UPDATE cards SET status = 'active' WHERE user_id = ? AND language_id = ? AND card_id = ?;  -- Promote draft to active
+
+-- Query examples for note-card relationships:
+-- SELECT c.*, n.content as note_content FROM cards c JOIN note_card_links l ON (c.user_id = l.user_id AND c.language_id = l.language_id AND c.card_id = l.card_id) JOIN inbox_notes n ON (l.user_id = n.user_id AND l.language_id = n.language_id AND l.note_id = n.note_id) WHERE c.user_id = ? AND c.language_id = ? AND c.status = 'draft';  -- Draft cards with their source notes
+-- SELECT card_id FROM note_card_links WHERE user_id = ? AND language_id = ? AND note_id = ?;  -- All cards created from a note
