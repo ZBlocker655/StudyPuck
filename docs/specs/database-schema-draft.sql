@@ -1,7 +1,7 @@
 -- StudyPuck Database Schema Draft
--- Status: Simplified - JSON Arrays for Card Components
--- Updated: December 20, 2025  
--- Changes: Eliminated separate card_examples/card_mnemonics tables, simplified triggers
+-- Status: Simplified - JSON Arrays for Card Components, Card Status Field Added
+-- Updated: January 31, 2026  
+-- Changes: Added status field to cards table for draft/active workflow
 
 -- Design Principles Applied:
 --
@@ -65,6 +65,7 @@ CREATE TABLE cards (
     language_id TEXT NOT NULL,
     card_id TEXT NOT NULL, -- UUID or user-friendly ID
     content TEXT NOT NULL, -- Main study prompt
+    status TEXT DEFAULT 'active' CHECK(status IN ('draft', 'active', 'archived', 'deleted')), -- Card lifecycle state
     card_type TEXT DEFAULT 'word' CHECK(card_type IN ('word', 'pattern', 'complex_prompt')),
     meaning TEXT,
     examples TEXT, -- JSON array: [{"text": "这次旅行是一次特别的经历", "translation": "This trip was a special experience"}, ...]
@@ -76,6 +77,12 @@ CREATE TABLE cards (
     PRIMARY KEY (user_id, language_id, card_id),
     FOREIGN KEY (user_id, language_id) REFERENCES study_languages(user_id, language_id)
 );
+
+-- Status field enables draft/active workflow:
+-- - 'draft': Card exists but not visible in Card Review/Translation Drill
+-- - 'active': Card is live and appears in all applications (default for existing data)  
+-- - 'archived': Card is hidden but preserved for potential restoration
+-- - 'deleted': Card is soft-deleted, hidden from normal views
 
 -- Full-text search on card content (with automatic sync)
 CREATE VIRTUAL TABLE cards_fts USING fts5(
@@ -107,8 +114,10 @@ CREATE TRIGGER cards_fts_update AFTER UPDATE ON cards BEGIN
     VALUES (new.rowid, new.user_id, new.language_id, new.card_id, new.content, new.meaning, new.examples);
 END;
 
-CREATE INDEX idx_cards_type ON cards(user_id, language_id, card_type);
-CREATE INDEX idx_cards_updated ON cards(user_id, language_id, updated_at);
+CREATE INDEX idx_cards_status_type ON cards(user_id, language_id, status, card_type);
+CREATE INDEX idx_cards_status_updated ON cards(user_id, language_id, status, updated_at);
+CREATE INDEX idx_cards_active_type ON cards(user_id, language_id, card_type) WHERE status = 'active';
+CREATE INDEX idx_cards_active_updated ON cards(user_id, language_id, updated_at) WHERE status = 'active';
 
 -- Card Groups (Many-to-Many)
 CREATE TABLE card_groups (
@@ -255,7 +264,7 @@ JOIN translation_drill_context tc ON (
     c.language_id = tc.language_id AND 
     c.card_id = tc.card_id
 )
-WHERE tc.state = 'active';
+WHERE c.status = 'active' AND tc.state = 'active';
 
 -- Cards Due for Review
 CREATE VIEW card_review_due AS
@@ -275,7 +284,7 @@ JOIN card_review_srs s ON (
     c.language_id = s.language_id AND 
     c.card_id = s.card_id
 )
-WHERE s.next_due <= strftime('%s', 'now');
+WHERE c.status = 'active' AND s.next_due <= strftime('%s', 'now');
 
 -- ============================================================================
 -- TRIGGERS FOR DATA INTEGRITY
@@ -340,3 +349,8 @@ END;
 -- SELECT examples ->> '$[0].text' FROM cards WHERE card_id = ?;  -- First example text
 -- SELECT json_array_length(examples) FROM cards WHERE card_id = ?;  -- Count examples
 -- SELECT * FROM cards WHERE examples LIKE '%旅行%';  -- Search within examples
+
+-- Query examples for status field:
+-- SELECT * FROM cards WHERE user_id = ? AND language_id = ? AND status = 'active';  -- Active cards only
+-- SELECT * FROM cards WHERE user_id = ? AND language_id = ? AND status = 'draft';   -- Draft cards only
+-- UPDATE cards SET status = 'active' WHERE user_id = ? AND language_id = ? AND card_id = ?;  -- Promote draft to active
