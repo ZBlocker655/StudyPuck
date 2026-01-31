@@ -29,7 +29,7 @@
 ```
 User Request → Cloudflare Pages (static assets)
             → Cloudflare Workers (API routes)
-            → D1/KV (data layer)
+            → Neon Postgres/KV (data layer)
 ```
 
 ## Recommendation: Use SvelteKit

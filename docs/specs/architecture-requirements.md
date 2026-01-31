@@ -12,7 +12,7 @@
 - **Primary hosting**: Cloudflare (studypuck.app domain already registered)
 - **Backend**: Cloudflare Workers (serverless functions)
 - **Cost optimization**: Minimize operating costs (free tier preferred)
-- **Service preference**: Explore Cloudflare D1, KV, R2 for data needs
+- **Service preference**: Explore Neon Postgres, Cloudflare KV, R2 for data needs
 
 ## Frontend Technology Stack
 - **Core languages**: TypeScript
@@ -39,7 +39,7 @@
 - **Approach**: Detailed analysis needed for optimal DB selection
 - **Flexibility**: Open to multiple DBs/data services if beneficial
 - **Query patterns**: TBD based on functional requirements analysis
-- **Cloudflare services**: Evaluate D1 (SQLite), KV storage, R2 compatibility
+- **Cloudflare services**: Evaluate Neon Postgres, KV storage, R2 compatibility
 
 ## Authentication
 - **Approach**: Third-party auth service (no custom identity management)

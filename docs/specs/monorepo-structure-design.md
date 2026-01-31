@@ -167,7 +167,7 @@ studypuck/
 │   ├── ui/                 # Shared components
 │   ├── types/              # TypeScript definitions  
 │   ├── auth/               # Auth.js + Auth0 logic
-│   ├── database/           # D1 schemas and queries
+│   ├── database/           # Neon Postgres schemas and queries
 │   └── utils/              # Language learning utilities
 └── ...
 ```

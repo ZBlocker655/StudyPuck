@@ -1,7 +1,7 @@
 -- StudyPuck Database Schema Draft
--- Status: Simplified - JSON Arrays for Card Components, Card Status Field Added
+-- Status: Neon Postgres with pgvector - JSON Arrays for Card Components, Card Status Field Added
 -- Updated: January 31, 2026  
--- Changes: Added status field to cards table for draft/active workflow
+-- Changes: Converted from SQLite to PostgreSQL, added status field to cards table for draft/active workflow
 
 -- Design Principles Applied:
 --
@@ -23,12 +23,15 @@
 -- CORE ENTITY TABLES
 -- ============================================================================
 
+-- Enable pgvector extension for vector search capabilities
+CREATE EXTENSION IF NOT EXISTS vector;
+
 -- Users
 CREATE TABLE users (
     user_id TEXT PRIMARY KEY,
     email TEXT UNIQUE NOT NULL,
-    created_at INTEGER DEFAULT (strftime('%s', 'now')),
-    metadata TEXT -- JSON: preferences, settings, etc.
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    metadata JSONB -- JSON: preferences, settings, etc.
 );
 
 CREATE INDEX idx_users_email ON users(email);
@@ -38,10 +41,10 @@ CREATE TABLE study_languages (
     user_id TEXT NOT NULL,
     language_id TEXT NOT NULL, -- ISO language code (en, zh, fr, etc.)
     language_name TEXT NOT NULL, -- Display name
-    is_active INTEGER DEFAULT 1,
+    is_active BOOLEAN DEFAULT TRUE,
     cefr_level TEXT DEFAULT 'A1' CHECK(cefr_level IN ('A1', 'A2', 'B1', 'B2', 'C1', 'C2')),
-    created_at INTEGER DEFAULT (strftime('%s', 'now')),
-    settings TEXT, -- JSON: language-specific settings
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    settings JSONB, -- JSON: language-specific settings
     PRIMARY KEY (user_id, language_id),
     FOREIGN KEY (user_id) REFERENCES users(user_id)
 );
@@ -53,8 +56,8 @@ CREATE TABLE groups (
     group_id TEXT NOT NULL, -- user-defined ID
     group_name TEXT NOT NULL,
     description TEXT,
-    created_at INTEGER DEFAULT (strftime('%s', 'now')),
-    metadata TEXT, -- JSON: group settings, color, etc.
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    metadata JSONB, -- JSON: group settings, color, etc.
     PRIMARY KEY (user_id, language_id, group_id),
     FOREIGN KEY (user_id, language_id) REFERENCES study_languages(user_id, language_id)
 );
@@ -68,12 +71,12 @@ CREATE TABLE cards (
     status TEXT DEFAULT 'active' CHECK(status IN ('draft', 'active', 'archived', 'deleted')), -- Card lifecycle state
     card_type TEXT DEFAULT 'word' CHECK(card_type IN ('word', 'pattern', 'complex_prompt')),
     meaning TEXT,
-    examples TEXT, -- JSON array: [{"text": "这次旅行是一次特别的经历", "translation": "This trip was a special experience"}, ...]
-    mnemonics TEXT, -- JSON array: ["Go through here and experience something nice inside", "Another mnemonic", ...]
+    examples JSONB, -- JSON array: [{"text": "这次旅行是一次特别的经历", "translation": "This trip was a special experience"}, ...]
+    mnemonics JSONB, -- JSON array: ["Go through here and experience something nice inside", "Another mnemonic", ...]
     llm_instructions TEXT, -- Instructions for AI features
-    created_at INTEGER DEFAULT (strftime('%s', 'now')),
-    updated_at INTEGER DEFAULT (strftime('%s', 'now')),
-    metadata TEXT, -- JSON: additional flexible data
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    metadata JSONB, -- JSON: additional flexible data
     PRIMARY KEY (user_id, language_id, card_id),
     FOREIGN KEY (user_id, language_id) REFERENCES study_languages(user_id, language_id)
 );
@@ -84,35 +87,16 @@ CREATE TABLE cards (
 -- - 'archived': Card is hidden but preserved for potential restoration
 -- - 'deleted': Card is soft-deleted, hidden from normal views
 
--- Full-text search on card content (with automatic sync)
-CREATE VIRTUAL TABLE cards_fts USING fts5(
-    user_id UNINDEXED,
-    language_id UNINDEXED, 
-    card_id UNINDEXED,
-    content,
-    meaning,
-    examples, -- Include examples in full-text search
-    content='cards',
-    content_rowid='rowid'
+-- Full-text search using PostgreSQL's advanced search capabilities
+-- Create GIN index for full-text search on card content
+CREATE INDEX idx_cards_fulltext ON cards USING GIN (
+    to_tsvector('english', content || ' ' || COALESCE(meaning, '') || ' ' || COALESCE(examples::text, ''))
 );
 
--- Automatic FTS synchronization triggers
-CREATE TRIGGER cards_fts_insert AFTER INSERT ON cards BEGIN
-    INSERT INTO cards_fts(rowid, user_id, language_id, card_id, content, meaning, examples) 
-    VALUES (new.rowid, new.user_id, new.language_id, new.card_id, new.content, new.meaning, new.examples);
-END;
-
-CREATE TRIGGER cards_fts_delete AFTER DELETE ON cards BEGIN
-    INSERT INTO cards_fts(cards_fts, rowid, user_id, language_id, card_id, content, meaning, examples) 
-    VALUES('delete', old.rowid, old.user_id, old.language_id, old.card_id, old.content, old.meaning, old.examples);
-END;
-
-CREATE TRIGGER cards_fts_update AFTER UPDATE ON cards BEGIN
-    INSERT INTO cards_fts(cards_fts, rowid, user_id, language_id, card_id, content, meaning, examples) 
-    VALUES('delete', old.rowid, old.user_id, old.language_id, old.card_id, old.content, old.meaning, old.examples);
-    INSERT INTO cards_fts(rowid, user_id, language_id, card_id, content, meaning, examples) 
-    VALUES (new.rowid, new.user_id, new.language_id, new.card_id, new.content, new.meaning, new.examples);
-END;
+-- Create separate index for multi-language search
+CREATE INDEX idx_cards_fulltext_simple ON cards USING GIN (
+    to_tsvector('simple', content || ' ' || COALESCE(meaning, '') || ' ' || COALESCE(examples::text, ''))
+);
 
 CREATE INDEX idx_cards_status_type ON cards(user_id, language_id, status, card_type);
 CREATE INDEX idx_cards_status_updated ON cards(user_id, language_id, status, updated_at);
@@ -125,7 +109,7 @@ CREATE TABLE card_groups (
     language_id TEXT NOT NULL,
     card_id TEXT NOT NULL,
     group_id TEXT NOT NULL,
-    assigned_at INTEGER DEFAULT (strftime('%s', 'now')),
+    assigned_at TIMESTAMPTZ DEFAULT NOW(),
     PRIMARY KEY (user_id, language_id, card_id, group_id),
     FOREIGN KEY (user_id, language_id, card_id) REFERENCES cards(user_id, language_id, card_id),
     FOREIGN KEY (user_id, language_id, group_id) REFERENCES groups(user_id, language_id, group_id)
@@ -148,8 +132,8 @@ CREATE TABLE inbox_notes (
     content TEXT NOT NULL,
     state TEXT DEFAULT 'unprocessed' CHECK(state IN ('unprocessed', 'deferred', 'deleted')),
     source_type TEXT DEFAULT 'manual' CHECK(source_type IN ('manual', 'api', 'browser_extension', 'ifttt', 'zapier', 'n8n')),
-    source_metadata TEXT, -- JSON: URL, browser context, integration details
-    created_at INTEGER DEFAULT (strftime('%s', 'now')),
+    source_metadata JSONB, -- JSON: URL, browser context, integration details
+    created_at TIMESTAMPTZ DEFAULT NOW(),
     PRIMARY KEY (user_id, language_id, note_id),
     FOREIGN KEY (user_id, language_id) REFERENCES study_languages(user_id, language_id)
 );
@@ -212,7 +196,7 @@ CREATE TABLE card_review_srs (
     ease_factor REAL DEFAULT 2.5,
     review_count INTEGER DEFAULT 0,
     last_reviewed INTEGER,
-    metadata TEXT, -- JSON: algorithm-specific data, performance history
+    metadata JSONB, -- JSON: algorithm-specific data, performance history
     PRIMARY KEY (user_id, language_id, card_id),
     FOREIGN KEY (user_id, language_id, card_id) REFERENCES cards(user_id, language_id, card_id)
 );
@@ -257,7 +241,7 @@ CREATE TABLE translation_drill_srs (
     usage_count INTEGER DEFAULT 0,
     last_used INTEGER,
     performance_score REAL, -- success rate in translation context
-    metadata TEXT, -- JSON: algorithm-specific data, dismissal history
+    metadata JSONB, -- JSON: algorithm-specific data, dismissal history
     PRIMARY KEY (user_id, language_id, card_id),
     FOREIGN KEY (user_id, language_id, card_id) REFERENCES cards(user_id, language_id, card_id)
 );
@@ -269,10 +253,10 @@ CREATE TABLE translation_drill_draw_piles (
     user_id TEXT NOT NULL,
     language_id TEXT NOT NULL,
     group_id TEXT NOT NULL,
-    enabled INTEGER DEFAULT 1,
+    enabled BOOLEAN DEFAULT TRUE,
     draw_pile_name TEXT, -- optional custom display name
     pile_size_limit INTEGER DEFAULT 10, -- max cards to draw from this pile
-    created_at INTEGER DEFAULT (strftime('%s', 'now')),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
     PRIMARY KEY (user_id, language_id, group_id),
     FOREIGN KEY (user_id, language_id, group_id) REFERENCES groups(user_id, language_id, group_id)
 );
@@ -286,12 +270,12 @@ CREATE TABLE translation_drill_context (
     card_id TEXT NOT NULL,
     state TEXT NOT NULL DEFAULT 'active' CHECK(state IN ('active', 'snoozed', 'dismissed')),
     added_from TEXT, -- 'draw_pile:group_id', 'pinned_from_review'
-    added_at INTEGER DEFAULT (strftime('%s', 'now')),
-    last_used INTEGER, -- timestamp of most recent selection for sentence generation
+    added_at TIMESTAMPTZ DEFAULT NOW(),
+    last_used TIMESTAMPTZ, -- timestamp of most recent selection for sentence generation
     usage_count INTEGER DEFAULT 0, -- total times selected for sentence generation
-    state_until INTEGER, -- timestamp for snooze/dismiss duration
+    state_until TIMESTAMPTZ, -- timestamp for snooze/dismiss duration
     cefr_override TEXT CHECK(cefr_override IN ('A1', 'A2', 'B1', 'B2', 'C1', 'C2')), -- optional drill-level CEFR override
-    metadata TEXT, -- JSON: context-specific data
+    metadata JSONB, -- JSON: context-specific data
     PRIMARY KEY (user_id, language_id, card_id),
     FOREIGN KEY (user_id, language_id, card_id) REFERENCES cards(user_id, language_id, card_id)
 );
@@ -360,22 +344,25 @@ JOIN card_review_srs s ON (
     c.language_id = s.language_id AND 
     c.card_id = s.card_id
 )
-WHERE c.status = 'active' AND s.next_due <= strftime('%s', 'now');
+WHERE c.status = 'active' AND s.next_due <= EXTRACT(EPOCH FROM NOW());
 
 -- ============================================================================
 -- TRIGGERS FOR DATA INTEGRITY
 -- ============================================================================
 
--- Update cards.updated_at on modification
-CREATE TRIGGER tr_cards_updated_at 
-    AFTER UPDATE ON cards
+-- Update cards.updated_at on modification (PostgreSQL function)
+CREATE OR REPLACE FUNCTION update_cards_updated_at()
+RETURNS TRIGGER AS $$
 BEGIN
-    UPDATE cards 
-    SET updated_at = strftime('%s', 'now') 
-    WHERE user_id = NEW.user_id 
-      AND language_id = NEW.language_id 
-      AND card_id = NEW.card_id;
+    NEW.updated_at = NOW();
+    RETURN NEW;
 END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER tr_cards_updated_at 
+    BEFORE UPDATE ON cards
+    FOR EACH ROW
+    EXECUTE FUNCTION update_cards_updated_at();
 
 -- ============================================================================
 -- PERFORMANCE CONSIDERATIONS
@@ -385,7 +372,7 @@ END;
 -- 1. Card Review SRS queries: (user_id, language_id, next_due) index
 -- 2. Translation context retrieval: (user_id, language_id, state) index  
 -- 3. Group-based filtering: (user_id, language_id, group_id) index
--- 4. Full-text search: FTS5 virtual table for card content
+-- 4. Full-text search: PostgreSQL advanced search with GIN indexes
 
 -- Potential Scaling Bottlenecks:
 -- 1. Card-group many-to-many: May need optimization if users have thousands of cards
@@ -396,7 +383,7 @@ END;
 -- Notes for Review:
 -- 1. Simplified card content: Examples/mnemonics as JSON arrays eliminate complex triggers
 -- 2. JSON metadata fields: Positioned for algorithm evolution, may need schema migration strategy
--- 3. FTS5 integration: Now includes examples content for richer search
+-- 3. PostgreSQL search integration: Now includes examples content for richer search
 -- 4. Atomic card operations: Single-table read/write for complete card data
 
 -- ============================================================================
@@ -421,10 +408,15 @@ END;
 --   "经历 sounds like 'jing-li' = experience you go through"
 -- ]
 
--- Query examples for JSON fields:
--- SELECT examples ->> '$[0].text' FROM cards WHERE card_id = ?;  -- First example text
--- SELECT json_array_length(examples) FROM cards WHERE card_id = ?;  -- Count examples
--- SELECT * FROM cards WHERE examples LIKE '%旅行%';  -- Search within examples
+-- Query examples for JSONB fields (PostgreSQL):
+-- SELECT examples -> 0 ->> 'text' FROM cards WHERE card_id = ?;  -- First example text
+-- SELECT jsonb_array_length(examples) FROM cards WHERE card_id = ?;  -- Count examples
+-- SELECT * FROM cards WHERE examples @> '[{"text": "旅行"}]';  -- Search within examples (contains)
+-- SELECT * FROM cards WHERE to_tsvector('simple', examples::text) @@ to_tsquery('simple', '旅行');  -- Full-text search in examples
+
+-- Query examples for full-text search:
+-- SELECT * FROM cards WHERE to_tsvector('english', content || ' ' || COALESCE(meaning, '')) @@ to_tsquery('english', 'travel');
+-- SELECT * FROM cards WHERE to_tsvector('simple', content) @@ to_tsquery('simple', '旅行');  -- Multi-language search
 
 -- Query examples for status field:
 -- SELECT * FROM cards WHERE user_id = ? AND language_id = ? AND status = 'active';  -- Active cards only
