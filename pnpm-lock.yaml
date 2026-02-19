@@ -23,6 +23,9 @@ importers:
       '@auth/sveltekit':
         specifier: ^1.11.1
         version: 1.11.1(@sveltejs/kit@2.49.2)(svelte@5.46.0)
+      '@studypuck/database':
+        specifier: workspace:*
+        version: link:../../packages/database
       zod:
         specifier: ^4.2.1
         version: 4.2.1

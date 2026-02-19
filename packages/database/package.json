@@ -11,7 +11,8 @@
     "migrate:studio": "drizzle-kit studio",
     "migrate:push": "drizzle-kit push",
     "migrate:drop": "drizzle-kit drop",
-    "migrate:check": "drizzle-kit check"
+    "migrate:check": "drizzle-kit check",
+    "validate:safety": "node scripts/validate-migration-safety.js"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.1",
