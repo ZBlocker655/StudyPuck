@@ -26,6 +26,9 @@ importers:
       '@studypuck/database':
         specifier: workspace:*
         version: link:../../packages/database
+      drizzle-orm:
+        specifier: ^0.36.4
+        version: 0.36.4(@neondatabase/serverless@0.10.4)
       zod:
         specifier: ^4.2.1
         version: 4.2.1

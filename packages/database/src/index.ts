@@ -21,7 +21,7 @@ function createDatabaseConnection(databaseUrl: string) {
  */
 export const db = createDatabaseConnection(
   process.env.DATABASE_URL || 
-  globalThis.DATABASE_URL || 
+  (globalThis as any).DATABASE_URL || 
   (() => { throw new Error('DATABASE_URL environment variable is required'); })()
 );
 

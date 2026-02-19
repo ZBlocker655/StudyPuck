@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { db } from './index.js';
 import { users, studyLanguages, type User, type NewUser, type StudyLanguage, type NewStudyLanguage } from './schema.js';
 
@@ -98,8 +98,10 @@ export async function getActiveUserLanguages(userId: string): Promise<StudyLangu
   return await db
     .select()
     .from(studyLanguages)
-    .where(eq(studyLanguages.userId, userId))
-    .where(eq(studyLanguages.isActive, true));
+    .where(and(
+      eq(studyLanguages.userId, userId),
+      eq(studyLanguages.isActive, true)
+    ));
 }
 
 /**
@@ -128,8 +130,10 @@ export async function updateStudyLanguage(
   const result = await db
     .update(studyLanguages)
     .set(updates)
-    .where(eq(studyLanguages.userId, userId))
-    .where(eq(studyLanguages.languageId, languageId))
+    .where(and(
+      eq(studyLanguages.userId, userId),
+      eq(studyLanguages.languageId, languageId)
+    ))
     .returning();
   
   return result[0] || null;
