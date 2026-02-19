@@ -1,9 +1,11 @@
 import { json } from '@sveltejs/kit';
-import { db } from '@studypuck/database';
-import { sql } from 'drizzle-orm';
 
 export async function GET() {
 	try {
+		// Dynamic import to avoid build-time database connection
+		const { db } = await import('@studypuck/database');
+		const { sql } = await import('drizzle-orm');
+		
 		// Test database connectivity
 		const result = await db.execute(sql`SELECT 1 as health_check`);
 		
