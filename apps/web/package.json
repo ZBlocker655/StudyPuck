@@ -12,7 +12,13 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"check-types": "tsc --noEmit",
-		"lint": "svelte-check --tsconfig ./tsconfig.json"
+		"lint": "svelte-check --tsconfig ./tsconfig.json",
+		"db:generate": "pnpm -F database migrate:generate",
+		"db:migrate": "pnpm -F database migrate:apply",
+		"db:studio": "pnpm -F database migrate:studio",
+		"db:push": "pnpm -F database migrate:push",
+		"db:drop": "pnpm -F database migrate:drop",
+		"db:check": "pnpm -F database migrate:check"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-auto": "^7.0.0",
