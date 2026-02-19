@@ -7,7 +7,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: production  # Requires approval
+    environment: "studypuck (Production)"  # Use existing environment
     
     steps:
       - name: Checkout code
