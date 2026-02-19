@@ -41,6 +41,55 @@ Every implementation step must result in a deployable application that loads and
 
 **Deployment Strategy**: Each milestone must maintain studypuck.app as a working application with incremental feature additions.
 
+## 📚 **Operational Documentation**
+
+**CRITICAL**: All agents must follow the detailed operational procedures in `docs/ops/`. These procedures are mandatory for database management, deployment, and development workflows.
+
+### **Choose the Right Workflow:**
+- **[Interactive Development](docs/ops/interactive-development.md)** - For real-time human-AI collaboration (THIS session type!)
+- **[Autonomous AI Development](docs/ops/autonomous-ai-development.md)** - For independent AI agents assigned to GitHub issues  
+- **[Database Branching](docs/ops/database-branching-guide.md)** - Database branch management and migration procedures
+- **[Environment Setup](docs/ops/environment-setup.md)** - Environment variable configuration across all platforms
+
+### **Agent-Specific Requirements**
+
+#### **For Copilot CLI (Interactive)**
+```bash
+# Verify environment before starting work
+echo "Current DATABASE_URL: ${DATABASE_URL:0:20}..."
+
+# Follow human-guided workflow in interactive-development.md
+# Work collaboratively with human oversight
+# Use existing database environment (typically development)
+```
+
+#### **For Cloud Copilot (Autonomous)**
+```bash
+# Automatic database branch creation on issue assignment
+# Follow complete autonomous workflow in autonomous-ai-development.md
+# Work in isolated agent/issue-N database branch
+# Submit PR with complete implementation ready for human review
+```
+
+### **Critical Database Rules for All Agents**
+- ⚠️ **ALWAYS use DIRECT connection strings for migrations** - pooled connections break migration tracking
+- ✅ **Use database feature branches for schema changes** - prevents conflicts and pollution
+- ✅ **Follow "Last Possible Moment" strategy** - development branch stays clean until production deployment
+- 🔄 **Database branches automatically cleaned up** after PR merge/issue closure
+
+### **Documentation Hierarchy**
+```
+docs/ops/README.md ←── Start here for overview
+├── interactive-development.md ←── Human-AI collaboration (THIS session!)
+├── autonomous-ai-development.md ←── Independent AI agents (MANDATORY)
+├── manual-development.md ←── Human-only development
+├── database-branching-guide.md ←── Database procedures (MANDATORY)
+├── environment-setup.md ←── Environment configuration
+└── troubleshooting.md ←── Common issues and solutions
+```
+
+**Rule**: When in doubt, consult `docs/ops/` documentation first. These procedures are authoritative and must be followed.
+
 ## 🏗️ **Development Environments**
 
 ### **Standard Development (Node.js)**
