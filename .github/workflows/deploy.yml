@@ -42,7 +42,7 @@ jobs:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
         run: |
           TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-          npx neonctl branches create production-backup-$TIMESTAMP --parent production || echo "⚠️ Backup creation failed - proceeding"
+          npx neonctl branches create --name production-backup-$TIMESTAMP --parent production || echo "⚠️ Backup creation failed - proceeding"
           echo "ROLLBACK_BRANCH=production-backup-$TIMESTAMP" >> $GITHUB_ENV
       
       # Phase 1: Database Migration (BEFORE code deployment)
@@ -81,7 +81,7 @@ jobs:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
         run: |
           echo "📋 Syncing development branch to production state..."
-          npx neonctl branches reset development --parent production --confirm
+          npx neonctl branches reset development --parent
           echo "✅ Development branch synced to production state"
       
       # Rollback on failure
@@ -92,6 +92,6 @@ jobs:
         run: |
           if [ -n "$ROLLBACK_BRANCH" ]; then
             echo "🔄 Rolling back production database..."
-            npx neonctl branches reset production --parent $ROLLBACK_BRANCH --confirm || echo "❌ Rollback failed - manual intervention required"
-            echo "⚠️ Production rolled back to: $ROLLBACK_BRANCH"
+            # Note: Manual rollback required - reset to backup branch through Neon console
+            echo "⚠️ Automatic rollback not implemented - please manually reset production to: $ROLLBACK_BRANCH"
           fi
