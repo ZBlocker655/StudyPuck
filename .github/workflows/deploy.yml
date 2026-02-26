@@ -1,0 +1,97 @@
+name: Production Deployment
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: "studypuck (Production)"  # Use existing environment
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      
+      - name: Install dependencies
+        run: pnpm install
+      
+      - name: Validate migration safety
+        run: |
+          cd packages/database
+          # Check for destructive operations
+          if grep -r "DROP\|ALTER.*DROP\|TRUNCATE" migrations/ 2>/dev/null; then
+            echo "❌ Destructive migration detected - manual review required"
+            exit 1
+          fi
+          echo "✅ Migration safety validated"
+      
+      - name: Create rollback point
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+        run: |
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          npx neonctl branches create production-backup-$TIMESTAMP --parent production || echo "⚠️ Backup creation failed - proceeding"
+          echo "ROLLBACK_BRANCH=production-backup-$TIMESTAMP" >> $GITHUB_ENV
+      
+      # Phase 1: Database Migration (BEFORE code deployment)
+      - name: Apply migrations to production database
+        env:
+          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+        run: |
+          cd packages/database
+          pnpm migrate:apply
+          echo "✅ Production database migrations applied"
+      
+      # Phase 2: Code deployment happens automatically via Cloudflare
+      - name: Wait for Cloudflare deployment
+        run: |
+          echo "Waiting for Cloudflare Pages auto-deployment to complete..."
+          sleep 45
+      
+      # Phase 3: Health verification
+      - name: Verify production deployment
+        run: |
+          echo "🏥 Testing production health endpoints..."
+          
+          # Test main site
+          curl -f https://studypuck.app/ || exit 1
+          echo "✅ Main site responding"
+          
+          # Test health endpoint
+          curl -f https://studypuck.app/api/health || exit 1
+          echo "✅ Health endpoint responding"
+          
+          echo "🎉 Production deployment verified"
+      
+      # Phase 4: Development sync (Last Possible Moment)
+      - name: Sync development branch
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+        run: |
+          echo "📋 Syncing development branch to production state..."
+          npx neonctl branches reset development --parent production --confirm
+          echo "✅ Development branch synced to production state"
+      
+      # Rollback on failure
+      - name: Rollback on failure
+        if: failure()
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+        run: |
+          if [ -n "$ROLLBACK_BRANCH" ]; then
+            echo "🔄 Rolling back production database..."
+            npx neonctl branches reset production --parent $ROLLBACK_BRANCH --confirm || echo "❌ Rollback failed - manual intervention required"
+            echo "⚠️ Production rolled back to: $ROLLBACK_BRANCH"
+          fi
