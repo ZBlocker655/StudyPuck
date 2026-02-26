@@ -1,10 +1,15 @@
 import { json } from '@sveltejs/kit';
+import type { RequestEvent } from '@sveltejs/kit';
 
-export async function GET() {
+export async function GET(event: RequestEvent) {
 	try {
 		// Dynamic import to avoid build-time database connection
-		const { db } = await import('@studypuck/database');
+		const { getDb } = await import('@studypuck/database');
 		const { sql } = await import('drizzle-orm');
+		
+		// Get DATABASE_URL from platform environment for Cloudflare Workers
+		const databaseUrl = (event.platform as any)?.env?.DATABASE_URL;
+		const db = getDb(databaseUrl);
 		
 		// Test database connectivity
 		const result = await db.execute(sql`SELECT 1 as health_check`);
@@ -14,12 +19,16 @@ export async function GET() {
 			throw new Error('Database health check failed');
 		}
 
+		// Access environment variables through proper Cloudflare types (same pattern as auth)
+		const version = (event.platform as any)?.env?.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || 'unknown';
+		const environment = (event.platform as any)?.env?.NODE_ENV || 'unknown';
+
 		return json({
 			status: 'healthy',
 			timestamp: new Date().toISOString(),
 			database: 'connected',
-			version: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || 'unknown',
-			environment: process.env.NODE_ENV || 'unknown'
+			version,
+			environment
 		});
 	} catch (error) {
 		console.error('Health check failed:', error);

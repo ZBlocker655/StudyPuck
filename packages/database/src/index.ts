@@ -14,16 +14,39 @@ function createDatabaseConnection(databaseUrl: string) {
   return drizzle(pool, { schema });
 }
 
+// Cache for lazy-initialized database connection
+let _db: ReturnType<typeof createDatabaseConnection> | null = null;
+
 /**
- * Global database instance
- * In development: connects directly to Neon
- * In production: uses Cloudflare Workers environment variable
+ * Get database instance with lazy initialization
+ * In development: uses process.env.DATABASE_URL
+ * In Cloudflare Workers: requires DATABASE_URL to be passed in
  */
-export const db = createDatabaseConnection(
-  process.env.DATABASE_URL || 
-  (globalThis as any).DATABASE_URL || 
-  (() => { throw new Error('DATABASE_URL environment variable is required'); })()
-);
+export function getDb(databaseUrl?: string) {
+  if (!_db) {
+    const url = databaseUrl ||
+                (typeof process !== 'undefined' ? process.env.DATABASE_URL : undefined) ||
+                (globalThis as any).DATABASE_URL;
+    
+    if (!url) {
+      throw new Error('DATABASE_URL environment variable is required');
+    }
+    
+    _db = createDatabaseConnection(url);
+  }
+  return _db;
+}
+
+/**
+ * Global database instance for backwards compatibility
+ * Only use this in Node.js development environments
+ * For Cloudflare Workers, use getDb(databaseUrl) instead
+ */
+export const db = new Proxy({} as ReturnType<typeof createDatabaseConnection>, {
+  get(target, prop) {
+    return getDb()[prop as keyof ReturnType<typeof createDatabaseConnection>];
+  }
+});
 
 // Re-export schema for convenience
 export * from './schema.js';

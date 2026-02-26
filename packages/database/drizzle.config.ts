@@ -4,7 +4,7 @@ import { resolve } from 'path';
 import { existsSync } from 'fs';
 
 // Only load .env if it exists (safe for production environments)
-const envPath = resolve(__dirname, '../../.env');
+const envPath = resolve(__dirname, '../../apps/web/.env');
 if (existsSync(envPath)) {
   config({ path: envPath });
 }
