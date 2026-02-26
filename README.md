@@ -30,8 +30,8 @@ A language learning application combining AI-powered translation drills with spa
 ### Quick Start
 ```bash
 # Setup environment variables (see docs/ops/environment-setup.md)
-cp .env.example .env
-# Edit .env with your DATABASE_URL
+cp .env.example apps/web/.env
+# Edit apps/web/.env with your DATABASE_URL
 
 # Run migrations
 cd apps/web

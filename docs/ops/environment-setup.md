@@ -13,10 +13,10 @@ Each environment requires different variable sources and access patterns.
 
 ## Local Development Environment
 
-### **Project Root .env File**
+### **Project .env File**
 ```bash
-# Location: /StudyPuck/.env (project root)
-# Purpose: Shared by all packages and applications
+# Location: /StudyPuck/apps/web/.env (web app root)
+# Purpose: SvelteKit and Wrangler automatically load from here
 
 # Database Configuration
 DATABASE_URL="postgresql://user:pass@ep-development.region.aws.neon.tech/db"
@@ -33,27 +33,23 @@ AUTH0_AUDIENCE="https://api.studypuck.app"
 ### **How Each Package Accesses Variables**
 
 #### **SvelteKit Web App (apps/web/)**
-- ✅ **Automatic discovery**: Vite searches up directory tree
-- ✅ **No configuration needed**: Inherits from root `.env`
-- ✅ **Server-side**: `process.env.DATABASE_URL` works in `+page.server.ts`
+- ✅ **Automatic discovery**: Loads `.env` from `apps/web/.env`
+- ✅ **No configuration needed**: Standard SvelteKit behavior
+- ✅ **Server-side**: Access via `$env/dynamic/private` or `event.platform.env`
 - ✅ **Client-side**: Only `PUBLIC_*` variables accessible
 
 #### **Database Package (packages/database/)**
-- ✅ **Manual configuration**: Uses explicit dotenv loading
-- ✅ **Safe loading**: Only loads `.env` if file exists
+- ✅ **Build-time access**: Uses `process.env` with typeof check for Workers compatibility
+- ✅ **Fallback to globalThis**: Works in Cloudflare Workers runtime
 - ✅ **Production compatible**: No errors in serverless environments
 
 ```typescript
-// drizzle.config.ts
-import { config } from 'dotenv';
-import { resolve } from 'path';
-import { existsSync } from 'fs';
-
-// Safe dotenv loading
-const envPath = resolve(__dirname, '../../.env');
-if (existsSync(envPath)) {
-  config({ path: envPath });
-}
+// packages/database/src/index.ts
+export const db = createDatabaseConnection(
+  (typeof process !== 'undefined' ? process.env.DATABASE_URL : undefined) ||
+  (globalThis as any).DATABASE_URL || 
+  (() => { throw new Error('DATABASE_URL environment variable is required'); })()
+);
 ```
 
 ## GitHub Actions Environment
@@ -207,8 +203,8 @@ export async function onRequest(context) {
 ### **Common Issues**
 
 #### **"DATABASE_URL not found" (Local)**
-- ✅ Verify `.env` file exists at project root
-- ✅ Check Drizzle config has dotenv loading
+- ✅ Verify `.env` file exists at `apps/web/.env`
+- ✅ Copy from root if needed: `copy .env apps\web\.env`
 - ✅ Restart development servers
 
 #### **"Cannot connect to database" (Any environment)**
