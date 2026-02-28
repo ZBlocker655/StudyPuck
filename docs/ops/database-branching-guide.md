@@ -90,6 +90,40 @@ neon branches delete agent/issue-67
 neon branches delete test-sha123
 ```
 
+### **Branch Count Management (Free Tier Limit: 10 branches)**
+
+The Neon free tier allows a maximum of 10 branches. Every production deployment creates a backup branch, so old backup branches must be periodically pruned.
+
+**Post-deployment agent check procedure** (run after every production deploy):
+
+```bash
+# 1. Count current branches
+neonctl branches list
+
+# 2. If total branches >= 7:
+#    a. Count production backup branches (named backup/prod-YYYY-MM-DD or similar)
+#    b. Ask the human:
+#       "You have N Neon branches (limit: 10). There are X production backup branches.
+#        Should I delete the oldest backup branches to stay under 7 total,
+#        or would you prefer to manage branches yourself?"
+#    c. If human approves: delete oldest backup branches (sorted by created_at ascending)
+#       until total is under 7
+#    d. If human prefers to manage: do nothing, remind them of the limit
+
+# 3. List backup branches sorted oldest first
+neonctl branches list --output json | \
+  node -e "const b=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
+           b.filter(x=>x.name.startsWith('backup/')).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)).forEach(x=>console.log(x.name, x.created_at))"
+
+# 4. Delete a specific backup branch (after human approval)
+neonctl branches delete backup/prod-2025-01-15
+```
+
+**Threshold summary:**
+- **< 7 branches**: No action needed
+- **7–9 branches**: Warn and offer to clean up
+- **10 branches**: Blocked — must delete before next deploy can create backup
+
 ## Migration Best Practices
 
 ### **Environment Variable Loading**
