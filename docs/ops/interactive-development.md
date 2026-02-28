@@ -112,6 +112,16 @@ echo "DATABASE_URL=..." >> .env
 git add . && git commit -m "Implement user authentication"
 git push -u origin feature/auth-implementation
 
+# If a Neon feature branch was created for this work, delete it AFTER the PR merges:
+neonctl branches delete feature/issue-N
+# Note: the production deploy workflow auto-deletes this on merge,
+# but if you need to do it manually (e.g. deploy failed or was skipped):
+#   $env:PATH = "C:\Users\Zach\AppData\Roaming\npm;" + $env:PATH
+#   neonctl branches delete feature/issue-N
+
+# Revert apps/web/.env DATABASE_URL back to development branch
+# (uncomment development line, remove feature branch line)
+
 # Documentation updates
 # Report completion status
 # Propose next steps
