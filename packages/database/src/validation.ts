@@ -24,7 +24,7 @@ export const insertUserSchema = createInsertSchema(users);
 export const selectUserSchema = createSelectSchema(users);
 
 // === Study Languages ===
-export const insertStudyLanguageSchema = createInsertSchema(studyLanguages, {
+export const insertStudyLanguageSchema = createInsertSchema(studyLanguages).extend({
   cefrLevel: cefrLevelSchema.optional(),
 });
 export const selectStudyLanguageSchema = createSelectSchema(studyLanguages);
@@ -34,7 +34,7 @@ export const insertGroupSchema = createInsertSchema(groups);
 export const selectGroupSchema = createSelectSchema(groups);
 
 // === Cards ===
-export const insertCardSchema = createInsertSchema(cards, {
+export const insertCardSchema = createInsertSchema(cards).extend({
   status: cardStatusSchema.optional(),
   cardType: cardTypeSchema.optional(),
 });
@@ -45,7 +45,7 @@ export const insertCardGroupSchema = createInsertSchema(cardGroups);
 export const selectCardGroupSchema = createSelectSchema(cardGroups);
 
 // === Card Entry ===
-export const insertInboxNoteSchema = createInsertSchema(inboxNotes, {
+export const insertInboxNoteSchema = createInsertSchema(inboxNotes).extend({
   state: inboxNoteStateSchema.optional(),
   sourceType: inboxSourceTypeSchema.optional(),
 });
@@ -71,7 +71,7 @@ export const selectTranslationDrillSrsSchema = createSelectSchema(translationDri
 export const insertTranslationDrillDrawPileSchema = createInsertSchema(translationDrillDrawPiles);
 export const selectTranslationDrillDrawPileSchema = createSelectSchema(translationDrillDrawPiles);
 
-export const insertTranslationDrillContextSchema = createInsertSchema(translationDrillContext, {
+export const insertTranslationDrillContextSchema = createInsertSchema(translationDrillContext).extend({
   state: drillContextStateSchema.optional(),
   cefrOverride: cefrLevelSchema.optional().nullable(),
 });
