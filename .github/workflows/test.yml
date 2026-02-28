@@ -60,7 +60,7 @@ jobs:
         run: node scripts/check-ephemeral-tests.mjs
 
       - name: Run database tests
-        run: pnpm turbo test --filter=database
+        run: pnpm turbo test --filter=@studypuck/database
 
       - name: Run linter
         run: pnpm turbo lint --filter=web
