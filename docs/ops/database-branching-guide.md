@@ -129,6 +129,80 @@ pnpm run studio  # Opens Drizzle Studio
 | **agent/issue-N** | Per-issue | AI agent isolated development | During agent work |
 | **test-sha** | Per-commit | GitHub Actions CI testing | Created/destroyed per test |
 
+## Testing Strategy
+
+StudyPuck uses a **two-tier hybrid testing approach** to balance test speed, cost, and production parity.
+
+### Tier 1: Docker Compose Tests (default, runs every CI pass)
+
+All standard integration tests use a local Docker Postgres instance (`pgvector/pgvector:pg15`):
+
+```bash
+# Start test database
+cd packages/database
+pnpm test:setup
+
+# Run all tests
+pnpm test
+
+# Stop and clean up
+pnpm test:cleanup
+```
+
+- **Fast**: runs in memory via `tmpfs`, no network latency
+- **Free**: no Neon quota consumption
+- **Offline**: works without internet or Neon credentials
+- File pattern: `*.test.ts`
+
+### Tier 2: Ephemeral Neon Tests (on-demand, NOT in every CI pass)
+
+For real-world validation (e.g., verifying a migration against a production-like Neon branch):
+
+```bash
+# Create a dedicated test branch
+neon branches create test-issue-N --parent development
+
+# Set connection string
+export NEON_TEST_DATABASE_URL="postgresql://..."
+
+# Run Neon tests only
+pnpm test:neon
+```
+
+- **Production parity**: uses the actual Neon serverless driver and engine
+- **Ephemeral**: tests are deleted when their linked issue closes
+- File pattern: `*-issue-N.neon.test.ts` — **issue number in filename is mandatory**
+
+### Ephemeral Neon Test Naming Convention
+
+```
+migration-issue-36.neon.test.ts   ✅ correct
+schema-validation-issue-42.neon.test.ts  ✅ correct
+migration-smoke.neon.test.ts      ❌ will fail CI — no issue number
+```
+
+### Ephemeral Test Lifecycle
+
+1. **Create**: write `*-issue-N.neon.test.ts` alongside the issue work
+2. **Run**: `pnpm test:neon` with `NEON_TEST_DATABASE_URL` pointing at a test branch
+3. **Retain**: the test lives until the issue closes
+4. **Delete**: when issue #N is closed, **delete the file in the closing PR**
+
+A CI enforcement script (`scripts/check-ephemeral-tests.mjs`) runs on every push and **fails CI** if:
+- A `.neon.test.ts` filename has no `issue-N` pattern
+- The linked issue is already CLOSED (stale test reminder)
+
+This ensures ephemeral tests never accumulate and never degrade test suite performance.
+
+### When to Write Each Test Type
+
+| Scenario | Use |
+|---|---|
+| CRUD operations, business logic, query correctness | `*.test.ts` (Docker) |
+| Migration applies cleanly (routine) | `*.test.ts` (Docker) |
+| Migration against realistic data volume or edge cases | `*-issue-N.neon.test.ts` (Neon) |
+| Verifying Neon serverless driver behavior | `*-issue-N.neon.test.ts` (Neon) |
+
 ## Troubleshooting
 
 ### **Common Issues**

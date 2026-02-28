@@ -16,7 +16,23 @@ jobs:
       AUTH0_CLIENT_SECRET: ${{ secrets.AUTH0_CLIENT_SECRET }}
       AUTH0_ISSUER: ${{ secrets.AUTH0_ISSUER }}
       AUTH0_AUDIENCE: ${{ secrets.AUTH0_AUDIENCE }}
-    
+      TEST_DATABASE_URL: postgresql://test_user:test_password@localhost:5433/studypuck_test
+
+    services:
+      test-postgres:
+        image: pgvector/pgvector:pg15
+        env:
+          POSTGRES_DB: studypuck_test
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5433:5432
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -34,8 +50,19 @@ jobs:
       
       - name: Install dependencies
         run: pnpm install
-      
-      - name: Run tests
+
+      - name: Initialize test database extensions
+        run: |
+          PGPASSWORD=test_password psql -h localhost -p 5433 -U test_user -d studypuck_test \
+            -c "CREATE EXTENSION IF NOT EXISTS vector;"
+
+      - name: Check for stale ephemeral Neon tests
+        run: node scripts/check-ephemeral-tests.mjs
+
+      - name: Run database tests
+        run: pnpm turbo test --filter=@studypuck/database
+
+      - name: Run linter
         run: pnpm turbo lint --filter=web
 
       - name: Build application

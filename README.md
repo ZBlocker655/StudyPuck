@@ -20,7 +20,7 @@ A language learning application combining AI-powered translation drills with spa
 
 ### Quick Links
 - **Database Setup**: [Database Branching Guide](docs/ops/database-branching-guide.md)
-- **Database Workflow**: [Developer Workflow Guide](docs/database-workflow.md)
+- **Database Workflow**: [Developer Workflow Guide](docs/ops/database-workflow.md)
 - **Environment Configuration**: [Environment Setup](docs/ops/environment-setup.md)
 - **Development Workflows**: [Human](docs/ops/developer-workflows.md) | [AI Agent](docs/ops/ai-agent-workflows.md)
 - **Tech Stack Decisions**: [Database](docs/decisions/2026/004-database-neon-postgres.md) | [Auth](docs/decisions/2025/003-auth-auth0-integration.md) | [Frontend](docs/decisions/2025/002-sveltekit-cloudflare-stack.md)
@@ -41,4 +41,4 @@ pnpm db:migrate
 pnpm db:studio
 ```
 
-For complete database setup and workflow documentation, see [docs/database-workflow.md](docs/database-workflow.md).
+For complete database setup and workflow documentation, see [docs/ops/database-workflow.md](docs/ops/database-workflow.md).

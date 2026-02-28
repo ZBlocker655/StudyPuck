@@ -72,6 +72,38 @@ pnpm migrate:check
 pnpm migrate:push
 ```
 
+## 🔬 **Database Testing Infrastructure**
+
+### **Quick Reference**
+
+```bash
+cd packages/database
+
+# Start Docker test database
+pnpm test:setup
+
+# Run all database integration tests (Docker)
+pnpm test
+
+# Run in watch mode during development
+pnpm test:watch
+
+# Run ephemeral Neon tests (requires NEON_TEST_DATABASE_URL)
+pnpm test:neon
+
+# Stop and remove test database
+pnpm test:cleanup
+```
+
+### **Two-Tier Testing Strategy**
+
+| Test Type | File Pattern | Database | Runs In |
+|---|---|---|---|
+| Integration (permanent) | `*.test.ts` | Docker Compose | Every CI push |
+| Real-world validation (ephemeral) | `*-issue-N.neon.test.ts` | Neon branch | Manual / on-demand |
+
+See [Database Branching Guide](./database-branching-guide.md#testing-strategy) for full details on the ephemeral Neon test lifecycle, naming conventions, and the CI enforcement script.
+
 ## ⚠️ **Best Practices**
 
 ### **Migration Guidelines**
@@ -129,9 +161,9 @@ const newUser = await db.insert(users).values({
 
 ### **Operational Procedures**
 For complete operational workflows, see:
-- [Database Branching Guide](./ops/database-branching-guide.md)
-- [Environment Setup](./ops/environment-setup.md)
-- [Interactive Development](./ops/interactive-development.md)
+- [Database Branching Guide](./database-branching-guide.md)
+- [Environment Setup](./environment-setup.md)
+- [Interactive Development](./interactive-development.md)
 
 ## 📚 **Additional Resources**
 

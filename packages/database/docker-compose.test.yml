@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  test-postgres:
+    image: pgvector/pgvector:pg15
+    environment:
+      POSTGRES_DB: studypuck_test
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_password
+    ports:
+      - '5433:5432'
+    tmpfs:
+      - /var/lib/postgresql/data
+    volumes:
+      - ./test-init.sql:/docker-entrypoint-initdb.d/01-init.sql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U test_user -d studypuck_test']
+      interval: 5s
+      timeout: 5s
+      retries: 5
