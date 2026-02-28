@@ -8,6 +8,20 @@
       "when": 1770006854020,
       "tag": "0000_warm_wildside",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1772311724875,
+      "tag": "0001_complete_ultimo",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1772312400000,
+      "tag": "0002_views",
+      "breakpoints": true
     }
   ]
 }

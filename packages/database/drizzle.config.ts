@@ -10,7 +10,7 @@ if (existsSync(envPath)) {
 }
 
 export default defineConfig({
-  schema: './src/schema.ts',
+  schema: ['./src/schema/users.ts', './src/schema/cards.ts', './src/schema/card-entry.ts', './src/schema/card-review.ts', './src/schema/translation-drills.ts'],
   out: './migrations',
   dialect: 'postgresql',
   dbCredentials: {

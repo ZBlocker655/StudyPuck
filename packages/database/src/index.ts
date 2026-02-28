@@ -55,5 +55,10 @@ export * from './schema.js';
 export * from './users.js';
 export * from './cards.js';
 
+// Re-export relations, validation schemas, and types
+export * from './relations.js';
+export * from './validation.js';
+export * from './types.js';
+
 // Export types for use in application
 export type Database = typeof db;

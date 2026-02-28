@@ -75,6 +75,9 @@ importers:
       drizzle-orm:
         specifier: ^0.36.4
         version: 0.36.4(@neondatabase/serverless@0.10.4)(postgres@3.4.8)
+      drizzle-zod:
+        specifier: ^0.8.3
+        version: 0.8.3(drizzle-orm@0.36.4)(zod@3.25.76)
       zod:
         specifier: ^3.23.8
         version: 3.25.76
@@ -1987,6 +1990,16 @@ packages:
     dependencies:
       '@neondatabase/serverless': 0.10.4
       postgres: 3.4.8
+    dev: false
+
+  /drizzle-zod@0.8.3(drizzle-orm@0.36.4)(zod@3.25.76):
+    resolution: {integrity: sha512-66yVOuvGhKJnTdiqj1/Xaaz9/qzOdRJADpDa68enqS6g3t0kpNkwNYjUuaeXgZfO/UWuIM9HIhSlJ6C5ZraMww==}
+    peerDependencies:
+      drizzle-orm: '>=0.36.0'
+      zod: ^3.25.0 || ^4.0.0
+    dependencies:
+      drizzle-orm: 0.36.4(@neondatabase/serverless@0.10.4)(postgres@3.4.8)
+      zod: 3.25.76
     dev: false
 
   /error-stack-parser-es@1.0.5:

@@ -22,6 +22,7 @@
   "dependencies": {
     "@neondatabase/serverless": "^0.10.1",
     "drizzle-orm": "^0.36.4",
+    "drizzle-zod": "^0.8.3",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -35,6 +36,9 @@
   "exports": {
     ".": "./src/index.ts",
     "./schema": "./src/schema.ts",
+    "./relations": "./src/relations.ts",
+    "./validation": "./src/validation.ts",
+    "./types": "./src/types.ts",
     "./users": "./src/users.ts",
     "./cards": "./src/cards.ts"
   }

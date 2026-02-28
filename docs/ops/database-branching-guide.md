@@ -43,15 +43,20 @@ test-sha123 ←── GitHub Actions CI testing
 
 ### **Environment Configuration**
 ```bash
-# Local development (.env)
-DATABASE_URL="postgresql://...@ep-development.region.aws.neon.tech/db"
+# apps/web/.env — only ONE DATABASE_URL active at a time
+# When switching to a feature branch, COMMENT OUT the previous value (do not delete).
+# development branch (baseline, when not on a feature branch):
+# DATABASE_URL="postgresql://...@ep-development.region.aws.neon.tech/db"
+# feature/issue-N branch (active while working on the feature):
+DATABASE_URL="postgresql://...@ep-feature-issue-N.region.aws.neon.tech/db"
 
-# Production (Cloudflare environment variables)
+# Production (Cloudflare environment variables — set in Cloudflare dashboard)
 DATABASE_URL="postgresql://...@ep-production.region.aws.neon.tech/db"
-
-# Optional: Use pooled for runtime, direct for migrations
-RUNTIME_DATABASE_URL="postgresql://...@ep-production-pooler.region.aws.neon.tech/db"
 ```
+
+> **Workflow rule**: Before starting feature branch work, comment out the previous `DATABASE_URL` line
+> and add the feature branch connection string below it. This preserves history and makes it easy to
+> revert. Restore the development branch URL when the feature PR is merged.
 
 ## Branch Lifecycle Management
 

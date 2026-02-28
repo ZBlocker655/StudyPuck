@@ -4,7 +4,16 @@ import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import * as schema from './schema.js';
-import { cardGroups, cards, groups, studyLanguages, users } from './schema.js';
+import { users, studyLanguages } from './schema/users.js';
+import { groups, cards, cardGroups } from './schema/cards.js';
+import { inboxNotes, noteCardLinks, cardEntryDailyStats } from './schema/card-entry.js';
+import { cardReviewSrs, cardReviewDailyStats } from './schema/card-review.js';
+import {
+  translationDrillSrs,
+  translationDrillDrawPiles,
+  translationDrillContext,
+  translationDrillDailyStats,
+} from './schema/translation-drills.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -18,7 +27,7 @@ export async function setupTestDatabase(url?: string) {
   const connectionString = url ?? process.env.TEST_DATABASE_URL ?? DEFAULT_TEST_URL;
   const sql = postgres(connectionString, { max: 1 });
 
-  // Always start from a clean slate — resilient to dirty state from previous runs
+  // Always start from a clean slate - resilient to dirty state from previous runs
   await sql`DROP SCHEMA IF EXISTS public CASCADE`;
   await sql`DROP SCHEMA IF EXISTS drizzle CASCADE`;
   await sql`CREATE SCHEMA public`;
@@ -43,9 +52,18 @@ export async function cleanupTestDatabase(sql: TestSql) {
   await sql.end();
 }
 
-/** Truncates all tables while preserving schema — faster than full cleanup for test isolation */
+/** Truncates all tables while preserving schema - faster than full cleanup for test isolation */
 export async function resetTestTables(db: TestDb) {
-  // Delete in reverse FK dependency order
+  // Delete in reverse FK dependency order (leaf tables first, then parents)
+  await db.delete(cardEntryDailyStats);
+  await db.delete(cardReviewDailyStats);
+  await db.delete(translationDrillDailyStats);
+  await db.delete(translationDrillContext);
+  await db.delete(translationDrillSrs);
+  await db.delete(translationDrillDrawPiles);
+  await db.delete(cardReviewSrs);
+  await db.delete(noteCardLinks);
+  await db.delete(inboxNotes);
   await db.delete(cardGroups);
   await db.delete(cards);
   await db.delete(groups);
