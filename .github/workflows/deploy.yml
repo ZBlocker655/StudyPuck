@@ -77,12 +77,18 @@ jobs:
       
       # Phase 4: Development sync (Last Possible Moment)
       - name: Sync development branch
+        continue-on-error: true
         env:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
         run: |
           echo "📋 Syncing development branch to production state..."
-          npx neonctl branches reset development --parent
-          echo "✅ Development branch synced to production state"
+          if npx neonctl branches reset development --parent; then
+            echo "✅ Development branch synced to production state"
+          else
+            echo "⚠️ Could not sync development branch — it likely has active child branches (e.g. feature/issue-N)."
+            echo "   Delete child branches first, then manually run:"
+            echo "   neonctl branches reset development --parent"
+          fi
       
       # Rollback on failure
       - name: Rollback on failure
