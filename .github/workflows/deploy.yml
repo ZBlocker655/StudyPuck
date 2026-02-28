@@ -75,20 +75,33 @@ jobs:
           
           echo "🎉 Production deployment verified"
       
-      # Phase 4: Development sync (Last Possible Moment)
+      # Phase 4: Delete feature Neon branch (must run before development sync)
+      - name: Delete merged feature Neon branch
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+        run: |
+          # Derive the source branch name from the merge commit
+          MERGED_BRANCH=$(git log -1 --merges --pretty=format:"%s" | grep -oP "(?<=Merge pull request #\d+ from [^/]+/)\S+" || true)
+          if [ -z "$MERGED_BRANCH" ]; then
+            # Fallback: try the second parent of the merge commit
+            MERGED_BRANCH=$(git log -1 --pretty=format:"%P" | awk '{print $2}' | xargs -I{} git name-rev --name-only {} 2>/dev/null | sed 's|remotes/origin/||' || true)
+          fi
+          echo "Detected merged branch: ${MERGED_BRANCH:-unknown}"
+          if [ -n "$MERGED_BRANCH" ] && [ "$MERGED_BRANCH" != "unknown" ]; then
+            echo "🗑️ Attempting to delete Neon branch: $MERGED_BRANCH"
+            npx neonctl branches delete "$MERGED_BRANCH" || echo "ℹ️ Neon branch '$MERGED_BRANCH' not found or already deleted — skipping"
+          else
+            echo "ℹ️ Could not determine merged branch name — skipping Neon branch deletion"
+          fi
+
+      # Phase 5: Development sync (Last Possible Moment)
       - name: Sync development branch
-        continue-on-error: true
         env:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
         run: |
           echo "📋 Syncing development branch to production state..."
-          if npx neonctl branches reset development --parent; then
-            echo "✅ Development branch synced to production state"
-          else
-            echo "⚠️ Could not sync development branch — it likely has active child branches (e.g. feature/issue-N)."
-            echo "   Delete child branches first, then manually run:"
-            echo "   neonctl branches reset development --parent"
-          fi
+          npx neonctl branches reset development --parent
+          echo "✅ Development branch synced to production state"
       
       # Rollback on failure
       - name: Rollback on failure
