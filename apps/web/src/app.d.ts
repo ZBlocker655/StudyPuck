@@ -3,7 +3,9 @@
 declare global {
 	namespace App {
 		// interface Error {}
-		// interface Locals {}
+		interface Locals {
+			dbProfile?: import('@studypuck/database').User | null;
+		}
 		// interface PageData {}
 		// interface PageState {}
 		// interface Platform {}
