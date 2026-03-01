@@ -55,9 +55,10 @@ export * from './schema.js';
 export * from './users.js';
 export * from './cards.js';
 
-// Re-export relations, validation schemas, and types
+// Re-export relations and types
+// Note: validation schemas are NOT re-exported here to avoid pulling drizzle-zod
+// into the SSR bundle. Import validation via '@studypuck/database/validation'.
 export * from './relations.js';
-export * from './validation.js';
 export * from './types.js';
 
 // Export types for use in application
