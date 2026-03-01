@@ -34,7 +34,12 @@
 					⚠️ Authentication temporarily unavailable
 				</div>
 			{:else}
-				<AuthButton session={typedSession} />
+				<div style="display:flex;align-items:center;gap:1rem">
+					{#if data.session?.user}
+						<a href="/profile">Profile</a>
+					{/if}
+					<AuthButton session={typedSession} />
+				</div>
 			{/if}
 		</div>
 	</header>
@@ -90,8 +95,8 @@
 	{/if}
 
 	<footer>
-		<p>Milestone 1.2: Authentication Integration 🔄</p>
-		<p><small>Auth0 + Auth.js + Zod validation - Dec 27, 2024</small></p>
+		<p>Milestone 1.3: Database Setup 🗄️</p>
+		<p><small>Neon Postgres + Drizzle ORM + User Profiles - Mar 2026</small></p>
 	</footer>
 </main>
 

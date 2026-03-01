@@ -1,6 +1,7 @@
 import { SvelteKitAuth } from '@auth/sveltekit';
 import Auth0 from '@auth/core/providers/auth0';
 import { env } from '$env/dynamic/private';
+import { getDb, upsertUser } from '@studypuck/database';
 
 // Clean environment variable access for all runtimes (proven working solution)
 const getEnvVar = (name: string): string => {
@@ -66,6 +67,25 @@ export const { handle, signIn, signOut } = SvelteKitAuth({
       }
 
       return session;
+    },
+  },
+  events: {
+    async signIn({ user, profile }) {
+      // Sync Auth0 profile data to the database on every sign-in
+      if (!user.email || !profile?.sub) return;
+
+      try {
+        const database = getDb(getEnvVar('DATABASE_URL'));
+        await upsertUser({
+          userId: profile.sub,
+          email: user.email,
+          name: (profile.name as string | undefined) ?? (profile.nickname as string | undefined) ?? null,
+          pictureUrl: (profile.picture as string | undefined) ?? null,
+        }, database as any);
+      } catch (err) {
+        // Log but don't block auth if DB is unavailable
+        console.error('Failed to sync user profile to database:', err);
+      }
     },
   },
   pages: {

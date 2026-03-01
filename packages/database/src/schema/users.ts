@@ -3,6 +3,9 @@ import { pgTable, text, timestamp, jsonb, boolean, primaryKey, index } from 'dri
 export const users = pgTable('users', {
   userId: text('user_id').primaryKey(),
   email: text('email').unique().notNull(),
+  name: text('name'),
+  pictureUrl: text('picture_url'),
+  lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   metadata: jsonb('metadata'),
 }, (table) => ({
