@@ -1,46 +1,38 @@
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import { Pool, neonConfig } from '@neondatabase/serverless';
+import { neon } from '@neondatabase/serverless';
+import { drizzle } from 'drizzle-orm/neon-http';
 import * as schema from './schema.js';
 
-// Configure Neon for serverless environments (Cloudflare Workers)
-neonConfig.fetchConnectionCache = true;
-
 /**
- * Create a database connection
- * Works in both Node.js development and Cloudflare Workers production
+ * Create a database connection using the HTTP driver.
+ * neon-http is stateless and request-scoped — safe for Cloudflare Workers
+ * and any serverless environment. Each call creates a lightweight client;
+ * no persistent connections are held across requests.
  */
 function createDatabaseConnection(databaseUrl: string) {
-  const pool = new Pool({ connectionString: databaseUrl });
-  return drizzle(pool, { schema });
+  const sql = neon(databaseUrl);
+  return drizzle(sql, { schema });
 }
 
-// Cache for lazy-initialized database connection
-let _db: ReturnType<typeof createDatabaseConnection> | null = null;
-
 /**
- * Get database instance with lazy initialization
- * In development: uses process.env.DATABASE_URL
- * In Cloudflare Workers: requires DATABASE_URL to be passed in
+ * Get a database instance for the given (or env-provided) DATABASE_URL.
+ * Always creates a fresh client — do not cache the result across requests
+ * in Cloudflare Workers (cross-request I/O sharing is not allowed).
  */
 export function getDb(databaseUrl?: string) {
-  if (!_db) {
-    const url = databaseUrl ||
-                (typeof process !== 'undefined' ? process.env.DATABASE_URL : undefined) ||
-                (globalThis as any).DATABASE_URL;
-    
-    if (!url) {
-      throw new Error('DATABASE_URL environment variable is required');
-    }
-    
-    _db = createDatabaseConnection(url);
+  const url = databaseUrl ||
+              (typeof process !== 'undefined' ? process.env.DATABASE_URL : undefined) ||
+              (globalThis as any).DATABASE_URL;
+
+  if (!url) {
+    throw new Error('DATABASE_URL environment variable is required');
   }
-  return _db;
+
+  return createDatabaseConnection(url);
 }
 
 /**
- * Global database instance for backwards compatibility
- * Only use this in Node.js development environments
- * For Cloudflare Workers, use getDb(databaseUrl) instead
+ * Global database instance for Node.js dev environments only.
+ * Uses process.env.DATABASE_URL. Do not use in Cloudflare Workers.
  */
 export const db = new Proxy({} as ReturnType<typeof createDatabaseConnection>, {
   get(target, prop) {
