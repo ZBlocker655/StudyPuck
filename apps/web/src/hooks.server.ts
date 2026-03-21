@@ -34,12 +34,7 @@ export const { handle, signIn, signOut } = SvelteKitAuth(async (event) => {
 				return normalizeRedirectTarget({ url, baseUrl, publicOrigin });
 			},
 
-			async jwt({ token, user, account, profile }) {
-				// Persist the id_token to the JWT token if it exists
-				if (account?.id_token) {
-					token.id_token = account.id_token;
-				}
-
+			async jwt({ token, user, profile }) {
 				// Store user data in JWT when user first signs in
 				if (user && profile) {
 					// Handle Auth0 profile fields that can be null
@@ -53,11 +48,6 @@ export const { handle, signIn, signOut } = SvelteKitAuth(async (event) => {
 			},
 
 			async session({ session, token }) {
-				// Make the id_token available in the session object
-				if (token.id_token) {
-					session.id_token = token.id_token as string;
-				}
-
 				// Structure session data
 				if (token) {
 					session.user = {
@@ -102,10 +92,3 @@ export const { handle, signIn, signOut } = SvelteKitAuth(async (event) => {
 		},
 	};
 });
-
-// Extend the Session type to include id_token
-declare module "@auth/sveltekit" {
-  interface Session {
-    id_token?: string;
-  }
-}
