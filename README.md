@@ -22,7 +22,8 @@ A language learning application combining AI-powered translation drills with spa
 - **Database Setup**: [Database Branching Guide](docs/ops/database-branching-guide.md)
 - **Database Workflow**: [Developer Workflow Guide](docs/ops/database-workflow.md)
 - **Environment Configuration**: [Environment Setup](docs/ops/environment-setup.md)
-- **Development Workflows**: [Human](docs/ops/developer-workflows.md) | [AI Agent](docs/ops/ai-agent-workflows.md)
+- **Remote Development**: [Remote Development Guide](docs/ops/remote-development.md)
+- **Development Workflows**: [Interactive](docs/ops/interactive-development.md) | [Manual](docs/ops/manual-development.md) | [Autonomous AI](docs/ops/autonomous-ai-development.md)
 - **Tech Stack Decisions**: [Database](docs/decisions/2026/004-database-neon-postgres.md) | [Auth](docs/decisions/2025/003-auth-auth0-integration.md) | [Frontend](docs/decisions/2025/002-sveltekit-cloudflare-stack.md)
 
 ## Database Setup

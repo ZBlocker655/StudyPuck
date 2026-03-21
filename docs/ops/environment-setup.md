@@ -30,6 +30,18 @@ AUTH0_ISSUER="https://dev-example-tenant.us.auth0.com"
 AUTH0_AUDIENCE="https://api.studypuck.app"
 ```
 
+### **Remote Devcontainers and Codespaces**
+- ✅ **Same app env file**: Remote development should still use `apps/web/.env`
+- ✅ **Template source**: Copy from the committed root `.env.example`
+- ✅ **Same variable names**: Keep `DATABASE_URL`, `AUTH_*`, and Auth0 variables aligned with local development
+- ✅ **Same migration rule**: Use a **direct** Neon connection string for migrations
+
+```bash
+cp .env.example apps/web/.env
+```
+
+For the full remote environment workflow, see [Remote Development](./remote-development.md).
+
 ### **How Each Package Accesses Variables**
 
 #### **SvelteKit Web App (apps/web/)**
@@ -204,7 +216,7 @@ export async function onRequest(context) {
 
 #### **"DATABASE_URL not found" (Local)**
 - ✅ Verify `.env` file exists at `apps/web/.env`
-- ✅ Copy from root if needed: `copy .env apps\web\.env`
+- ✅ Recreate it from the template if needed: `cp .env.example apps/web/.env`
 - ✅ Restart development servers
 
 #### **"Cannot connect to database" (Any environment)**

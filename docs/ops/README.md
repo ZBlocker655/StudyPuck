@@ -8,6 +8,7 @@
 - [Database Branching Guide](./database-branching-guide.md) - Complete database branch management workflow
 - [Database Workflow](./database-workflow.md) - Developer workflow guide for migrations and testing
 - [Environment Setup](./environment-setup.md) - Environment variable configuration across all platforms
+- [Remote Development](./remote-development.md) - Codespaces and remote devcontainer workflow
 - [GitHub Actions Setup](./github-actions-setup.md) - CI/CD pipeline configuration and troubleshooting
 
 ### **Development Interaction Patterns** 
