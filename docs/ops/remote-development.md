@@ -43,6 +43,8 @@ bash .devcontainer/bootstrap.sh
 
 This enables PNPM, verifies `gh`, and installs workspace dependencies.
 
+If the container is running as a non-root user, the bootstrap script installs Corepack shims into a user-writable bin directory instead of `/usr/local/bin`.
+
 ### 2. Verify Required Tools
 
 Run:
@@ -200,6 +202,13 @@ On first run:
 
 ### `pnpm` Version Drift
 - Run `bash .devcontainer/bootstrap.sh` again to reapply the pinned PNPM version via Corepack
+
+### Corepack Permission Error
+- If you see an `EACCES` error while Corepack tries to write to `/usr/local/bin`, rerun the updated bootstrap script from the repository root:
+  ```bash
+  bash .devcontainer/bootstrap.sh
+  ```
+- The repository bootstrap uses a user-writable install directory for PNPM shims so Codespaces and other non-root containers can complete setup.
 
 ### `wrangler` Is Not Available
 - Run `pnpm install` through the bootstrap script again

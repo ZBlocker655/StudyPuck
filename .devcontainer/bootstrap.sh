@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-corepack enable
+mkdir -p "$HOME/.local/bin"
+corepack enable --install-directory "$HOME/.local/bin"
 corepack prepare pnpm@8.15.0 --activate
+export PATH="$HOME/.local/bin:$PATH"
 
 echo "Verifying required tools..."
 gh --version >/dev/null
