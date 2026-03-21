@@ -9,6 +9,8 @@
   "customizations": {
     "vscode": {
       "extensions": [
+        "GitHub.copilot",
+        "GitHub.copilot-chat",
         "svelte.svelte-vscode",
         "ms-playwright.playwright",
         "unifiedjs.vscode-mdx"

@@ -22,6 +22,8 @@ The remote devcontainer is designed to match the current StudyPuck stack:
 - **PNPM**: Enabled through Corepack using the repository's pinned package manager version
 - **Dependencies**: Installed by `.devcontainer/bootstrap.sh`
 - **Wrangler**: Used through the existing `apps/web` dependency and scripts
+- **Copilot CLI**: Installed by `.devcontainer/bootstrap.sh` into the user-local tool path
+- **Copilot editor extensions**: Requested through the devcontainer VS Code extensions list
 - **Forwarded ports**:
   - `5173` for the standard SvelteKit/Vite dev server
   - `4173` for preview
@@ -52,6 +54,7 @@ Run:
 ```bash
 gh --version
 pnpm --version
+copilot --version
 pnpm --filter web exec wrangler --version
 ```
 
@@ -83,7 +86,7 @@ These steps require human action or approval:
 - Authenticate tools if the remote environment does not inherit credentials:
   - `gh auth login`
   - `wrangler login`
-  - `copilot` then `/login` if you install Copilot CLI
+  - `copilot` then `/login`
 - Confirm the forwarded URLs load correctly in the browser
 
 In interactive AI sessions, the assistant should pause and prompt before these checkpoints.
@@ -174,15 +177,9 @@ Then restart whichever development server you need:
 pnpm dev
 ```
 
-## Optional: Use Copilot CLI Inside the Remote Container
+## Use Copilot CLI Inside the Remote Container
 
-Copilot CLI is optional for this workflow.
-
-To install it inside the container:
-
-```bash
-npm install -g @github/copilot
-```
+Copilot CLI is preinstalled by `.devcontainer/bootstrap.sh`.
 
 Then start it from the repository root:
 
@@ -213,6 +210,17 @@ On first run:
 ### `wrangler` Is Not Available
 - Run `pnpm install` through the bootstrap script again
 - Use `pnpm --filter web exec wrangler --version` to verify the local dependency is available
+
+### `copilot` Is Not Available
+- Rerun the bootstrap script:
+  ```bash
+  bash .devcontainer/bootstrap.sh
+  ```
+- Confirm the user-local tool path is present:
+  ```bash
+  echo "$PATH"
+  copilot --version
+  ```
 
 ### Forwarded Port Does Not Load
 - Confirm the corresponding dev server is running
