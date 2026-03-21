@@ -18,10 +18,11 @@
 - **Getting Started**: See [ops/README.md](./ops/README.md) for operational procedures
 - **Database Setup**: [ops/database-branching-guide.md](./ops/database-branching-guide.md)
 - **Environment Configuration**: [ops/environment-setup.md](./ops/environment-setup.md)
-- **Development Workflows**: [ops/developer-workflows.md](./ops/developer-workflows.md)
+- **Remote Development**: [ops/remote-development.md](./ops/remote-development.md)
+- **Development Workflows**: [interactive](./ops/interactive-development.md) | [manual](./ops/manual-development.md)
 
 ### **For AI Agents**  
-- **Agent Procedures**: [ops/ai-agent-workflows.md](./ops/ai-agent-workflows.md)
+- **Agent Procedures**: [ops/autonomous-ai-development.md](./ops/autonomous-ai-development.md)
 - **Database Requirements**: [ops/database-branching-guide.md](./ops/database-branching-guide.md)
 - **Troubleshooting**: [ops/troubleshooting.md](./ops/troubleshooting.md)
 
@@ -64,7 +65,7 @@
 → [ops/environment-setup.md](./ops/environment-setup.md)
 
 **"What's our development workflow?"**
-→ [ops/developer-workflows.md](./ops/developer-workflows.md) (humans) or [ops/ai-agent-workflows.md](./ops/ai-agent-workflows.md) (agents)
+→ [ops/interactive-development.md](./ops/interactive-development.md) (interactive), [ops/manual-development.md](./ops/manual-development.md) (manual), or [ops/autonomous-ai-development.md](./ops/autonomous-ai-development.md) (agents)
 
 **"Why did we choose Neon Postgres?"**
 → [decisions/2026/004-database-neon-postgres.md](./decisions/2026/004-database-neon-postgres.md)

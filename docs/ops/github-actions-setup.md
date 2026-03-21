@@ -168,7 +168,7 @@ jobs:
         3. Submit PR when implementation is complete
         4. Environment will be cleaned up automatically when issue is closed
         
-        See [AI Agent Workflows](docs/ops/ai-agent-workflows.md) for complete procedures."
+        See [Autonomous AI Development](docs/ops/autonomous-ai-development.md) for complete procedures."
 ```
 
 ### **Agent Cleanup Workflow (.github/workflows/agent-cleanup.yml)**

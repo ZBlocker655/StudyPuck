@@ -1,0 +1,42 @@
+{
+  "name": "StudyPuck Remote Development",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:20",
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "remoteUser": "node",
+  "postCreateCommand": "bash .devcontainer/bootstrap.sh",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "GitHub.copilot",
+        "GitHub.copilot-chat",
+        "svelte.svelte-vscode",
+        "ms-playwright.playwright",
+        "unifiedjs.vscode-mdx"
+      ],
+      "settings": {
+        "typescript.preferences.importModuleSpecifier": "relative"
+      }
+    }
+  },
+  "forwardPorts": [
+    5173,
+    4173,
+    8788
+  ],
+  "portsAttributes": {
+    "5173": {
+      "label": "SvelteKit dev server",
+      "onAutoForward": "notify"
+    },
+    "4173": {
+      "label": "Vite preview",
+      "onAutoForward": "silent"
+    },
+    "8788": {
+      "label": "Wrangler Pages dev",
+      "onAutoForward": "notify"
+    }
+  }
+}

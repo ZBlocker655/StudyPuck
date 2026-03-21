@@ -466,4 +466,4 @@ pnpm generate # Regenerate with current schema
 
 ---
 
-**Next**: See [AI Agent Workflows](./ai-agent-workflows.md) for coordination with AI development.
+**Next**: See [Autonomous AI Development](./autonomous-ai-development.md) for coordination with AI development.

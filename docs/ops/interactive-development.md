@@ -116,7 +116,7 @@ git push -u origin feature/auth-implementation
 neonctl branches delete feature/issue-N
 # Note: the production deploy workflow auto-deletes this on merge,
 # but if you need to do it manually (e.g. deploy failed or was skipped):
-#   $env:PATH = "C:\Users\Zach\AppData\Roaming\npm;" + $env:PATH
+#   ensure `neonctl` is available on your PATH
 #   neonctl branches delete feature/issue-N
 
 # Revert apps/web/.env DATABASE_URL back to development branch
