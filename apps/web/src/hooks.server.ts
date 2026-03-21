@@ -24,6 +24,7 @@ export const { handle, signIn, signOut } = SvelteKitAuth(async (event) => {
 		],
 		redirectProxyUrl: getRedirectProxyUrl(event, env),
 		secret: getEnvVar('AUTH_SECRET', env, event),
+		useSecureCookies: publicOrigin.startsWith('https://'),
 		session: {
 			strategy: 'jwt',
 			maxAge: 7 * 24 * 60 * 60, // 7 days
