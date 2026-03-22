@@ -17,6 +17,8 @@ dist/
 .env
 .env.*
 !.env.example
+!.env.schema
+env.d.ts
 
 # Editor directories and files
 .vscode/

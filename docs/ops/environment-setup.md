@@ -13,31 +13,66 @@ Each environment requires different variable sources and access patterns.
 
 ## Local Development Environment
 
-### **Project .env File**
+### **Local Node Runtime**
 ```bash
-# Location: /StudyPuck/apps/web/.env (web app root)
-# Purpose: SvelteKit and Wrangler automatically load from here
+nvm install 22
+nvm use 22
+node -v
+```
 
-# Database Configuration
-DATABASE_URL="postgresql://user:pass@ep-development.region.aws.neon.tech/db"
+Use `nvm` on the local PC whenever StudyPuck raises its Node baseline. Avoid mixing this with a separate global Node installation.
 
-# Auth0 Configuration  
-AUTH_SECRET="example_32_char_auth_secret_hex"
-AUTH_TRUST_HOST="true"
-AUTH0_CLIENT_ID="example_client_id_32_characters"
-AUTH0_CLIENT_SECRET="example-client-secret-64-chars-XXXXXXXXXXXXXXXXXXXXXXX"
-AUTH0_ISSUER="https://dev-example-tenant.us.auth0.com"
-AUTH0_AUDIENCE="https://api.studypuck.app"
+### **Normal Workflow: `.env.schema` + Bitwarden**
+```bash
+# Committed source of truth
+.env.schema
+
+# Local/Codespaces secret source
+Bitwarden item: studypuck-development
+# Override with STUDYPUCK_BITWARDEN_ITEM if needed.
+```
+
+The standard developer workflow no longer depends on a persistent plaintext `apps/web/.env` file.
+
+Instead:
+
+- ✅ `.env.schema` is the committed source of truth for required variables
+- ✅ Bitwarden stores the real local/Codespaces secret values
+- ✅ Repo scripts inject secrets into the specific command you run
+- ✅ GitHub Actions and Cloudflare keep using platform-native environment injection
+
+### **Secure Local Commands**
+```bash
+# Verify that Bitwarden-backed variables resolve
+pnpm env:check:secure
+
+# Standard Vite/SvelteKit dev
+pnpm dev:secure
+
+# Workers-style local verification
+pnpm dev:workers:secure
+
+# Database migration commands
+pnpm db:migrate:secure
+pnpm db:studio:secure
 ```
 
 ### **Remote Devcontainers and Codespaces**
-- ✅ **Same app env file**: Remote development should still use `apps/web/.env`
-- ✅ **Template source**: Copy from the committed root `.env.example`
+- ✅ **Same schema**: Remote development uses the committed `.env.schema`
+- ✅ **Same secret source**: Codespaces resolves app secrets from Bitwarden
 - ✅ **Same variable names**: Keep `DATABASE_URL`, `AUTH_*`, and Auth0 variables aligned with local development
 - ✅ **Same migration rule**: Use a **direct** Neon connection string for migrations
 
 ```bash
-cp .env.example apps/web/.env
+# Authenticate Bitwarden once per shell
+bw unlock --raw
+
+# Export the returned session token in your shell
+# PowerShell: $env:BW_SESSION = "<token>"
+# Bash: export BW_SESSION="<token>"
+
+# Then use the secure repo commands
+pnpm dev:secure
 ```
 
 For the full remote environment workflow, see [Remote Development](./remote-development.md).
@@ -45,13 +80,12 @@ For the full remote environment workflow, see [Remote Development](./remote-deve
 ### **How Each Package Accesses Variables**
 
 #### **SvelteKit Web App (apps/web/)**
-- ✅ **Automatic discovery**: Loads `.env` from `apps/web/.env`
-- ✅ **No configuration needed**: Standard SvelteKit behavior
+- ✅ **Runtime access**: Reads from the process environment provided by the secure wrapper or hosting platform
 - ✅ **Server-side**: Access via `$env/dynamic/private` or `event.platform.env`
 - ✅ **Client-side**: Only `PUBLIC_*` variables accessible
 
 #### **Database Package (packages/database/)**
-- ✅ **Build-time access**: Uses `process.env` with typeof check for Workers compatibility
+- ✅ **Build-time access**: Uses `process.env` and expects the caller to inject env vars securely
 - ✅ **Fallback to globalThis**: Works in Cloudflare Workers runtime
 - ✅ **Production compatible**: No errors in serverless environments
 
@@ -124,7 +158,7 @@ AUTH0_AUDIENCE        # Production API audience
 ### **Environment Isolation**
 - **Production**: Live environment variables
 - **Preview**: Can use separate preview variables
-- **Development**: Uses local `.env` file
+- **Development**: Uses the Bitwarden-backed secure command flow
 
 ## Connection String Management
 
@@ -183,13 +217,14 @@ CLOUDFLARE_API_TOKEN # Deployment management
 
 ### **Local Development Health Check**
 ```bash
+# Confirm secure env resolution
+pnpm env:check:secure
+
 # Test database connectivity
-cd packages/database
-pnpm run migrate # Should work without manual environment setting
+pnpm db:migrate:secure
 
 # Test web app environment
-cd apps/web  
-pnpm dev # Should start without environment errors
+pnpm dev:secure
 ```
 
 ### **GitHub Actions Validation**
@@ -215,8 +250,9 @@ export async function onRequest(context) {
 ### **Common Issues**
 
 #### **"DATABASE_URL not found" (Local)**
-- ✅ Verify `.env` file exists at `apps/web/.env`
-- ✅ Recreate it from the template if needed: `cp .env.example apps/web/.env`
+- ✅ Verify `BW_SESSION` is set or `BW_PASSWORD` is available for non-interactive unlock
+- ✅ Verify the Bitwarden item contains a `DATABASE_URL` custom field
+- ✅ Run `pnpm env:check:secure`
 - ✅ Restart development servers
 
 #### **"Cannot connect to database" (Any environment)**

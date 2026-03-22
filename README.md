@@ -30,16 +30,24 @@ A language learning application combining AI-powered translation drills with spa
 
 ### Quick Start
 ```bash
-# Setup environment variables (see docs/ops/environment-setup.md)
-cp .env.example apps/web/.env
-# Edit apps/web/.env with your DATABASE_URL
+# Use the repo Node baseline on local PCs
+nvm install 22
+nvm use 22
 
-# Run migrations
-cd apps/web
-pnpm db:migrate
+# Verify your secure Bitwarden-backed environment
+pnpm env:check:secure
+
+# Start the standard dev server without a plaintext apps/web/.env file
+pnpm dev:secure
+
+# Start the Workers-style dev server
+pnpm dev:workers:secure
+
+# Run database migrations
+pnpm db:migrate:secure
 
 # Open Drizzle Studio
-pnpm db:studio
+pnpm db:studio:secure
 ```
 
 For complete database setup and workflow documentation, see [docs/ops/database-workflow.md](docs/ops/database-workflow.md).

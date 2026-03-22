@@ -17,10 +17,11 @@ Local development remains the fallback path when you want:
 ## What the Devcontainer Provides
 
 The remote devcontainer is designed to match the current StudyPuck stack:
-- **Base image**: Node.js 20
+- **Base image**: Node.js 22
 - **GitHub CLI**: Installed via devcontainer feature
 - **PNPM**: Enabled through Corepack using the repository's pinned package manager version
 - **Dependencies**: Installed by `.devcontainer/bootstrap.sh`
+- **Bitwarden CLI**: Installed by `.devcontainer/bootstrap.sh`
 - **Wrangler**: Used through the existing `apps/web` dependency and scripts
 - **Copilot CLI**: Installed by `.devcontainer/bootstrap.sh` into the user-local tool path
 - **Copilot editor extensions**: Requested through the devcontainer VS Code extensions list
@@ -55,6 +56,7 @@ Run:
 gh --version
 pnpm --version
 copilot --version
+bw --version
 pnpm --filter web exec wrangler --version
 ```
 
@@ -62,19 +64,40 @@ pnpm --filter web exec wrangler --version
 
 ### 3. Configure Environment Variables
 
-StudyPuck expects the app environment file at:
+StudyPuck no longer expects a persistent plaintext `apps/web/.env` file as the normal workflow.
+
+Instead, it expects:
 
 ```bash
-apps/web/.env
+.env.schema
 ```
 
-Start from the committed template:
+For Codespaces:
 
 ```bash
-cp .env.example apps/web/.env
+# Repository / Codespaces secrets
+BW_CLIENTID
+BW_CLIENTSECRET
+
+# Optional for fully non-interactive unlock
+BW_PASSWORD
 ```
 
-Then edit `apps/web/.env` with your real values.
+Then:
+
+```bash
+# Login can be non-interactive when BW_CLIENTID/BW_CLIENTSECRET are present
+bw login --apikey
+
+# Unlock once per shell if BW_PASSWORD is not configured
+bw unlock --raw
+
+# Export the session token
+export BW_SESSION="<token>"
+
+# Verify the StudyPuck env resolves
+pnpm env:check:secure
+```
 
 For environment details, see [Environment Setup](./environment-setup.md).
 
@@ -85,6 +108,7 @@ These steps require human action or approval:
 - Decide whether to use the shared development database or a feature-specific branch if that becomes necessary
 - Authenticate tools if the remote environment does not inherit credentials:
   - `gh auth login`
+  - `bw login --apikey`
   - `wrangler login`
   - `copilot` then `/login`
 - Confirm the forwarded URLs load correctly in the browser
@@ -96,19 +120,19 @@ In interactive AI sessions, the assistant should pause and prompt before these c
 Use the same commands documented for local development:
 
 ```bash
-pnpm dev
+pnpm dev:secure
 ```
 
 For the web app only:
 
 ```bash
-pnpm --filter web dev
+pnpm dev:secure
 ```
 
 For Workers-style verification:
 
 ```bash
-pnpm --filter web dev:workers
+pnpm dev:workers:secure
 ```
 
 ## Updating an Existing Remote Environment
@@ -154,11 +178,11 @@ If authentication state is missing, complete the human-owned login steps again.
 
 ### 5. Reconcile Environment Variables
 
-Do **not** overwrite your existing `apps/web/.env` blindly.
+Do **not** recreate a plaintext `apps/web/.env` as your normal setup.
 
 Instead:
-- Compare it against `.env.example`
-- Add any newly required variables
+- Pull the latest `.env.schema`
+- Run `pnpm env:check:secure`
 - Keep using a **direct** Neon connection string for migrations
 
 ### 6. Validate the Environment
@@ -174,7 +198,7 @@ pnpm build
 Then restart whichever development server you need:
 
 ```bash
-pnpm dev
+pnpm dev:secure
 ```
 
 ## Use Copilot CLI Inside the Remote Container
@@ -228,6 +252,6 @@ On first run:
 - Reopen the forwarded port from the remote environment UI if needed
 
 ### Environment Variables Are Missing
-- Verify `apps/web/.env` exists
-- Recopy from `.env.example` if needed, then add the real secrets manually
-- Do not commit populated secret values back to the repository
+- Verify `BW_SESSION` is exported or `BW_PASSWORD` is available
+- Verify the configured Bitwarden item contains the required StudyPuck custom fields
+- Run `pnpm env:check:secure` to confirm the secure command path resolves values
