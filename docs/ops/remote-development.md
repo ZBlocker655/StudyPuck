@@ -32,6 +32,15 @@ The remote devcontainer is designed to match the current StudyPuck stack:
 
 ## First-Time Setup
 
+### Before You Start
+
+For a brand-new Codespace, expect two kinds of setup:
+
+- **automatic setup by the container**: install tools, install dependencies, prepare the repo
+- **human-owned login/setup**: sign in to services like GitHub CLI, Copilot, Wrangler, and Bitwarden
+
+The devcontainer already installs the Bitwarden CLI for you through `.devcontainer/bootstrap.sh`, so you should not need to install it manually inside Codespaces.
+
 ### 1. Launch the Remote Environment
 
 Use one of the supported flows:
@@ -44,7 +53,7 @@ The container runs:
 bash .devcontainer/bootstrap.sh
 ```
 
-This enables PNPM, verifies `gh`, and installs workspace dependencies.
+This enables PNPM, verifies `gh`, installs workspace dependencies, installs Bitwarden CLI if missing, and installs Copilot CLI if missing.
 
 If the container is running as a non-root user, the bootstrap script installs Corepack shims into a user-writable bin directory instead of `/usr/local/bin`.
 
@@ -62,7 +71,24 @@ pnpm --filter web exec wrangler --version
 
 `wrangler` is provided by the existing `apps/web` dependency graph, so no separate global install is required.
 
-### 3. Configure Environment Variables
+### 3. Complete Human Logins
+
+These steps are expected for a fresh Codespace and should be completed by the human developer:
+
+```bash
+gh auth login
+bw login --apikey
+wrangler login
+copilot
+```
+
+Notes:
+
+- In Copilot CLI, run `/login` if prompted.
+- `bw login --apikey` assumes your Codespace/repository secrets include `BW_CLIENTID` and `BW_CLIENTSECRET`.
+- If Bitwarden is already authenticated in the current shell session, you can skip repeating the login and just unlock.
+
+### 4. Configure Environment Variables
 
 StudyPuck no longer expects a persistent plaintext `apps/web/.env` file as the normal workflow.
 
@@ -101,7 +127,7 @@ pnpm env:check:secure
 
 For environment details, see [Environment Setup](./environment-setup.md).
 
-### 4. Complete Human Setup Checkpoints
+### 5. Complete Human Setup Checkpoints
 
 These steps require human action or approval:
 - Decide whether to configure Auth0 and Neon credentials now or defer them
@@ -115,7 +141,7 @@ These steps require human action or approval:
 
 In interactive AI sessions, the assistant should pause and prompt before these checkpoints.
 
-### 5. Start the Development Workflow
+### 6. Start the Development Workflow
 
 Use the same commands documented for local development:
 

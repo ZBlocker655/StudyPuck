@@ -38,13 +38,19 @@ Instead:
 
 - ✅ `.env.schema` is the committed source of truth for required variables
 - ✅ Bitwarden stores the real local/Codespaces secret values
-- ✅ Repo scripts inject secrets into the specific command you run
+- ✅ Repo scripts run through the installed `varlock` CLI
+- ✅ Varlock resolves local/Codespaces secrets through the Bitwarden helper referenced by `exec()` in `.env.schema`
 - ✅ GitHub Actions and Cloudflare keep using platform-native environment injection
+
+For the full workflow for introducing or changing environment variables, see [Adding Environment Variables](./adding-environment-variables.md).
 
 ### **Secure Local Commands**
 ```bash
 # Verify that Bitwarden-backed variables resolve
 pnpm env:check:secure
+
+# Scan for leaked secrets when varlock is available
+pnpm env:scan:secure
 
 # Standard Vite/SvelteKit dev
 pnpm dev:secure
@@ -56,6 +62,8 @@ pnpm dev:workers:secure
 pnpm db:migrate:secure
 pnpm db:studio:secure
 ```
+
+If `varlock` is ever unavailable in the current environment, the secure wrapper can still fall back to the repo's Bitwarden-backed compatibility path so the approved workflow continues to work without a plaintext `.env` file.
 
 ### **Remote Devcontainers and Codespaces**
 - ✅ **Same schema**: Remote development uses the committed `.env.schema`

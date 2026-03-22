@@ -17,6 +17,7 @@
     "db:migrate:secure": "node scripts/run-with-bitwarden-env.mjs -- pnpm --filter @studypuck/database migrate:apply",
     "db:studio:secure": "node scripts/run-with-bitwarden-env.mjs -- pnpm --filter @studypuck/database migrate:studio",
     "env:check:secure": "node scripts/run-with-bitwarden-env.mjs --check",
+    "env:scan:secure": "node scripts/run-with-bitwarden-env.mjs --scan",
     "test": "turbo test",
     "lint": "turbo lint",
     "check-types": "turbo check-types",
@@ -24,7 +25,8 @@
     "clean": "turbo clean"
   },
   "devDependencies": {
-    "turbo": "^2.7.2"
+    "turbo": "^2.7.2",
+    "varlock": "^0.6.2"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

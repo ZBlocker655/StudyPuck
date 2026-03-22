@@ -34,8 +34,11 @@ A language learning application combining AI-powered translation drills with spa
 nvm install 22
 nvm use 22
 
-# Verify your secure Bitwarden-backed environment
+# Verify your secure varlock + Bitwarden environment
 pnpm env:check:secure
+
+# Scan for leaked secrets when varlock is installed
+pnpm env:scan:secure
 
 # Start the standard dev server without a plaintext apps/web/.env file
 pnpm dev:secure
@@ -49,5 +52,7 @@ pnpm db:migrate:secure
 # Open Drizzle Studio
 pnpm db:studio:secure
 ```
+
+The secure repo commands now run through the installed `varlock` CLI, using `.env.schema` as the source of truth. For local and Codespaces development, varlock resolves secrets through the existing Bitwarden helper wired via `exec()` in `.env.schema`, which preserves the approved "unlock once per shell, then run repo commands" workflow.
 
 For complete database setup and workflow documentation, see [docs/ops/database-workflow.md](docs/ops/database-workflow.md).
