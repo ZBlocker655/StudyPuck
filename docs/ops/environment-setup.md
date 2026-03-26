@@ -28,7 +28,7 @@ Use `nvm` on the local PC whenever StudyPuck raises its Node baseline. Avoid mix
 .env.schema
 
 # Local/Codespaces secret source
-Bitwarden item: studypuck-development
+Bitwarden item: StudyPuck Dev
 # Override with STUDYPUCK_BITWARDEN_ITEM if needed.
 ```
 

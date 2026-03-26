@@ -1,10 +1,13 @@
 import { execFileSync, execSync, spawn } from 'node:child_process';
-import { maskValue, resolveStudypuckEnv } from './studypuck-env.mjs';
+import { writeFileSync, unlinkSync } from 'node:fs';
+import { join } from 'node:path';
+import { maskValue, resolveStudypuckEnv, requiredSecretKeys } from './studypuck-env.mjs';
 
 const args = process.argv.slice(2);
 const overrides = {};
 let checkOnly = false;
 let scanOnly = false;
+let writeDevVars = false;
 let separatorIndex = args.indexOf('--');
 
 for (let index = 0; index < args.length; index += 1) {
@@ -16,6 +19,11 @@ for (let index = 0; index < args.length; index += 1) {
 
 	if (arg === '--scan') {
 		scanOnly = true;
+		continue;
+	}
+
+	if (arg === '--write-dev-vars') {
+		writeDevVars = true;
 		continue;
 	}
 
@@ -143,7 +151,7 @@ if (checkOnly) {
 		...resolveStudypuckEnv(),
 		...overrides,
 	};
-	console.log(`Bitwarden item: ${process.env.STUDYPUCK_BITWARDEN_ITEM || 'studypuck-development'}`);
+	console.log(`Bitwarden item: ${process.env.STUDYPUCK_BITWARDEN_ITEM || 'StudyPuck Dev'}`);
 	for (const [key, value] of Object.entries(resolvedEnv)) {
 		console.log(`${key}=${maskValue(value)}`);
 	}
@@ -166,7 +174,11 @@ if (separatorIndex === -1 || separatorIndex === args.length - 1) {
 const command = args[separatorIndex + 1];
 const commandArgs = args.slice(separatorIndex + 2);
 
-await runVarlockSubcommand('run', ['--', command, ...commandArgs]);
+// varlock run misquotes resolved .cmd paths on Windows — fall through to the
+// Bitwarden-based fallback below instead.
+if (process.platform !== 'win32') {
+	await runVarlockSubcommand('run', ['--', command, ...commandArgs]);
+}
 
 const fallbackEnv = {
 	...process.env,
@@ -174,4 +186,20 @@ const fallbackEnv = {
 	...overrides,
 };
 
-process.exit(await runCommand(command, commandArgs, fallbackEnv));
+const devVarsPath = join(process.cwd(), 'apps/web/.dev.vars');
+
+if (writeDevVars) {
+	const lines = [...requiredSecretKeys, ...Object.keys(overrides)]
+		.filter((k) => fallbackEnv[k])
+		.map((k) => `${k}="${fallbackEnv[k].replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`)
+		.join('\n');
+	writeFileSync(devVarsPath, lines + '\n', { encoding: 'utf8' });
+}
+
+const exitCode = await runCommand(command, commandArgs, fallbackEnv);
+
+if (writeDevVars) {
+	try { unlinkSync(devVarsPath); } catch { /* ignore */ }
+}
+
+process.exit(exitCode);

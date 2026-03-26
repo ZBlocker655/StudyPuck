@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import { execSync } from 'node:child_process';
 
 const bitwardenCommand = process.platform === 'win32' ? 'bw.cmd' : 'bw';
 
@@ -13,11 +13,27 @@ export const requiredSecretKeys = [
 
 export const optionalEnvKeys = ['AUTH_URL', 'AUTH_REDIRECT_PROXY_URL', 'ORIGIN'];
 
-const defaultBitwardenItem = 'studypuck-development';
+const defaultBitwardenItem = 'StudyPuck Dev';
 let cachedItem;
+
+const shellQuoteArg = (arg) => {
+	if (!/[\s"&|<>^%]/u.test(arg)) return arg;
+	return `"${arg.replace(/"/g, '\\"')}"`;
+};
 
 const runBitwarden = (args) => {
 	try {
+		if (process.platform === 'win32') {
+			// execFileSync cannot run .cmd files on Windows without shell: true.
+			// Use execSync (which runs via cmd.exe) instead.
+			const cmd = ['bw', ...args.map(shellQuoteArg)].join(' ');
+			return execSync(cmd, {
+				encoding: 'utf8',
+				env: process.env,
+				stdio: ['ignore', 'pipe', 'pipe'],
+			}).trim();
+		}
+
 		return execFileSync(bitwardenCommand, args, {
 			encoding: 'utf8',
 			env: process.env,
@@ -59,9 +75,10 @@ const ensureBitwardenSession = () => {
 		return process.env.BW_SESSION;
 	}
 
-	throw new Error(
-		'Bitwarden is locked. Run `bw unlock --raw`, then set BW_SESSION in your shell before using StudyPuck secure commands.'
-	);
+	const unlockCmd = process.platform === 'win32'
+		? '$env:BW_SESSION = $(bw unlock --raw)'
+		: 'export BW_SESSION=$(bw unlock --raw)';
+	throw new Error(`Bitwarden is locked. Run this first:\n  ${unlockCmd}`);
 };
 
 const getBitwardenItemRef = () =>

@@ -89,7 +89,7 @@ MY_SECRET=exec('node scripts/bitwarden-secret.mjs MY_SECRET')
 Then add the same custom field name to the approved Bitwarden item, normally:
 
 ```text
-studypuck-development
+StudyPuck Dev
 ```
 
 If the value is non-secret, you can set it directly in `.env.schema` or derive it from other env values.

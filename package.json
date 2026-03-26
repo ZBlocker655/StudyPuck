@@ -12,7 +12,7 @@
     "build": "turbo build",
     "dev": "turbo dev",
     "dev:secure": "node scripts/run-with-bitwarden-env.mjs -- pnpm --filter web dev",
-    "dev:workers:secure": "node scripts/run-with-bitwarden-env.mjs --set ORIGIN=http://127.0.0.1:8788 -- pnpm --filter web dev:workers",
+    "dev:workers:secure": "node scripts/run-with-bitwarden-env.mjs --write-dev-vars --set ORIGIN=http://127.0.0.1:8788 -- pnpm --filter web dev:workers",
     "db:generate:secure": "node scripts/run-with-bitwarden-env.mjs -- pnpm --filter @studypuck/database migrate:generate",
     "db:migrate:secure": "node scripts/run-with-bitwarden-env.mjs -- pnpm --filter @studypuck/database migrate:apply",
     "db:studio:secure": "node scripts/run-with-bitwarden-env.mjs -- pnpm --filter @studypuck/database migrate:studio",
