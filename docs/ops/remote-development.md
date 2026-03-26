@@ -41,6 +41,24 @@ For a brand-new Codespace, expect two kinds of setup:
 
 The devcontainer already installs the Bitwarden CLI for you through `.devcontainer/bootstrap.sh`, so you should not need to install it manually inside Codespaces.
 
+#### One-time prerequisite: Bitwarden API key and GitHub Codespaces secrets
+
+This only needs to be done once, not for every new Codespace.
+
+**Get your Bitwarden API key:**
+1. Log in to the Bitwarden web vault
+2. Go to **Account Settings → Security → API Key**
+3. Click **View API Key** (re-enter your master password if prompted)
+4. Note the `client_id` and `client_secret` values
+
+**Add them as GitHub Codespaces secrets:**
+1. Go to your GitHub repository → **Settings → Secrets and variables → Codespaces**
+2. Add `BW_CLIENTID` with the `client_id` value
+3. Add `BW_CLIENTSECRET` with the `client_secret` value
+4. Optionally add `BW_PASSWORD` with your master password for fully non-interactive unlock (skip the manual unlock step each session)
+
+These secrets are automatically injected into every Codespace for this repository.
+
 ### 1. Launch the Remote Environment
 
 Use one of the supported flows:
@@ -78,54 +96,35 @@ These steps are expected for a fresh Codespace and should be completed by the hu
 ```bash
 gh auth login
 bw login --apikey
-wrangler login
 copilot
 ```
 
 Notes:
 
+- `bw login --apikey` uses `BW_CLIENTID` and `BW_CLIENTSECRET` from Codespaces secrets — no password prompt needed.
+- After login, Bitwarden syncs the vault automatically.
 - In Copilot CLI, run `/login` if prompted.
-- `bw login --apikey` assumes your Codespace/repository secrets include `BW_CLIENTID` and `BW_CLIENTSECRET`.
-- If Bitwarden is already authenticated in the current shell session, you can skip repeating the login and just unlock.
+- `wrangler login` is **not required** for local development — `pnpm dev:workers:secure` runs entirely in a local sandbox. Wrangler authentication is only needed if you want to run commands against live Cloudflare infrastructure (e.g., inspecting remote D1). Deployments are handled automatically by GitHub Actions.
 
-### 4. Configure Environment Variables
+### 4. Unlock Bitwarden and Verify Environment
 
-StudyPuck no longer expects a persistent plaintext `apps/web/.env` file as the normal workflow.
-
-Instead, it expects:
+Unlock your vault once per shell session:
 
 ```bash
-.env.schema
+# If BW_PASSWORD is set as a Codespaces secret, this is automatic.
+# Otherwise run manually:
+export BW_SESSION=$(bw unlock --raw)
 ```
 
-For Codespaces:
+Then verify all StudyPuck secrets resolve correctly:
 
 ```bash
-# Repository / Codespaces secrets
-BW_CLIENTID
-BW_CLIENTSECRET
-
-# Optional for fully non-interactive unlock
-BW_PASSWORD
-```
-
-Then:
-
-```bash
-# Login can be non-interactive when BW_CLIENTID/BW_CLIENTSECRET are present
-bw login --apikey
-
-# Unlock once per shell if BW_PASSWORD is not configured
-bw unlock --raw
-
-# Export the session token
-export BW_SESSION="<token>"
-
-# Verify the StudyPuck env resolves
 pnpm env:check:secure
 ```
 
-For environment details, see [Environment Setup](./environment-setup.md).
+You should see all variables — including `AUTH_SECRET`, `AUTH0_CLIENT_ID`, `DATABASE_URL`, etc. — resolved from the **`StudyPuck Dev`** Bitwarden item.
+
+If you see "Expected exactly one Bitwarden item", check that your vault contains an item named exactly `StudyPuck Dev` with the required custom fields. See [Environment Setup](./environment-setup.md) for the full field list.
 
 ### 5. Complete Human Setup Checkpoints
 
@@ -135,8 +134,8 @@ These steps require human action or approval:
 - Authenticate tools if the remote environment does not inherit credentials:
   - `gh auth login`
   - `bw login --apikey`
-  - `wrangler login`
   - `copilot` then `/login`
+  - `wrangler login` — only if you need to interact with live Cloudflare infrastructure (not required for local dev)
 - Confirm the forwarded URLs load correctly in the browser
 
 In interactive AI sessions, the assistant should pause and prompt before these checkpoints.
@@ -160,6 +159,8 @@ For Workers-style verification:
 ```bash
 pnpm dev:workers:secure
 ```
+
+> `dev:workers:secure` writes secrets to a temporary `apps/web/.dev.vars` file (required by Wrangler's V8 isolate runtime) and deletes it when the server stops. The file is gitignored.
 
 ## Updating an Existing Remote Environment
 
