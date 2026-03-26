@@ -191,11 +191,12 @@ const fallbackEnv = {
 const devVarsPath = join(process.cwd(), 'apps/web/.dev.vars');
 
 if (writeDevVars) {
-	// Auto-inject ORIGIN for Codespaces so Auth callbacks use the forwarded URL.
-	// Wrangler runs on port 8788; CODESPACE_NAME is set automatically by Codespaces.
-	const codespaceName = process.env.CODESPACE_NAME;
-	if (codespaceName && !fallbackEnv.ORIGIN) {
-		fallbackEnv.ORIGIN = `https://${codespaceName}-8788.app.github.dev`;
+	// Auto-detect ORIGIN: Codespaces forwarded URL or local wrangler default.
+	if (!fallbackEnv.ORIGIN) {
+		const codespaceName = process.env.CODESPACE_NAME;
+		fallbackEnv.ORIGIN = codespaceName
+			? `https://${codespaceName}-8788.app.github.dev`
+			: 'http://127.0.0.1:8788';
 	}
 
 	const devVarsKeys = [...requiredSecretKeys, ...Object.keys(overrides), 'ORIGIN'];
