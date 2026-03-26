@@ -176,7 +176,9 @@ const commandArgs = args.slice(separatorIndex + 2);
 
 // varlock run misquotes resolved .cmd paths on Windows — fall through to the
 // Bitwarden-based fallback below instead.
-if (process.platform !== 'win32') {
+// Also skip varlock run when --write-dev-vars is set, since we need to write
+// .dev.vars from the resolved env before the child process starts.
+if (process.platform !== 'win32' && !writeDevVars) {
 	await runVarlockSubcommand('run', ['--', command, ...commandArgs]);
 }
 
