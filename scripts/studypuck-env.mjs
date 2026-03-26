@@ -1,4 +1,4 @@
-import { execSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
 
 const bitwardenCommand = process.platform === 'win32' ? 'bw.cmd' : 'bw';
 
