@@ -90,6 +90,18 @@ docs/ops/README.md ←── Start here for overview
 
 **Rule**: When in doubt, consult `docs/ops/` documentation first. These procedures are authoritative and must be followed.
 
+## 🔐 Varlock-Compatible Secret Handling
+
+- Treat `.env.schema` as the committed source of truth for StudyPuck environment variables.
+- Do **not** create or recommend a long-lived plaintext `apps/web/.env` file as the normal workflow.
+- For varlock guidance, consult `https://varlock.dev/llms.txt` first; use `https://varlock.dev/llms-small.txt` for the abridged docs and `https://varlock.dev/llms-full.txt` for the complete docs when updating agent workflows or env-spec usage.
+- StudyPuck's approved local/Codespaces varlock mechanism uses `exec()` in `.env.schema` to call the repo Bitwarden helper, preserving the "unlock Bitwarden once per shell session" UX.
+- For local development and Codespaces, prefer the secure repo commands such as `pnpm env:check:secure`, `pnpm dev:secure`, `pnpm dev:workers:secure`, `pnpm db:migrate:secure`, and `pnpm db:studio:secure`.
+- The approved local/Codespaces secret source is Bitwarden. Expect a Bitwarden item with custom fields named after the StudyPuck env vars.
+- GitHub Actions and Cloudflare stay on platform-native env injection. Do not migrate production secrets into versioned files.
+- Never print real secret values. Report variable names or masked presence only.
+- When varlock is available in the executing environment, prefer `varlock load`, `varlock run`, and `varlock scan` around env/schema work.
+
 ## 🏗️ **Development Environments**
 
 ### **Standard Development (Node.js)**

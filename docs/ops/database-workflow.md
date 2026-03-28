@@ -6,25 +6,21 @@
 
 ### **Development Workflow**
 ```bash
-# From project root
-cd packages/database
-
 # Generate new migration after schema changes
-pnpm migrate:generate
+pnpm db:generate:secure
 
 # Apply migrations to development database  
-pnpm migrate:apply
+pnpm db:migrate:secure
 
 # Open Drizzle Studio for visual inspection
-pnpm migrate:studio
+pnpm db:studio:secure
 ```
 
 ### **From Web Application**
 ```bash
-# From project root, run database commands for web app
-pnpm -F database migrate:generate
-pnpm -F database migrate:apply
-pnpm -F database migrate:studio
+# From project root, use the secure wrappers
+pnpm db:migrate:secure
+pnpm db:studio:secure
 ```
 
 ## 📋 **Migration Workflow**
@@ -40,8 +36,7 @@ export const newTable = pgTable('new_table', {
 
 ### **2. Generate Migration**
 ```bash
-cd packages/database
-pnpm migrate:generate
+pnpm db:generate:secure
 ```
 
 ### **3. Review Generated Migration**
@@ -52,10 +47,10 @@ pnpm migrate:generate
 ### **4. Apply Migration**
 ```bash
 # Apply to development database
-pnpm migrate:apply
+pnpm db:migrate:secure
 
 # Verify with Drizzle Studio
-pnpm migrate:studio
+pnpm db:studio:secure
 ```
 
 ## 🧪 **Testing Migrations**
@@ -155,7 +150,7 @@ const newUser = await db.insert(users).values({
 ```
 
 ### **Environment Setup**
-- Database connection configured in root `.env`
+- Database connection injected at command runtime by the secure StudyPuck env wrapper
 - Uses Neon Postgres with pgvector extension
 - Supports database branching for feature development
 

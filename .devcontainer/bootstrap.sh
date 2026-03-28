@@ -14,6 +14,11 @@ pnpm --version
 echo "Installing workspace dependencies..."
 pnpm install --frozen-lockfile
 
+if ! command -v bw >/dev/null 2>&1; then
+	echo "Installing Bitwarden CLI..."
+	npm install --global @bitwarden/cli
+fi
+
 if ! command -v copilot >/dev/null 2>&1; then
 	echo "Installing GitHub Copilot CLI..."
 	npm install --global @github/copilot

@@ -17,10 +17,11 @@ Local development remains the fallback path when you want:
 ## What the Devcontainer Provides
 
 The remote devcontainer is designed to match the current StudyPuck stack:
-- **Base image**: Node.js 20
+- **Base image**: Node.js 22
 - **GitHub CLI**: Installed via devcontainer feature
 - **PNPM**: Enabled through Corepack using the repository's pinned package manager version
 - **Dependencies**: Installed by `.devcontainer/bootstrap.sh`
+- **Bitwarden CLI**: Installed by `.devcontainer/bootstrap.sh`
 - **Wrangler**: Used through the existing `apps/web` dependency and scripts
 - **Copilot CLI**: Installed by `.devcontainer/bootstrap.sh` into the user-local tool path
 - **Copilot editor extensions**: Requested through the devcontainer VS Code extensions list
@@ -30,6 +31,33 @@ The remote devcontainer is designed to match the current StudyPuck stack:
   - `8788` for Workers-style local development
 
 ## First-Time Setup
+
+### Before You Start
+
+For a brand-new Codespace, expect two kinds of setup:
+
+- **automatic setup by the container**: install tools, install dependencies, prepare the repo
+- **human-owned login/setup**: sign in to services like GitHub CLI, Copilot, Wrangler, and Bitwarden
+
+The devcontainer already installs the Bitwarden CLI for you through `.devcontainer/bootstrap.sh`, so you should not need to install it manually inside Codespaces.
+
+#### One-time prerequisite: Bitwarden API key and GitHub Codespaces secrets
+
+This only needs to be done once, not for every new Codespace.
+
+**Get your Bitwarden API key:**
+1. Log in to the Bitwarden web vault
+2. Go to **Account Settings → Security → API Key**
+3. Click **View API Key** (re-enter your master password if prompted)
+4. Note the `client_id` and `client_secret` values
+
+**Add them as GitHub Codespaces secrets:**
+1. Go to your GitHub repository → **Settings → Secrets and variables → Codespaces**
+2. Add `BW_CLIENTID` with the `client_id` value
+3. Add `BW_CLIENTSECRET` with the `client_secret` value
+4. Optionally add `BW_PASSWORD` with your master password for fully non-interactive unlock (skip the manual unlock step each session)
+
+These secrets are automatically injected into every Codespace for this repository.
 
 ### 1. Launch the Remote Environment
 
@@ -43,7 +71,7 @@ The container runs:
 bash .devcontainer/bootstrap.sh
 ```
 
-This enables PNPM, verifies `gh`, and installs workspace dependencies.
+This enables PNPM, verifies `gh`, installs workspace dependencies, installs Bitwarden CLI if missing, and installs Copilot CLI if missing.
 
 If the container is running as a non-root user, the bootstrap script installs Corepack shims into a user-writable bin directory instead of `/usr/local/bin`.
 
@@ -55,61 +83,84 @@ Run:
 gh --version
 pnpm --version
 copilot --version
+bw --version
 pnpm --filter web exec wrangler --version
 ```
 
 `wrangler` is provided by the existing `apps/web` dependency graph, so no separate global install is required.
 
-### 3. Configure Environment Variables
+### 3. Complete Human Logins
 
-StudyPuck expects the app environment file at:
-
-```bash
-apps/web/.env
-```
-
-Start from the committed template:
+These steps are expected for a fresh Codespace and should be completed by the human developer:
 
 ```bash
-cp .env.example apps/web/.env
+gh auth login
+bw login --apikey
+copilot
 ```
 
-Then edit `apps/web/.env` with your real values.
+Notes:
 
-For environment details, see [Environment Setup](./environment-setup.md).
+- `bw login --apikey` uses `BW_CLIENTID` and `BW_CLIENTSECRET` from Codespaces secrets — no password prompt needed.
+- After login, Bitwarden syncs the vault automatically.
+- In Copilot CLI, run `/login` if prompted.
+- `wrangler login` is **not required** for local development — `pnpm dev:workers:secure` runs entirely in a local sandbox. Wrangler authentication is only needed if you want to run commands against live Cloudflare infrastructure (e.g., inspecting remote D1). Deployments are handled automatically by GitHub Actions.
 
-### 4. Complete Human Setup Checkpoints
+### 4. Unlock Bitwarden and Verify Environment
+
+Unlock your vault once per shell session:
+
+```bash
+# If BW_PASSWORD is set as a Codespaces secret, this is automatic.
+# Otherwise run manually:
+export BW_SESSION=$(bw unlock --raw)
+```
+
+Then verify all StudyPuck secrets resolve correctly:
+
+```bash
+pnpm env:check:secure
+```
+
+You should see all variables — including `AUTH_SECRET`, `AUTH0_CLIENT_ID`, `DATABASE_URL`, etc. — resolved from the **`StudyPuck Dev`** Bitwarden item.
+
+If you see "Expected exactly one Bitwarden item", check that your vault contains an item named exactly `StudyPuck Dev` with the required custom fields. See [Environment Setup](./environment-setup.md) for the full field list.
+
+### 5. Complete Human Setup Checkpoints
 
 These steps require human action or approval:
 - Decide whether to configure Auth0 and Neon credentials now or defer them
 - Decide whether to use the shared development database or a feature-specific branch if that becomes necessary
 - Authenticate tools if the remote environment does not inherit credentials:
   - `gh auth login`
-  - `wrangler login`
+  - `bw login --apikey`
   - `copilot` then `/login`
+  - `wrangler login` — only if you need to interact with live Cloudflare infrastructure (not required for local dev)
 - Confirm the forwarded URLs load correctly in the browser
 
 In interactive AI sessions, the assistant should pause and prompt before these checkpoints.
 
-### 5. Start the Development Workflow
+### 6. Start the Development Workflow
 
 Use the same commands documented for local development:
 
 ```bash
-pnpm dev
+pnpm dev:secure
 ```
 
 For the web app only:
 
 ```bash
-pnpm --filter web dev
+pnpm dev:secure
 ```
 
 For Workers-style verification:
 
 ```bash
-pnpm --filter web dev:workers
+pnpm dev:workers:secure
 ```
+
+> `dev:workers:secure` writes secrets to a temporary `apps/web/.dev.vars` file (required by Wrangler's V8 isolate runtime) and deletes it when the server stops. The file is gitignored.
 
 ## Updating an Existing Remote Environment
 
@@ -154,11 +205,11 @@ If authentication state is missing, complete the human-owned login steps again.
 
 ### 5. Reconcile Environment Variables
 
-Do **not** overwrite your existing `apps/web/.env` blindly.
+Do **not** recreate a plaintext `apps/web/.env` as your normal setup.
 
 Instead:
-- Compare it against `.env.example`
-- Add any newly required variables
+- Pull the latest `.env.schema`
+- Run `pnpm env:check:secure`
 - Keep using a **direct** Neon connection string for migrations
 
 ### 6. Validate the Environment
@@ -174,7 +225,7 @@ pnpm build
 Then restart whichever development server you need:
 
 ```bash
-pnpm dev
+pnpm dev:secure
 ```
 
 ## Use Copilot CLI Inside the Remote Container
@@ -228,6 +279,6 @@ On first run:
 - Reopen the forwarded port from the remote environment UI if needed
 
 ### Environment Variables Are Missing
-- Verify `apps/web/.env` exists
-- Recopy from `.env.example` if needed, then add the real secrets manually
-- Do not commit populated secret values back to the repository
+- Verify `BW_SESSION` is exported or `BW_PASSWORD` is available
+- Verify the configured Bitwarden item contains the required StudyPuck custom fields
+- Run `pnpm env:check:secure` to confirm the secure command path resolves values

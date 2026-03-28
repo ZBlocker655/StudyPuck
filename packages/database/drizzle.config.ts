@@ -1,12 +1,9 @@
 import { defineConfig } from 'drizzle-kit';
-import { config } from 'dotenv';
-import { resolve } from 'path';
-import { existsSync } from 'fs';
 
-// Only load .env if it exists (safe for production environments)
-const envPath = resolve(__dirname, '../../apps/web/.env');
-if (existsSync(envPath)) {
-  config({ path: envPath });
+if (!process.env.DATABASE_URL) {
+  throw new Error(
+    'DATABASE_URL is required. Use a secure env injection command before running Drizzle migrations.'
+  );
 }
 
 export default defineConfig({
