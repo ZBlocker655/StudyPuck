@@ -118,12 +118,13 @@ export async function deleteCard(
   languageId: string,
   cardId: string
 ): Promise<Card | null> {
+  const now = new Date();
   const result = await db
     .update(cards)
     .set({
       status: 'deleted',
-      deletedAt: new Date(),
-      updatedAt: new Date(),
+      deletedAt: now,
+      updatedAt: now,
     })
     .where(and(
       eq(cards.userId, userId),
