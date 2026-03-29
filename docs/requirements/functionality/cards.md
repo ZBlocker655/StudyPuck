@@ -28,7 +28,7 @@ Cards can contain various types of language learning material:
 Unlike traditional flashcards, StudyPuck cards are structured as study prompts rather than front/back pairs:
 
 - **Study prompts**: Open-ended cues that encourage active recall
-- **Status lifecycle**: Cards progress from 'draft' (private review) to 'active' (available across applications)
+- **Status lifecycle**: Cards progress from 'draft' (private review) to 'active' (available across applications); soft-deleting a card sets status to 'deleted' and records a `deleted_at` timestamp, removing it from all active surfaces while preserving SRS history
 - **Multiple example sentences**: Demonstrate usage in context during review
 - **Mnemonic prompts**: Personal memory encoding reminders for how you decided to remember a word or concept
 - **LLM instructions**: Optional guidance for how the AI should use this card when generating translation sentences
@@ -52,7 +52,7 @@ Cards serve different purposes across the various mini-applications:
 - **Card Entry**: Provides interface for creating and editing card content in the core database, including draft/active status management
 - **Future Applications**: Additional mini-applications can be built that consume the same card database with their own learning mechanics
 
-Note: Only cards with 'active' status appear in Card Review and Translation Drills. Draft cards remain private to the Card Entry application until promoted to active status.
+Note: Only cards with 'active' status appear in Card Review and Translation Drills. Draft cards remain private to the Card Entry application until promoted to active status. Deleted cards (status = 'deleted') are excluded from all active surfaces; their SRS history is preserved but they cannot be viewed or restored in v1.
 
 ## Example Cards
 
