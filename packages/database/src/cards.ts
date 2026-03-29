@@ -110,6 +110,32 @@ export async function updateCardStatus(
 }
 
 /**
+ * Soft-delete a card by setting status = 'deleted' and deleted_at = now().
+ * SRS metadata (card_review_srs, translation_drills_srs) is preserved.
+ */
+export async function deleteCard(
+  userId: string,
+  languageId: string,
+  cardId: string
+): Promise<Card | null> {
+  const result = await db
+    .update(cards)
+    .set({
+      status: 'deleted',
+      deletedAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(and(
+      eq(cards.userId, userId),
+      eq(cards.languageId, languageId),
+      eq(cards.cardId, cardId)
+    ))
+    .returning();
+
+  return result[0] || null;
+}
+
+/**
  * Find similar cards using vector similarity search
  * Returns cards ordered by similarity (cosine distance)
  */
@@ -137,6 +163,7 @@ export async function findSimilarCards(
       embeddingGeneratedAt: cards.embeddingGeneratedAt,
       createdAt: cards.createdAt,
       updatedAt: cards.updatedAt,
+      deletedAt: cards.deletedAt,
       metadata: cards.metadata,
       similarity: sql<number>`1 - (${cards.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector)`,
     })
@@ -319,6 +346,7 @@ export async function getCardsInGroup(userId: string, languageId: string, groupI
       embeddingGeneratedAt: cards.embeddingGeneratedAt,
       createdAt: cards.createdAt,
       updatedAt: cards.updatedAt,
+      deletedAt: cards.deletedAt,
       metadata: cards.metadata,
     })
     .from(cards)

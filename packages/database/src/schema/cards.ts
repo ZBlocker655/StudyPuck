@@ -33,6 +33,7 @@ export const cards = pgTable('cards', {
   embeddingGeneratedAt: timestamp('embedding_generated_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
   metadata: jsonb('metadata'),
 }, (table) => ({
   pk: primaryKey({ columns: [table.userId, table.languageId, table.cardId] }),

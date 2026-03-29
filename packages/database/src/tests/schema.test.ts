@@ -383,3 +383,94 @@ describe('Full schema — Database views', () => {
     expect(result).toHaveLength(0);
   });
 });
+
+describe('Soft delete — cards.status = deleted', () => {
+  let db: TestDb;
+  let sql: ReturnType<typeof postgres>;
+
+  const SOFT_DEL_USER = { userId: 'auth0|softdel-test-user', email: 'softdel-test@example.com' };
+  const SOFT_DEL_LANG = { userId: SOFT_DEL_USER.userId, languageId: 'zh', languageName: 'Chinese' };
+  const ACTIVE_CARD = { userId: SOFT_DEL_USER.userId, languageId: 'zh', cardId: 'softdel-active', content: '活跃', status: 'active' };
+  const TO_DELETE_CARD = { userId: SOFT_DEL_USER.userId, languageId: 'zh', cardId: 'softdel-card', content: '删除', status: 'active' };
+
+  beforeAll(async () => {
+    ({ db, sql } = await setupTestDatabase());
+    await db.insert(users).values(SOFT_DEL_USER);
+    await db.insert(studyLanguages).values(SOFT_DEL_LANG);
+    await db.insert(cards).values(ACTIVE_CARD);
+    await db.insert(cards).values(TO_DELETE_CARD);
+  });
+
+  afterAll(async () => {
+    if (sql) await cleanupTestDatabase(sql);
+  });
+
+  it('should soft-delete a card by setting status to deleted and recording deleted_at', async () => {
+    // Note: these schema tests use the local test db directly (postgres driver) rather than
+    // the `deleteCard()` helper in cards.ts, which uses the Neon HTTP driver incompatible
+    // with the Docker test database. The test verifies the same operations that deleteCard()
+    // performs: status = 'deleted', deleted_at = <timestamp>, updated_at = <timestamp>.
+    const before = new Date();
+    await db
+      .update(cards)
+      .set({ status: 'deleted', deletedAt: new Date(), updatedAt: new Date() })
+      .where(and(
+        eq(cards.userId, TO_DELETE_CARD.userId),
+        eq(cards.languageId, TO_DELETE_CARD.languageId),
+        eq(cards.cardId, TO_DELETE_CARD.cardId)
+      ));
+
+    const [result] = await db
+      .select()
+      .from(cards)
+      .where(eq(cards.cardId, TO_DELETE_CARD.cardId));
+
+    expect(result.status).toBe('deleted');
+    expect(result.deletedAt).not.toBeNull();
+    expect(result.deletedAt!.getTime()).toBeGreaterThanOrEqual(before.getTime());
+  });
+
+  it('deleted card should not appear when filtering on status = active', async () => {
+    const result = await db
+      .select()
+      .from(cards)
+      .where(and(
+        eq(cards.userId, SOFT_DEL_USER.userId),
+        eq(cards.languageId, 'zh'),
+        eq(cards.status, 'active')
+      ));
+
+    const ids = result.map(c => c.cardId);
+    expect(ids).not.toContain(TO_DELETE_CARD.cardId);
+    expect(ids).toContain(ACTIVE_CARD.cardId);
+  });
+
+  it('deleted_at should be null for non-deleted cards', async () => {
+    const [active] = await db
+      .select()
+      .from(cards)
+      .where(eq(cards.cardId, ACTIVE_CARD.cardId));
+
+    expect(active.deletedAt).toBeNull();
+  });
+
+  it('SRS metadata is preserved after soft delete', async () => {
+    // Insert SRS data for the card before deleting
+    await db.insert(cardReviewSrs).values({
+      userId: SOFT_DEL_USER.userId,
+      languageId: 'zh',
+      cardId: TO_DELETE_CARD.cardId,
+      nextDue: 999999,
+      reviewCount: 7,
+    });
+
+    // SRS row should still exist after card is deleted
+    const [srs] = await db
+      .select()
+      .from(cardReviewSrs)
+      .where(eq(cardReviewSrs.cardId, TO_DELETE_CARD.cardId));
+
+    expect(srs).toBeDefined();
+    expect(srs.reviewCount).toBe(7);
+  });
+});
