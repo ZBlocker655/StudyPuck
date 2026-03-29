@@ -36,6 +36,13 @@
       "when": 1743278400000,
       "tag": "0004_soft_delete_cards",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1743364800000,
+      "tag": "0005_add_mnemonics_to_fulltext_index",
+      "breakpoints": true
     }
   ]
 }

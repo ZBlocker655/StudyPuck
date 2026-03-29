@@ -44,11 +44,11 @@ export const cards = pgTable('cards', {
   activeUpdatedIdx: index('idx_cards_active_updated').on(table.userId, table.languageId, table.updatedAt),
   fulltextEnglishIdx: index('idx_cards_fulltext').using(
     'gin',
-    sql`to_tsvector('english', ${table.content} || ' ' || COALESCE(${table.meaning}, '') || ' ' || COALESCE(${table.examples}::text, ''))`
+    sql`to_tsvector('english', ${table.content} || ' ' || COALESCE(${table.meaning}, '') || ' ' || COALESCE(${table.examples}::text, '') || ' ' || COALESCE(${table.mnemonics}::text, ''))`
   ),
   fulltextSimpleIdx: index('idx_cards_fulltext_simple').using(
     'gin',
-    sql`to_tsvector('simple', ${table.content} || ' ' || COALESCE(${table.meaning}, '') || ' ' || COALESCE(${table.examples}::text, ''))`
+    sql`to_tsvector('simple', ${table.content} || ' ' || COALESCE(${table.meaning}, '') || ' ' || COALESCE(${table.examples}::text, '') || ' ' || COALESCE(${table.mnemonics}::text, ''))`
   ),
 }));
 
