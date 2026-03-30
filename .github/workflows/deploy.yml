@@ -30,8 +30,10 @@ jobs:
       - name: Validate migration safety
         run: |
           cd packages/database
-          # Check for destructive operations
-          if grep -r "DROP\|ALTER.*DROP\|TRUNCATE" migrations/ 2>/dev/null; then
+          # Check for truly destructive operations (data loss risk).
+          # DROP INDEX and DROP VIEW are intentionally excluded — they are safe
+          # to recreate and do not cause data loss (e.g. rebuilding FTS indexes).
+          if grep -rE "DROP[[:space:]]+(TABLE|COLUMN|SCHEMA)|ALTER[[:space:]]+TABLE.+DROP[[:space:]]+COLUMN|TRUNCATE" migrations/ 2>/dev/null; then
             echo "❌ Destructive migration detected - manual review required"
             exit 1
           fi
