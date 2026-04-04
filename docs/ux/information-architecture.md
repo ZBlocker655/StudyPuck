@@ -48,14 +48,14 @@ This motif is used for:
 
 | Screen | URL | Purpose | Who can see it |
 |--------|-----|---------|----------------|
-| Home / Dashboard | `/` | Default landing page. Route is auth-aware: logged-out users see the Welcome/Sign-In screen; logged-in users see their dashboard. Shows at-a-glance status counts per mini-app for the active language: inbox items waiting to process, draft cards awaiting promotion, cards due for review, translation drill session state. Counts are informational — the user decides what to do. Each count is a navigable link. | Auth-aware (single route) |
+| Home / Dashboard | `/[lang]/` | Default landing page for a specific study language. Authenticated users without a deep-linked URL are redirected here from `/` for their active language. Shows at-a-glance status counts per mini-app for the active language: inbox items waiting to process, draft cards awaiting promotion, cards due for review, translation drill session state. Counts are informational — the user decides what to do. Each count is a navigable link. | Authenticated |
 
 ### Card Entry
 
 | Screen | URL | Purpose | Who can see it |
 |--------|-----|---------|----------------|
-| Card Entry Inbox | `/card-entry` | Chronological list of unprocessed inbox notes for the active language. Provides a button to add a new note (opens the Quick-Add drawer). Clicking a note opens the Note Processing drawer. Shows count of unprocessed vs. deferred items. | Authenticated |
-| Draft Cards Review | `/card-entry/drafts` | Lists all draft cards for the active language. User can review, edit, and promote draft cards to active status individually or in bulk. Shows the originating note context for each draft. | Authenticated |
+| Card Entry Inbox | `/[lang]/card-entry` | Chronological list of unprocessed inbox notes for the active language. Provides a button to add a new note (opens the Quick-Add drawer). Clicking a note opens the Note Processing drawer. Shows count of unprocessed vs. deferred items. | Authenticated |
+| Draft Cards Review | `/[lang]/card-entry/drafts` | Lists all draft cards for the active language. User can review, edit, and promote draft cards to active status individually or in bulk. Shows the originating note context for each draft. | Authenticated |
 | *(Drawer)* Quick-Add Note | — (overlay) | Slide-in drawer triggered by the global `+` button in the nav. Minimal text input for capturing a rough note (word, phrase, sentence, anything). Submits to the active language's inbox. Click-outside or explicit dismiss closes it. | Authenticated |
 | *(Drawer)* Note Processing Workspace | — (overlay) | Slide-in drawer opened by clicking a note in the Card Entry Inbox. Displays the original note content. Provides tools to create one or more structured cards from the note. Supports AI-assisted field population. Created cards start as draft or active per user choice. Links between note and resulting cards are maintained. Actions: process → create cards, defer, delete. | Authenticated |
 
@@ -63,40 +63,40 @@ This motif is used for:
 
 | Screen | URL | Purpose | Who can see it |
 |--------|-----|---------|----------------|
-| Card Review Home | `/card-review` | Dashboard for the Card Review mini-app. Shows recent stats (cards reviewed, streak, etc.) embedded on-screen. Group selector to choose which groups to draw from. Subset size control (e.g., "Review 10 cards" / "Review all due"). Primary CTA: "Start Reviewing". | Authenticated |
-| Card Review Session | `/card-review/session` | Active review session screen. Presents one card at a time with full content (prompt, examples, mnemonics). After each card, user rates familiarity and can take actions: pin to Translation Drills context, snooze, disable. Shows session progress. Navigation: next/previous card. Exit returns to Card Review Home. | Authenticated |
+| Card Review Home | `/[lang]/card-review` | Dashboard for the Card Review mini-app. Shows recent stats (cards reviewed, streak, etc.) embedded on-screen. Group selector to choose which groups to draw from. Subset size control (e.g., "Review 10 cards" / "Review all due"). Primary CTA: "Start Reviewing". | Authenticated |
+| Card Review Session | `/[lang]/card-review/session` | Active review session screen. Presents one card at a time with full content (prompt, examples, mnemonics). After each card, user rates familiarity and can take actions: pin to Translation Drills context, snooze, disable. Shows session progress. Navigation: next/previous card. Exit returns to Card Review Home. | Authenticated |
 | *(Drawer)* Card Detail | — (overlay) | Slide-in drawer from Card Review session for viewing/editing a card's full content. Does not interrupt session flow. | Authenticated |
 
 ### Translation Drills
 
 | Screen | URL | Purpose | Who can see it |
 |--------|-----|---------|----------------|
-| Translation Drills | `/translation-drills` | Full-width conversational interface. No setup screen — drops directly into the last active session context. Sticky area at the top shows the current translation challenge. Prominent "New Challenge" button to request the next sentence. Conversation thread below for follow-up questions and feedback. Context panel trigger (drawer) to manage active cards. Session state persists across logins. | Authenticated |
+| Translation Drills | `/[lang]/translation-drills` | Full-width conversational interface. No setup screen — drops directly into the last active session context. Sticky area at the top shows the current translation challenge. Prominent "New Challenge" button to request the next sentence. Conversation thread below for follow-up questions and feedback. Context panel trigger (drawer) to manage active cards. Session state persists across logins. | Authenticated |
 | *(Drawer)* Translation Context Panel | — (overlay) | Slide-in drawer triggered from within Translation Drills. Shows all currently active cards organized by draw-pile group. Per-card actions: snooze, dismiss (with SRS scheduling), disable. Also allows drawing additional cards from configured groups. | Authenticated |
 
 ### Cards (Library & Groups)
 
 | Screen | URL | Purpose | Who can see it |
 |--------|-----|---------|----------------|
-| Card Library | `/cards` | Browse and search all cards (active and draft) for the active language. Filter by group, status (active/draft), or free-text search. Click a card to open the Card Detail drawer for viewing or editing. | Authenticated |
-| Groups List | `/cards/groups` | Lists all user-defined groups for the active language. Each group shows a card count and a summary. Click a group to go to Group Detail. | Authenticated |
-| Group Detail | `/cards/groups/:id` | Shows all cards belonging to a specific group. Same card browsing capabilities as Card Library, scoped to this group. Can edit group name/description. Can add cards to this group. | Authenticated |
+| Card Library | `/[lang]/cards` | Browse and search all cards (active and draft) for the active language. Filter by group, status (active/draft), or free-text search. Click a card to open the Card Detail drawer for viewing or editing. | Authenticated |
+| Groups List | `/[lang]/cards/groups` | Lists all user-defined groups for the active language. Each group shows a card count and a summary. Click a group to go to Group Detail. | Authenticated |
+| Group Detail | `/[lang]/cards/groups/:id` | Shows all cards belonging to a specific group. Same card browsing capabilities as Card Library, scoped to this group. Can edit group name/description. Can add cards to this group. | Authenticated |
 | *(Drawer)* Card Detail / Edit | — (overlay) | Slide-in drawer accessible from Card Library, Group Detail, and Card Review Session. Displays full card content. Allows editing card fields: prompt, status, groups, example sentences, mnemonics, LLM instructions. | Authenticated |
 
 ### Statistics
 
 | Screen | URL | Purpose | Who can see it |
 |--------|-----|---------|----------------|
-| Statistics | `/stats` | Global statistics view aggregated across all mini-apps and (optionally) all languages. Anki-style daily activity charts. Per-mini-app breakdowns (cards reviewed, sentences translated, etc.). Language selector to drill into per-language stats. Mini-apps also embed relevant statistics contextually on their own screens (e.g., Card Review Home shows Card Review-specific stats). | Authenticated |
+| Statistics | `/[lang]/stats` | Global statistics view aggregated across all mini-apps and (optionally) all languages. Anki-style daily activity charts. Per-mini-app breakdowns (cards reviewed, sentences translated, etc.). Language selector to drill into per-language stats. Mini-apps also embed relevant statistics contextually on their own screens (e.g., Card Review Home shows Card Review-specific stats). | Authenticated |
 
 ### Settings
 
 | Screen | URL | Purpose | Who can see it |
 |--------|-----|---------|----------------|
-| Settings Hub | `/settings` | Settings landing page with section links: Account, Preferences, Languages. | Authenticated |
-| Account | `/settings/account` | Profile info (display name, avatar), authentication details, connected accounts. | Authenticated |
-| Preferences | `/settings/preferences` | Global app preferences: default session sizes, notification preferences, display options, and other cross-language configuration. | Authenticated |
-| Languages | `/settings/languages` | Manage configured languages. Add new languages from the system-supported list. View/configure per-language settings (fonts, input modes, etc. — initially minimal, expanded in future versions). | Authenticated |
+| Settings Hub | `/[lang]/settings` | Settings landing page with section links: Account, Preferences, Languages. The `[lang]` prefix is retained so sidebar navigation preserves the active language context. | Authenticated |
+| Account | `/[lang]/settings/account` | Profile info (display name, avatar), authentication details, connected accounts. | Authenticated |
+| Preferences | `/[lang]/settings/preferences` | Global app preferences: default session sizes, notification preferences, display options, and other cross-language configuration. | Authenticated |
+| Languages | `/[lang]/settings/languages` | Manage configured languages. Add new languages from the system-supported list. View/configure per-language settings (fonts, input modes, etc. — initially minimal, expanded in future versions). | Authenticated |
 
 ---
 
@@ -171,32 +171,35 @@ This motif is used for:
 ## URL / Routing Structure
 
 ```
-/                          → Auth-aware root: Welcome (logged out) OR Dashboard (logged in)
-/onboarding                → First-run language setup
+/                          → Auth-aware root: Welcome (logged out) OR redirect to /[lang]/ (logged in)
+/onboarding                → First-run language setup (no language configured yet)
 
-/card-entry                → Inbox view
-/card-entry/drafts         → Draft cards review
+/[lang]/                   → Dashboard (authenticated, language-scoped)
+/[lang]/card-entry         → Inbox view
+/[lang]/card-entry/drafts  → Draft cards review
 
-/card-review               → Card Review dashboard
-/card-review/session       → Active review session
+/[lang]/card-review        → Card Review dashboard
+/[lang]/card-review/session → Active review session
 
-/translation-drills        → Translation session (conversation + context)
+/[lang]/translation-drills → Translation session (conversation + context)
 
-/cards                     → Card Library (browse/search all cards)
-/cards/groups              → Groups list
-/cards/groups/:id          → Group detail (cards in group)
+/[lang]/cards              → Card Library (browse/search all cards)
+/[lang]/cards/groups       → Groups list
+/[lang]/cards/groups/:id   → Group detail (cards in group)
 
-/stats                     → Global statistics
+/[lang]/stats              → Global statistics
 
-/settings                  → Settings hub
-/settings/account          → Account settings
-/settings/preferences      → App preferences
-/settings/languages        → Language management
+/[lang]/settings           → Settings hub
+/[lang]/settings/account   → Account settings
+/[lang]/settings/preferences → App preferences
+/[lang]/settings/languages → Language management
 
 /404                       → Not found
 ```
 
-**Deep linking**: All authenticated URLs are bookmarkable. After sign-in, users are redirected to their originally requested URL. If no URL is bookmarked, they land on `/` (the auth-aware root, which shows the dashboard when logged in).
+**Language prefix (`[lang]`)**: All authenticated routes include the active study language code (e.g., `es`, `fr`) as the first path segment. This makes every authenticated URL bookmarkable and tab-isolated — opening `/es/card-entry` and `/fr/card-entry` in separate tabs maintains fully independent language contexts. The prefix represents *which language the user is studying*, not the UI display language (see Language Switching section).
+
+**Deep linking**: All authenticated URLs are bookmarkable. After sign-in, users are redirected to their originally requested URL. If no URL is bookmarked, they land on `/` which redirects to `/[lang]/` for their active language.
 
 ---
 
@@ -210,10 +213,12 @@ This motif is used for:
 ### What happens when you switch
 
 1. The active language context changes globally.
-2. The user **stays on the same screen** — the current screen reloads/refreshes its content for the newly selected language.
-   - Example: switching from Spanish to French while in Translation Drills keeps you in Translation Drills, now in the French context with French cards and conversation.
+2. The user **stays on the same screen type** — the URL language prefix updates and the current screen reloads its content for the newly selected language.
+   - Example: switching from Spanish to French while at `/es/translation-drills` navigates to `/fr/translation-drills` with French cards and conversation.
 3. The language indicator in the nav updates immediately.
 4. Each language retains its own persistent state (inbox, active session, card context) — returning to Spanish later picks up where you left off.
+
+> **Note on UI language**: The `[lang]` prefix represents the *study language* (which language you're learning), not the language of the app's interface. If UI localization is ever added to StudyPuck, it will be stored as a user profile preference (DB/cookie) so it applies consistently across all tabs — not in the URL.
 
 ### Edge cases
 
@@ -276,13 +281,13 @@ The wizard is intentionally minimal (v1). Tutorial/guided tours are out of scope
 
 | Nav Item | Route | Desktop Sidebar | Mobile Bottom Bar |
 |----------|-------|----------------|-------------------|
-| Home | `/` | ✅ | ✅ |
-| Card Entry | `/card-entry` | ✅ | ✅ |
-| Card Review | `/card-review` | ✅ | ✅ |
-| Translation Drills | `/translation-drills` | ✅ | ✅ |
-| Cards | `/cards` | ✅ | Via "More" |
-| Statistics | `/stats` | ✅ | Via "More" |
-| Settings | `/settings` | ✅ (bottom) | Via "More" |
+| Home | `/[lang]/` | ✅ | ✅ |
+| Card Entry | `/[lang]/card-entry` | ✅ | ✅ |
+| Card Review | `/[lang]/card-review` | ✅ | ✅ |
+| Translation Drills | `/[lang]/translation-drills` | ✅ | ✅ |
+| Cards | `/[lang]/cards` | ✅ | Via "More" |
+| Statistics | `/[lang]/stats` | ✅ | Via "More" |
+| Settings | `/[lang]/settings` | ✅ (bottom) | Via "More" |
 | Language Switcher | — | Top-right | Top bar |
 | User Avatar | — | Top-right | Top bar |
 | Global `+` Quick-Add | — | In sidebar | FAB / Via "More" |
