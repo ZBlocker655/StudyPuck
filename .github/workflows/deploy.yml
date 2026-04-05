@@ -46,6 +46,18 @@ jobs:
           TIMESTAMP=$(date +%Y%m%d_%H%M%S)
           npx neonctl branches create --name production-backup-$TIMESTAMP --parent production || echo "⚠️ Backup creation failed - proceeding"
           echo "ROLLBACK_BRANCH=production-backup-$TIMESTAMP" >> $GITHUB_ENV
+
+          echo "🧹 Cleaning up old production backup branches..."
+          OLD_BACKUPS=$(npx neonctl branches list --output json | \
+            jq -r '[.[] | select(.name | startswith("production-backup-"))] | sort_by(.created_at) | reverse | .[1:] | .[].name')
+          if [ -n "$OLD_BACKUPS" ]; then
+            echo "$OLD_BACKUPS" | while read -r branch; do
+              echo "🗑️ Deleting old backup: $branch"
+              npx neonctl branches delete "$branch" || echo "⚠️ Failed to delete $branch"
+            done
+          else
+            echo "✅ No old backup branches to clean up"
+          fi
       
       # Phase 1: Database Migration (BEFORE code deployment)
       - name: Apply migrations to production database
