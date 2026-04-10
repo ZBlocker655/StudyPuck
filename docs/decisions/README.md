@@ -87,6 +87,7 @@ Use this template for new architectural decisions:
 |-----|-------|------|--------|
 | [004](./2026/004-database-neon-postgres.md) | Database Platform: Neon Postgres | 2026-01-12 | Accepted |
 | [005](./2026/005-database-connection-strategy.md) | Database Connection Strategy | 2026-02-02 | Accepted |
+| [006](./2026/006-visual-design-system.md) | Visual Design System — Typography, Color, and Shape | 2026-04-10 | Accepted |
 
 ## Guidelines for Creating ADRs
 
