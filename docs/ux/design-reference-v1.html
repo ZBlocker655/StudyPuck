@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StudyPuck — Design Reference Mockup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Playfair+Display:ital,wght@0,400;0,500;0,700;0,900;1,400;1,700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ══════════════════════════════════════════════
+       DESIGN TOKENS — StudyPuck Visual Style v1.0
+    ══════════════════════════════════════════════ */
+    :root {
+      /* Fonts */
+      --font-heading: 'Playfair Display', 'Georgia', serif;
+      --font-body:    'Lora', 'Georgia', 'Noto Serif SC', 'STSong', 'SimSun', serif;
+      --font-ui:      'DM Sans', system-ui, sans-serif;
+      --font-mono:    'ui-monospace', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+
+      /* Type scale */
+      --font-size-display: 3.5rem;   /* 56px — landing page hero */
+      --font-size-h1:      2.5rem;   /* 40px */
+      --font-size-h2:      2rem;     /* 32px */
+      --font-size-h3:      1.5rem;   /* 24px */
+      --font-size-h4:      1.2rem;   /* ~19px */
+      --font-size-body:    1.0625rem;/* 17px — slightly above 16px for literary feel */
+      --font-size-small:   0.875rem; /* 14px */
+      --font-size-caption: 0.75rem;  /* 12px */
+      --font-size-ui:      0.875rem; /* 14px — buttons, labels, nav */
+
+      /* Leading (line-height) */
+      --leading-tight:   1.1;   /* tight headings */
+      --leading-heading: 1.15;  /* normal headings */
+      --leading-body:    1.65;  /* body text */
+      --leading-relaxed: 1.75;  /* very long-form reading */
+
+      /* Tracking (letter-spacing) */
+      --tracking-heading:  -0.02em; /* slight negative on large headings */
+      --tracking-caps:      0.1em;  /* positive on uppercase labels */
+      --tracking-normal:    0em;
+
+      /* Paragraph spacing */
+      --para-spacing: 0.85em;
+
+      /* Measure */
+      --measure-body: 68ch; /* target 60–72 character line length */
+
+      /* Spacing scale (4px base) */
+      --space-1:  0.25rem;  /*  4px */
+      --space-2:  0.5rem;   /*  8px */
+      --space-3:  0.75rem;  /* 12px */
+      --space-4:  1rem;     /* 16px */
+      --space-5:  1.5rem;   /* 24px */
+      --space-6:  2rem;     /* 32px */
+      --space-7:  3rem;     /* 48px */
+      --space-8:  4rem;     /* 64px */
+      --space-9:  6rem;     /* 96px */
+
+      /* Border radius (Classic/Refined system) */
+      --radius-sm:  2px;  /* tags, chips */
+      --radius-md:  4px;  /* cards, inputs, buttons */
+      --radius-lg:  6px;  /* modals, large panels */
+
+      /* Transitions */
+      --duration-fast:   150ms;
+      --duration-base:   250ms;
+      --duration-slow:   400ms;
+      --ease-standard:   cubic-bezier(0.4, 0, 0.2, 1);
+      --ease-decelerate: cubic-bezier(0, 0, 0.2, 1);
+      --ease-accelerate: cubic-bezier(0.4, 0, 1, 1);
+    }
+
+    /* ── LIGHT MODE TOKENS ── */
+    .light {
+      --color-bg:             #faf6f2;
+      --color-surface:        #ffffff;
+      --color-surface-raised: #ffffff;
+      --color-surface-subtle: #f2ece5;
+
+      --color-border:         #e0d8ce;
+      --color-border-subtle:  #ede8e0;
+
+      /* Neutral scale */
+      --neutral-100: #faf6f2;
+      --neutral-200: #f2ece5;
+      --neutral-300: #e0d8ce;
+      --neutral-400: #c8beb4;
+      --neutral-500: #a09890;
+      --neutral-600: #7a706a;
+      --neutral-700: #504844;
+      --neutral-800: #2a2422;
+      --neutral-900: #1a1918;
+
+      /* Accent — Warm Burgundy */
+      --color-primary:        #8b1a1a;
+      --color-primary-hover:  #a82222;
+      --color-primary-active: #701414;
+      --color-primary-subtle: #f5e8e8;
+      --color-primary-text:   #8b1a1a;
+
+      /* Text */
+      --color-text-primary:   #1a1918;
+      --color-text-secondary: #504844;
+      --color-text-muted:     #7a706a;
+      --color-text-disabled:  #a09890;
+      --color-text-inverse:   #f5f0ee;
+      --color-text-accent:    #8b1a1a;
+
+      /* Semantic — Success */
+      --color-success-text:   #166534;
+      --color-success-bg:     #dcfce7;
+      --color-success-border: #86efac;
+
+      /* Semantic — Warning */
+      --color-warning-text:   #92400e;
+      --color-warning-bg:     #fef3c7;
+      --color-warning-border: #fcd34d;
+
+      /* Semantic — Error */
+      --color-error-text:     #991b1b;
+      --color-error-bg:       #fee2e2;
+      --color-error-border:   #fca5a5;
+
+      /* Semantic — Info */
+      --color-info-text:      #1e40af;
+      --color-info-bg:        #dbeafe;
+      --color-info-border:    #93c5fd;
+
+      /* Shadows */
+      --shadow-sm: 0 1px 3px rgba(26, 12, 10, 0.08), 0 1px 2px rgba(26, 12, 10, 0.05);
+      --shadow-md: 0 4px 12px rgba(26, 12, 10, 0.10), 0 2px 6px rgba(26, 12, 10, 0.06);
+      --shadow-lg: 0 12px 32px rgba(26, 12, 10, 0.14), 0 4px 12px rgba(26, 12, 10, 0.08);
+    }
+
+    /* ── DARK MODE TOKENS ── */
+    /* ── DARK MODE: Cool Blue-Gray base (#0d1117) ── */
+    .dark {
+      --color-bg:             #0d1117;
+      --color-surface:        #161b22;
+      --color-surface-raised: #1c2430;
+      --color-surface-subtle: #161b22;
+
+      --color-border:         #30363d;
+      --color-border-subtle:  #21262d;
+
+      --neutral-100: #0d1117;
+      --neutral-200: #161b22;
+      --neutral-300: #21262d;
+      --neutral-400: #30363d;
+      --neutral-500: #484f58;
+      --neutral-600: #6e7681;
+      --neutral-700: #8b949e;
+      --neutral-800: #b1bac4;
+      --neutral-900: #e6edf3;
+
+      --color-primary:        #c04040;
+      --color-primary-hover:  #d45050;
+      --color-primary-active: #a83030;
+      --color-primary-subtle: #1c1020;
+      --color-primary-text:   #e07070;
+
+      --color-text-primary:   #e6edf3;
+      --color-text-secondary: #b1bac4;
+      --color-text-muted:     #8b949e;
+      --color-text-disabled:  #484f58;
+      --color-text-inverse:   #0d1117;
+      --color-text-accent:    #e07070;
+
+      --color-success-text:   #3fb950;
+      --color-success-bg:     #0d1f15;
+      --color-success-border: #196c2e;
+
+      --color-warning-text:   #d29922;
+      --color-warning-bg:     #1c1500;
+      --color-warning-border: #7d5700;
+
+      --color-error-text:     #f85149;
+      --color-error-bg:       #1a0808;
+      --color-error-border:   #6e2020;
+
+      --color-info-text:      #58a6ff;
+      --color-info-bg:        #051526;
+      --color-info-border:    #1f4080;
+
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.40);
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.50);
+      --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.60);
+    }
+
+    /* ══════════════════════════════════════════════
+       PAGE CHROME
+    ══════════════════════════════════════════════ */
+    body {
+      background: #ddd5c8;
+      padding: 2rem;
+      font-family: var(--font-ui);
+    }
+
+    .page-header {
+      font-family: var(--font-ui);
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #888;
+      margin-bottom: 0.4rem;
+    }
+
+    .page-sub {
+      font-size: 0.8rem;
+      color: #888;
+      font-family: var(--font-ui);
+      margin-bottom: 2.5rem;
+    }
+
+    .section-label {
+      font-family: var(--font-ui);
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #999;
+      margin: 2rem 0 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid #bbb;
+    }
+
+    .mockup-pair {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    /* ══════════════════════════════════════════════
+       APP MOCKUP SHELL
+    ══════════════════════════════════════════════ */
+    .app {
+      background: var(--color-bg);
+      color: var(--color-text-primary);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 6px 30px rgba(0,0,0,0.2);
+      font-family: var(--font-body);
+      font-size: var(--font-size-body);
+    }
+
+    /* ── Nav bar ── */
+    .app-nav {
+      background: var(--color-surface-subtle);
+      border-bottom: 1px solid var(--color-border);
+      padding: 0.75rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .app-brand {
+      font-family: var(--font-heading);
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: var(--color-text-primary);
+      letter-spacing: -0.01em;
+    }
+
+    .app-nav-links {
+      display: flex;
+      gap: 1.5rem;
+      font-family: var(--font-ui);
+      font-size: var(--font-size-ui);
+      font-weight: 500;
+      color: var(--color-text-muted);
+    }
+
+    .app-nav-links .active {
+      color: var(--color-primary-text);
+      border-bottom: 2px solid var(--color-primary);
+      padding-bottom: 2px;
+    }
+
+    .app-nav-sign-in {
+      font-family: var(--font-ui);
+      font-size: var(--font-size-ui);
+      font-weight: 500;
+      background: var(--color-primary);
+      color: #fff;
+      padding: 0.35rem 1rem;
+      border-radius: var(--radius-md);
+      border: none;
+      cursor: pointer;
+      transition: background var(--duration-fast) var(--ease-standard);
+    }
+
+    /* ── Main content ── */
+    .app-main { padding: 1.5rem; }
+
+    /* Hero section */
+    .app-eyebrow {
+      font-family: var(--font-ui);
+      font-size: var(--font-size-caption);
+      font-weight: 600;
+      letter-spacing: var(--tracking-caps);
+      text-transform: uppercase;
+      color: var(--color-primary-text);
+      margin-bottom: var(--space-2);
+    }
+
+    .app-h1 {
+      font-family: var(--font-heading);
+      font-size: var(--font-size-h1);
+      font-weight: 700;
+      line-height: var(--leading-heading);
+      letter-spacing: var(--tracking-heading);
+      color: var(--color-text-primary);
+      margin-bottom: var(--space-3);
+    }
+
+    .app-p {
+      font-family: var(--font-body);
+      font-size: var(--font-size-body);
+      line-height: var(--leading-body);
+      color: var(--color-text-secondary);
+      max-width: var(--measure-body);
+      margin-bottom: var(--space-5);
+    }
+
+    /* Buttons */
+    .btn-row { display: flex; gap: var(--space-3); flex-wrap: wrap; margin-bottom: var(--space-5); }
+
+    .btn {
+      font-family: var(--font-ui);
+      font-size: var(--font-size-ui);
+      font-weight: 500;
+      padding: 0.5rem 1.25rem;
+      border-radius: var(--radius-md);
+      border: none;
+      cursor: pointer;
+      transition: background var(--duration-fast) var(--ease-standard),
+                  color var(--duration-fast) var(--ease-standard);
+    }
+
+    .btn-primary {
+      background: var(--color-primary);
+      color: #fff;
+    }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--color-primary-text);
+      border: 1.5px solid var(--color-primary);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--color-text-muted);
+    }
+
+    /* Card grid */
+    .card-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-4);
+      margin-bottom: var(--space-5);
+    }
+
+    .card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: var(--space-4);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .card-title {
+      font-family: var(--font-heading);
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--color-primary-text);
+      margin-bottom: var(--space-2);
+    }
+
+    .card-desc {
+      font-family: var(--font-body);
+      font-size: 0.9rem;
+      line-height: var(--leading-body);
+      color: var(--color-text-secondary);
+      margin-bottom: var(--space-3);
+      font-style: italic;
+    }
+
+    .card-meta {
+      font-family: var(--font-ui);
+      font-size: var(--font-size-caption);
+      color: var(--color-text-muted);
+    }
+
+    .card-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: var(--space-3);
+      padding-top: var(--space-3);
+      border-top: 1px solid var(--color-border-subtle);
+    }
+
+    /* Tag chips */
+    .tag {
+      display: inline-block;
+      background: var(--color-primary-subtle);
+      color: var(--color-primary-text);
+      padding: 0.15rem 0.55rem;
+      border-radius: var(--radius-sm);
+      font-family: var(--font-ui);
+      font-size: 0.72rem;
+      font-weight: 500;
+      margin-right: var(--space-1);
+    }
+
+    /* Divider */
+    .divider {
+      border: none;
+      border-top: 1px solid var(--color-border);
+      margin: var(--space-5) 0;
+    }
+
+    /* Flash card */
+    .flash-card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: var(--space-6);
+      text-align: center;
+      box-shadow: var(--shadow-md);
+      margin-bottom: var(--space-5);
+    }
+
+    .flash-front {
+      font-family: var(--font-body);
+      font-size: var(--font-size-h3);
+      font-style: italic;
+      color: var(--color-text-primary);
+      line-height: var(--leading-heading);
+      margin-bottom: var(--space-2);
+    }
+
+    .flash-hint {
+      font-family: var(--font-ui);
+      font-size: var(--font-size-caption);
+      color: var(--color-text-muted);
+      letter-spacing: var(--tracking-caps);
+      text-transform: uppercase;
+    }
+
+    /* Semantic badges */
+    .badge-row { display: flex; gap: var(--space-3); flex-wrap: wrap; }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-1);
+      padding: 0.3rem 0.75rem;
+      border-radius: var(--radius-sm);
+      font-family: var(--font-ui);
+      font-size: 0.78rem;
+      font-weight: 500;
+      border: 1px solid;
+    }
+
+    .badge-success { color: var(--color-success-text); background: var(--color-success-bg); border-color: var(--color-success-border); }
+    .badge-warning { color: var(--color-warning-text); background: var(--color-warning-bg); border-color: var(--color-warning-border); }
+    .badge-error   { color: var(--color-error-text);   background: var(--color-error-bg);   border-color: var(--color-error-border); }
+    .badge-info    { color: var(--color-info-text);     background: var(--color-info-bg);    border-color: var(--color-info-border); }
+
+    /* Footer */
+    .app-footer {
+      background: var(--color-surface-subtle);
+      border-top: 1px solid var(--color-border);
+      padding: var(--space-4) var(--space-6);
+      font-family: var(--font-ui);
+      font-size: var(--font-size-caption);
+      color: var(--color-text-muted);
+      text-align: center;
+    }
+
+    /* ── Token reference panel ── */
+    .token-panel {
+      background: #1e1a18;
+      color: #d4cdc6;
+      border-radius: 8px;
+      padding: 1.5rem 2rem;
+      font-family: 'ui-monospace', 'Cascadia Code', monospace;
+      font-size: 0.78rem;
+      line-height: 1.7;
+      margin-top: 2rem;
+    }
+
+    .token-panel h3 {
+      font-family: var(--font-ui);
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #888;
+      margin-bottom: 1rem;
+    }
+
+    .token-panel .key { color: #c98080; }
+    .token-panel .val { color: #c8dea8; }
+    .token-panel .comment { color: #666; }
+  </style>
+</head>
+<body>
+
+  <p class="page-header">StudyPuck — Design Reference Mockup v1.0</p>
+  <p class="page-sub">
+    Typefaces: Playfair Display (headings) · Lora (body) · DM Sans (UI) &nbsp;|&nbsp;
+    Palette: Warm Burgundy &nbsp;|&nbsp; Shape: Classic/Refined (4–6px radius)
+  </p>
+
+  <p class="section-label">Light mode</p>
+  <div class="mockup-pair">
+    <!-- ════ LIGHT: HOME PAGE ════ -->
+    <div class="app light">
+      <nav class="app-nav">
+        <div class="app-brand">StudyPuck</div>
+        <div class="app-nav-links">
+          <span class="active">Decks</span>
+          <span>Progress</span>
+          <span>Settings</span>
+        </div>
+        <button class="app-nav-sign-in">Sign in</button>
+      </nav>
+      <div class="app-main">
+        <p class="app-eyebrow">Welcome back</p>
+        <h1 class="app-h1">The Art of<br>Language Learning</h1>
+        <p class="app-p">Review your cards with spaced repetition and build lasting vocabulary through intelligent, adaptive drills.</p>
+        <div class="btn-row">
+          <button class="btn btn-primary">Start Today's Review</button>
+          <button class="btn btn-outline">Browse Decks</button>
+        </div>
+        <div class="card-grid">
+          <div class="card">
+            <p class="card-title">Spanish Verbs</p>
+            <p class="card-desc">Irregular verb conjugations, present &amp; past tense.</p>
+            <span class="tag">Spanish</span><span class="tag">Verbs</span>
+            <div class="card-footer">
+              <span class="card-meta">12 due · 3 new</span>
+              <button class="btn btn-ghost" style="font-size:0.78rem;padding:0.25rem 0.6rem;">Review →</button>
+            </div>
+          </div>
+          <div class="card">
+            <p class="card-title">Japanese N5</p>
+            <p class="card-desc">JLPT N5 vocabulary: everyday objects and actions.</p>
+            <span class="tag">Japanese</span><span class="tag">Beginner</span>
+            <div class="card-footer">
+              <span class="card-meta">8 due · 0 new</span>
+              <button class="btn btn-ghost" style="font-size:0.78rem;padding:0.25rem 0.6rem;">Review →</button>
+            </div>
+          </div>
+        </div>
+        <hr class="divider">
+        <div class="badge-row">
+          <span class="badge badge-success">✓ 8 mastered today</span>
+          <span class="badge badge-warning">⚡ 3 need attention</span>
+          <span class="badge badge-info">ℹ 2 new cards added</span>
+        </div>
+      </div>
+      <div class="app-footer">StudyPuck · AI-Powered Language Learning</div>
+    </div>
+
+    <!-- ════ LIGHT: CARD REVIEW ════ -->
+    <div class="app light">
+      <nav class="app-nav">
+        <div class="app-brand">StudyPuck</div>
+        <div class="app-nav-links">
+          <span>Decks</span>
+          <span class="active">Review</span>
+          <span>Settings</span>
+        </div>
+        <button class="app-nav-sign-in">Sign in</button>
+      </nav>
+      <div class="app-main">
+        <p class="app-eyebrow">Spanish Verbs · Card 4 of 12</p>
+        <div class="flash-card">
+          <p class="flash-front">to speak</p>
+          <p class="flash-hint">Tap to reveal</p>
+        </div>
+        <div class="btn-row" style="justify-content:center;">
+          <button class="btn btn-outline" style="border-color:#c8beb4;color:#7a706a;">Again</button>
+          <button class="btn btn-outline" style="border-color:#fcd34d;color:#92400e;">Hard</button>
+          <button class="btn btn-outline" style="border-color:#86efac;color:#166534;">Good</button>
+          <button class="btn btn-primary">Easy</button>
+        </div>
+        <hr class="divider">
+        <p class="app-eyebrow" style="margin-bottom: 0.5rem;">Type scale preview</p>
+        <h1 class="app-h1" style="font-size:1.6rem;margin-bottom:0.25rem;">Heading 1 — Playfair Display 700</h1>
+        <h2 style="font-family:var(--font-heading);font-size:1.2rem;font-weight:700;color:var(--color-text-primary);margin-bottom:0.25rem;line-height:1.2;">Heading 2 — Playfair Display 700</h2>
+        <p style="font-family:var(--font-body);font-size:var(--font-size-body);line-height:var(--leading-body);color:var(--color-text-secondary);margin-bottom:0.5rem;">Body text in Lora 400 at 17px. Language learning begins not with memorization, but with pattern recognition — each word a thread in fabric slowly woven.</p>
+        <p style="font-family:var(--font-body);font-size:0.875rem;color:var(--color-text-muted);font-style:italic;">Small text / caption in Lora italic · 14px</p>
+      </div>
+      <div class="app-footer">StudyPuck · AI-Powered Language Learning</div>
+    </div>
+  </div>
+
+  <p class="section-label">Dark mode</p>
+  <div class="mockup-pair">
+    <!-- ════ DARK: HOME PAGE ════ -->
+    <div class="app dark">
+      <nav class="app-nav">
+        <div class="app-brand">StudyPuck</div>
+        <div class="app-nav-links">
+          <span class="active">Decks</span>
+          <span>Progress</span>
+          <span>Settings</span>
+        </div>
+        <button class="app-nav-sign-in">Sign in</button>
+      </nav>
+      <div class="app-main">
+        <p class="app-eyebrow">Welcome back</p>
+        <h1 class="app-h1">The Art of<br>Language Learning</h1>
+        <p class="app-p">Review your cards with spaced repetition and build lasting vocabulary through intelligent, adaptive drills.</p>
+        <div class="btn-row">
+          <button class="btn btn-primary">Start Today's Review</button>
+          <button class="btn btn-outline">Browse Decks</button>
+        </div>
+        <div class="card-grid">
+          <div class="card">
+            <p class="card-title">Spanish Verbs</p>
+            <p class="card-desc">Irregular verb conjugations, present &amp; past tense.</p>
+            <span class="tag">Spanish</span><span class="tag">Verbs</span>
+            <div class="card-footer">
+              <span class="card-meta">12 due · 3 new</span>
+              <button class="btn btn-ghost" style="font-size:0.78rem;padding:0.25rem 0.6rem;">Review →</button>
+            </div>
+          </div>
+          <div class="card">
+            <p class="card-title">Japanese N5</p>
+            <p class="card-desc">JLPT N5 vocabulary: everyday objects and actions.</p>
+            <span class="tag">Japanese</span><span class="tag">Beginner</span>
+            <div class="card-footer">
+              <span class="card-meta">8 due · 0 new</span>
+              <button class="btn btn-ghost" style="font-size:0.78rem;padding:0.25rem 0.6rem;">Review →</button>
+            </div>
+          </div>
+        </div>
+        <hr class="divider">
+        <div class="badge-row">
+          <span class="badge badge-success">✓ 8 mastered today</span>
+          <span class="badge badge-warning">⚡ 3 need attention</span>
+          <span class="badge badge-info">ℹ 2 new cards added</span>
+        </div>
+      </div>
+      <div class="app-footer">StudyPuck · AI-Powered Language Learning</div>
+    </div>
+
+    <!-- ════ DARK: CARD REVIEW ════ -->
+    <div class="app dark">
+      <nav class="app-nav">
+        <div class="app-brand">StudyPuck</div>
+        <div class="app-nav-links">
+          <span>Decks</span>
+          <span class="active">Review</span>
+          <span>Settings</span>
+        </div>
+        <button class="app-nav-sign-in">Sign in</button>
+      </nav>
+      <div class="app-main">
+        <p class="app-eyebrow">Spanish Verbs · Card 4 of 12</p>
+        <div class="flash-card">
+          <p class="flash-front">to speak</p>
+          <p class="flash-hint">Tap to reveal</p>
+        </div>
+        <div class="btn-row" style="justify-content:center;">
+          <button class="btn btn-outline" style="border-color:#30363d;color:#8b949e;">Again</button>
+          <button class="btn btn-outline" style="border-color:#7d5700;color:#d29922;">Hard</button>
+          <button class="btn btn-outline" style="border-color:#196c2e;color:#3fb950;">Good</button>
+          <button class="btn btn-primary">Easy</button>
+        </div>
+        <hr class="divider">
+        <p class="app-eyebrow" style="margin-bottom: 0.5rem;">Type scale preview</p>
+        <h1 class="app-h1" style="font-size:1.6rem;margin-bottom:0.25rem;">Heading 1 — Playfair Display 700</h1>
+        <h2 style="font-family:var(--font-heading);font-size:1.2rem;font-weight:700;color:var(--color-text-primary);margin-bottom:0.25rem;line-height:1.2;">Heading 2 — Playfair Display 700</h2>
+        <p style="font-family:var(--font-body);font-size:var(--font-size-body);line-height:var(--leading-body);color:var(--color-text-secondary);margin-bottom:0.5rem;">Body text in Lora 400 at 17px. Language learning begins not with memorization, but with pattern recognition — each word a thread in fabric slowly woven.</p>
+        <p style="font-family:var(--font-body);font-size:0.875rem;color:var(--color-text-muted);font-style:italic;">Small text / caption in Lora italic · 14px</p>
+      </div>
+      <div class="app-footer">StudyPuck · AI-Powered Language Learning</div>
+    </div>
+  </div>
+
+  <!-- Token reference -->
+  <div class="token-panel">
+    <h3>Key design tokens (CSS custom properties)</h3>
+    <span class="key">--font-heading</span>: <span class="val">'Playfair Display', 'Georgia', serif</span><br>
+    <span class="key">--font-body</span>: <span class="val">'Lora', 'Georgia', 'Noto Serif SC', 'STSong', 'SimSun', serif</span><br>
+    <span class="key">--font-ui</span>: <span class="val">'DM Sans', system-ui, sans-serif</span><br>
+    <br>
+    <span class="key">--color-bg</span>: <span class="val">#faf6f2</span> <span class="comment">/ #0d1117 (dark)</span><br>
+    <span class="key">--color-primary</span>: <span class="val">#8b1a1a</span> <span class="comment">/ #c04040 (dark)</span><br>
+    <span class="key">--color-text-primary</span>: <span class="val">#1a1918</span> <span class="comment">/ #e6edf3 (dark)</span><br>
+    <br>
+    <span class="key">--radius-sm</span>: <span class="val">2px</span> &nbsp; <span class="key">--radius-md</span>: <span class="val">4px</span> &nbsp; <span class="key">--radius-lg</span>: <span class="val">6px</span><br>
+    <span class="key">--font-size-body</span>: <span class="val">1.0625rem</span> <span class="comment">/* 17px */</span> &nbsp; <span class="key">--leading-body</span>: <span class="val">1.65</span><br>
+    <span class="key">--measure-body</span>: <span class="val">68ch</span><br>
+  </div>
+
+</body>
+</html>
