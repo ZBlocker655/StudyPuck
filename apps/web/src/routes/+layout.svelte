@@ -1,4 +1,5 @@
 <script lang="ts">
+  import '$lib/styles/app.css';
   import { afterNavigate, invalidateAll } from '$app/navigation';
 
 	let { children } = $props();
