@@ -1,8 +1,9 @@
 <script lang="ts">
   import '$lib/styles/app.css';
+  import AppShell from '$lib/components/AppShell.svelte';
   import { afterNavigate, invalidateAll } from '$app/navigation';
 
-	let { children } = $props();
+	let { children, data } = $props();
 
   afterNavigate(() => {
     invalidateAll();
@@ -13,4 +14,6 @@
 	<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 </svelte:head>
 
-{@render children()}
+<AppShell session={data.session}>
+  {@render children()}
+</AppShell>
