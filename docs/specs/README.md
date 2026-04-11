@@ -44,6 +44,8 @@ StudyPuck is a hobby project focused on language learning through AI-powered tra
 
 11. **Testing Strategy & Database Operations** → [testing-database-strategy.md](testing-database-strategy.md)
     - **Decision**: Comprehensive testing with Vitest + Playwright, Local Postgres, hybrid auth testing, GitHub Actions CI/CD
+12. **UI Testing Guidelines** → [ui-testing-guidelines.md](ui-testing-guidelines.md)
+    - **Decision**: Test UI contracts via Vitest component tests first, then Playwright for browser-critical flows
 
 ### 🔄 In Progress Explorations
 **Testing Strategy & Database Operations** 🧪 *Final Question*

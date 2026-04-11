@@ -62,6 +62,15 @@ jobs:
       - name: Run database tests
         run: pnpm turbo test --filter=@studypuck/database
 
+      - name: Run web UI tests
+        run: pnpm turbo test --filter=web
+
+      - name: Install Playwright browsers
+        run: pnpm --filter web exec playwright install --with-deps chromium
+
+      - name: Run web Playwright tests
+        run: pnpm --filter web test:e2e -- --project=chromium --pass-with-no-tests
+
       - name: Run linter
         run: pnpm turbo lint --filter=web
 
