@@ -143,6 +143,40 @@ cd apps/web && pnpm dev:workers  # Production-like testing
 - **Validation**: Zod for schema validation and type safety
 - **Monorepo**: PNPM + Turborepo
 
+## 🎨 **Frontend CSS Architecture Rules**
+
+### **Required Reading for Frontend Work**
+- **Always review** `docs/specs/css-architecture-analysis.md` before making CSS architecture or component styling changes.
+- **Always review** `docs/ux/visual-style-spec.md` before making visual design decisions involving typography, color, spacing, or surface treatment.
+
+### **CUBE CSS Decision Order**
+When building or revising frontend UI, apply CUBE CSS in this order:
+1. **Semantic HTML first** - start with the most meaningful markup possible.
+2. **Composition next** - solve layout with reusable composition classes before inventing component-specific layout CSS.
+3. **Block after that** - use component styles for visual identity, state, and internal presentation.
+4. **Utility sparingly** - use small utilities for single-purpose adjustments, not as the primary styling system.
+5. **Exception rarely** - add explicit exceptions only when composition, block, and utilities do not solve the problem cleanly.
+
+### **Responsibility Boundaries**
+- **Compositions own layout only**: spacing, flow, alignment, distribution, width constraints, and responsive structure.
+- **Blocks own component identity**: surface, borders, typography within the component, component-specific states, and ornamental styling.
+- **Utilities stay tiny and obvious**: a utility should do one job and remain safe to combine with compositions and blocks.
+- **Exceptions must be local and intentional**: avoid broad one-off overrides that silently reshape system behavior.
+
+### **Operational Rules**
+- Prefer an existing composition or utility before creating a new one.
+- Do **not** let blocks re-own layout jobs that a composition should handle.
+- Do **not** turn utilities into a utility-first free-for-all; if many utilities are needed together repeatedly, create or refine a composition or block instead.
+- Use design tokens and CSS logical properties by default for new CSS.
+- Treat current placeholder pages as **proof-of-concept targets only**. They may be lightly adapted to verify compositions, but they are **not** canonical StudyPuck layout patterns.
+
+### **When Agents Must Consult the Human**
+- When multiple CUBE-valid solutions are plausible and the choice will set a precedent for future UI work.
+- When it is unclear whether something should be a composition, utility, block responsibility, or exception.
+- When introducing a new composition pattern that could become part of the permanent design system.
+- When visual direction is ambiguous even after consulting the visual style spec.
+- When a placeholder-page convenience would risk becoming de facto permanent architecture.
+
 ### **Project Structure**
 ```
 StudyPuck/

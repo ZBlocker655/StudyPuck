@@ -93,6 +93,36 @@ StudyPuck requires a CSS architecture that supports responsive design across web
 3. **CSS custom properties** for theming and consistency
 4. **Modern CSS features** where browser support allows
 
+### Operational Guidance for Agents
+
+#### CUBE CSS Decision Order
+For new UI work, make styling decisions in this order:
+1. **Semantic HTML** - choose the best document structure first.
+2. **Composition** - solve layout with reusable primitives such as stack, cluster, grid, sidebar, center, and cover.
+3. **Block** - add component-specific identity and state styling.
+4. **Utility** - use a utility only for a small, single-purpose adjustment.
+5. **Exception** - use an exception only when the other layers do not solve the problem cleanly.
+
+#### Responsibility Boundaries
+- **Compositions** handle spacing, alignment, width, distribution, and responsive structure.
+- **Blocks** handle component identity: surfaces, borders, internal typography decisions, affordances, and states.
+- **Utilities** are intentionally narrow and should stay obvious at a glance.
+- **Exceptions** should be rare, local, and explicit.
+
+#### Anti-Patterns to Avoid
+- Do **not** make a block responsible for page or section layout when a composition can handle it.
+- Do **not** create a one-off composition for a single screen unless it is likely to become a reusable layout primitive.
+- Do **not** stack many utilities to approximate a component design system; that erodes the CUBE separation of concerns.
+- Do **not** mix structural layout, visual skin, and one-off overrides into the same rule when the responsibilities can be separated.
+- Do **not** treat placeholder or transitional page layouts as canonical architecture for future screens.
+
+#### Human Consultation Triggers
+Agents should stop and ask the human when:
+- two or more valid CUBE solutions would meaningfully affect the long-term design system;
+- it is unclear whether a concern belongs in composition, utility, block, or exception layers;
+- a new composition pattern is being proposed for broad reuse;
+- the visual spec does not clearly resolve the direction for a new UI pattern.
+
 **Implementation Strategy**:
 
 #### Global CUBE CSS Layer
