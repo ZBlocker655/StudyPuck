@@ -1,1 +1,61 @@
-/* Placeholder for issue #66. */
+body {
+  font-family: var(--font-body);
+  font-size: var(--font-size-body);
+  line-height: var(--leading-body);
+  color: var(--color-text-primary);
+  background-color: var(--color-background);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  line-height: var(--leading-heading);
+  letter-spacing: var(--tracking-heading);
+  color: var(--color-text-primary);
+}
+
+h1 {
+  font-size: var(--font-size-h1);
+}
+
+h2 {
+  font-size: var(--font-size-h2);
+}
+
+h3 {
+  font-size: var(--font-size-h3);
+}
+
+h4 {
+  font-size: var(--font-size-h4);
+}
+
+p {
+  max-width: var(--measure-body);
+}
+
+a {
+  color: var(--color-primary);
+  text-decoration-skip-ink: auto;
+}
+
+a:hover {
+  color: var(--color-primary-hover);
+  text-decoration: underline;
+}
+
+button,
+input,
+textarea,
+select {
+  font-family: var(--font-ui);
+  font-size: var(--font-size-ui);
+  line-height: 1.2;
+}
+
+small {
+  font-size: var(--font-size-caption);
+}
