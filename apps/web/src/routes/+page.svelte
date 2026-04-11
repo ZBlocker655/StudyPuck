@@ -34,7 +34,7 @@
 					⚠️ Authentication temporarily unavailable
 				</div>
 			{:else}
-				<div style="display:flex;align-items:center;gap:1rem">
+				<div class="header-actions">
 					{#if data.session?.user}
 						<a href="/profile">Profile</a>
 					{/if}
@@ -104,104 +104,103 @@
 	main {
 		max-width: 1000px;
 		margin: 0 auto;
-		padding: 2rem;
-		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+		padding: var(--space-6);
 	}
 	
 	header {
-		margin-bottom: 3rem;
+		margin-bottom: var(--space-7);
 	}
 
 	.header-content {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		gap: 2rem;
+		gap: var(--space-6);
 	}
 
 	.title-area {
 		flex: 1;
 	}
+
+	.header-actions {
+		display: flex;
+		align-items: center;
+		gap: var(--space-4);
+	}
 	
 	h1 {
-		color: #0066cc;
-		font-size: 3rem;
+		font-size: var(--font-size-display);
 		margin: 0;
 	}
 	
 	header p {
-		color: #666;
-		font-size: 1.2rem;
-		margin: 0.5rem 0 0 0;
+		color: var(--color-text-secondary);
+		font-size: var(--font-size-h4);
+		margin: var(--space-2) 0 0 0;
 	}
 	
 	section {
-		background: #f8f9fa;
-		padding: 2rem;
-		border-radius: 8px;
-		margin-bottom: 2rem;
+		background: var(--color-surface-subtle);
+		padding: var(--space-6);
+		border-radius: var(--radius-lg);
+		margin-bottom: var(--space-6);
 	}
 
 	.hero h2, .welcome-back h2 {
-		color: #333;
-		margin-bottom: 1rem;
+		margin-bottom: var(--space-4);
 	}
 
 	.features, .dashboard {
 		display: grid;
 		grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-		gap: 1.5rem;
-		margin: 2rem 0;
+		gap: var(--space-5);
+		margin: var(--space-6) 0;
 	}
 
 	.feature, .feature-card {
-		background: white;
-		padding: 1.5rem;
-		border-radius: 6px;
-		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+		background: var(--color-surface);
+		padding: var(--space-5);
+		border-radius: var(--radius-lg);
+		box-shadow: var(--shadow-sm);
 	}
 
 	.feature h3, .feature-card h3 {
-		color: #0066cc;
-		margin: 0 0 0.5rem 0;
+		margin: 0 0 var(--space-2) 0;
 	}
 
 	.feature p, .feature-card p {
-		color: #666;
-		margin: 0 0 1rem 0;
+		margin: 0 0 var(--space-4) 0;
 	}
 
 	.feature-button {
-		background: #e5e7eb;
-		color: #6b7280;
-		border: none;
-		padding: 0.5rem 1rem;
-		border-radius: 4px;
+		background: var(--color-surface-subtle);
+		color: var(--color-text-muted);
+		border: 1px solid var(--color-border);
+		padding: var(--space-2) var(--space-4);
+		border-radius: var(--radius-md);
 		cursor: not-allowed;
-		font-size: 0.875rem;
 	}
 
 	.cta {
 		text-align: center;
-		padding: 1rem;
-		background: white;
-		border-radius: 6px;
-		margin-top: 2rem;
+		padding: var(--space-4);
+		background: var(--color-surface);
+		border-radius: var(--radius-lg);
+		margin-top: var(--space-6);
 	}
 
 	.cta p {
-		color: #0066cc;
 		font-weight: 500;
 		margin: 0;
 	}
 	
 	footer {
 		text-align: center;
-		color: #888;
-		font-size: 0.9rem;
-		border-top: 1px solid #eee;
-		padding-top: 1rem;
-		margin-top: 2rem;
+		color: var(--color-text-muted);
+		font-size: var(--font-size-small);
+		border-top: 1px solid var(--color-border);
+		padding-top: var(--space-4);
+		margin-top: var(--space-6);
 	}
 
 	@media (max-width: 768px) {
@@ -216,17 +215,16 @@
 		}
 
 		h1 {
-			font-size: 2rem;
+			font-size: var(--font-size-h2);
 		}
 	}
 	/* Auth error styling */
 	.auth-error {
-		background: #fee2e2;
-		border: 1px solid #fca5a5;
-		color: #dc2626;
-		padding: 0.5rem 0.75rem;
-		border-radius: 0.375rem;
-		font-size: 0.875rem;
+		background: var(--color-error-bg);
+		border: 1px solid var(--color-error-border);
+		color: var(--color-error-text);
+		padding: var(--space-2) var(--space-3);
+		border-radius: var(--radius-md);
 		font-weight: 500;
 	}
 </style>

@@ -23,7 +23,7 @@
   {#if dbProfile}
     <section>
       {#if session?.user?.image}
-        <img src={session.user.image} alt="Avatar" width="64" height="64" style="border-radius:50%" />
+        <img src={session.user.image} alt="Avatar" width="64" height="64" class="profile-avatar" />
       {/if}
 
       <dl>
@@ -44,3 +44,9 @@
     <p>Profile data unavailable — database may be unreachable.</p>
   {/if}
 </main>
+
+<style>
+  .profile-avatar {
+    border-radius: 50%;
+  }
+</style>
