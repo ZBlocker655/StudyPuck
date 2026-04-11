@@ -15,18 +15,18 @@
   <title>Profile – StudyPuck</title>
 </svelte:head>
 
-<main>
+<main class="center stack profile-page">
   <h1>Profile</h1>
 
   <a href="/">← Back to home</a>
 
   {#if dbProfile}
-    <section>
+    <section class="stack profile-card">
       {#if session?.user?.image}
         <img src={session.user.image} alt="Avatar" width="64" height="64" class="profile-avatar" />
       {/if}
 
-      <dl>
+      <dl class="flow">
         <dt>Name</dt>
         <dd>{dbProfile.name ?? session?.user?.name ?? '—'}</dd>
 
@@ -46,7 +46,29 @@
 </main>
 
 <style>
+  .profile-page {
+    padding-block: var(--space-6);
+    --center-max: 48rem;
+    --stack-space: var(--space-4);
+  }
+
+  .profile-card {
+    background: var(--color-surface-subtle);
+    padding: var(--space-6);
+    border-radius: var(--radius-lg);
+  }
+
   .profile-avatar {
     border-radius: 50%;
+  }
+
+  dt {
+    font-family: var(--font-ui);
+    font-size: var(--font-size-ui);
+    color: var(--color-text-secondary);
+  }
+
+  dd {
+    margin-inline-start: 0;
   }
 </style>

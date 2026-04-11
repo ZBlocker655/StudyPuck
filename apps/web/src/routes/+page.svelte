@@ -20,10 +20,10 @@
 	<meta name="description" content="Learn languages with AI-powered translation drills and spaced repetition" />
 </svelte:head>
 
-<main>
-	<header>
-		<div class="header-content">
-			<div class="title-area">
+<main class="center stack home-page">
+	<header class="stack home-header">
+		<div class="header-content cluster">
+			<div class="title-area stack" style="--stack-space: var(--space-2)">
 				<h1>🏒 StudyPuck</h1>
 				<p>AI-Powered Language Learning</p>
 			</div>
@@ -34,7 +34,7 @@
 					⚠️ Authentication temporarily unavailable
 				</div>
 			{:else}
-				<div class="header-actions">
+				<div class="header-actions cluster">
 					{#if data.session?.user}
 						<a href="/profile">Profile</a>
 					{/if}
@@ -45,11 +45,11 @@
 	</header>
 	
 	{#if data.session?.user}
-		<section class="welcome-back">
+		<section class="stack welcome-back">
 			<h2>Welcome back, {data.session.user.name || data.session.user.email}!</h2>
 			<p>Ready to continue your language learning journey?</p>
 
-			<div class="dashboard">
+			<div class="dashboard grid" style="--grid-gap: var(--space-5); --grid-min-size: 18rem">
 				<div class="feature-card">
 					<h3>📚 Card Review</h3>
 					<p>Review your study cards with spaced repetition</p>
@@ -64,14 +64,14 @@
 			</div>
 		</section>
 	{:else}
-		<section class="hero">
+		<section class="stack hero">
 			<h2>Master Languages with AI-Powered Learning</h2>
 			<p>
 				StudyPuck combines spaced repetition flashcards with interactive AI translation drills 
 				to help you learn languages more effectively.
 			</p>
 			
-			<div class="features">
+			<div class="features grid" style="--grid-gap: var(--space-5); --grid-min-size: 18rem">
 				<div class="feature">
 					<h3>📚 Smart Cards</h3>
 					<p>Organize vocabulary with intelligent spaced repetition</p>
@@ -94,28 +94,26 @@
 		</section>
 	{/if}
 
-	<footer>
+	<footer class="text-center">
 		<p>Milestone 1.3: Database Setup 🗄️</p>
 		<p><small>Neon Postgres + Drizzle ORM + User Profiles - Mar 2026</small></p>
 	</footer>
 </main>
 
 <style>
-	main {
-		max-width: 1000px;
-		margin: 0 auto;
-		padding: var(--space-6);
+	.home-page {
+		padding-block: var(--space-6);
+		--center-max: 62.5rem;
+		--stack-space: var(--space-6);
 	}
 	
-	header {
+	.home-header {
 		margin-bottom: var(--space-7);
 	}
 
 	.header-content {
-		display: flex;
 		justify-content: space-between;
-		align-items: center;
-		gap: var(--space-6);
+		--cluster-space: var(--space-6);
 	}
 
 	.title-area {
@@ -123,20 +121,16 @@
 	}
 
 	.header-actions {
-		display: flex;
-		align-items: center;
-		gap: var(--space-4);
+		--cluster-space: var(--space-4);
 	}
 	
 	h1 {
 		font-size: var(--font-size-display);
-		margin: 0;
 	}
 	
 	header p {
 		color: var(--color-text-secondary);
 		font-size: var(--font-size-h4);
-		margin: var(--space-2) 0 0 0;
 	}
 	
 	section {
@@ -148,13 +142,6 @@
 
 	.hero h2, .welcome-back h2 {
 		margin-bottom: var(--space-4);
-	}
-
-	.features, .dashboard {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-		gap: var(--space-5);
-		margin: var(--space-6) 0;
 	}
 
 	.feature, .feature-card {
@@ -195,7 +182,6 @@
 	}
 	
 	footer {
-		text-align: center;
 		color: var(--color-text-muted);
 		font-size: var(--font-size-small);
 		border-top: 1px solid var(--color-border);
@@ -208,10 +194,6 @@
 			flex-direction: column;
 			align-items: stretch;
 			text-align: center;
-		}
-
-		.features, .dashboard {
-			grid-template-columns: 1fr;
 		}
 
 		h1 {
