@@ -59,3 +59,111 @@ select {
 small {
   font-size: var(--font-size-caption);
 }
+
+/* Composition: vertical rhythm between direct children. */
+.stack {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.stack > * {
+  margin-block: 0;
+}
+
+.stack > * + * {
+  margin-block-start: var(--stack-space, var(--space-4));
+}
+
+/* Composition: inline grouping with wrapping and adjustable alignment. */
+.cluster {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cluster-space, var(--space-3));
+  align-items: var(--cluster-align, center);
+}
+
+/* Composition: responsive auto-fit grid for repeated items. */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(var(--grid-min-size, 250px), 100%), 1fr)
+  );
+  gap: var(--grid-gap, var(--space-4));
+}
+
+/* Composition: sidebar plus flexible main content. */
+.sidebar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sidebar-gap, var(--space-4));
+}
+
+.sidebar > :first-child {
+  flex-basis: var(--sidebar-width, 20rem);
+  flex-grow: 1;
+}
+
+.sidebar > :last-child {
+  flex-basis: 0;
+  flex-grow: 999;
+  min-inline-size: var(--sidebar-content-min, 50%);
+}
+
+/* Composition: centered container with max width and inline padding. */
+.center {
+  box-sizing: content-box;
+  max-inline-size: var(--center-max, var(--measure-wide, 80ch));
+  margin-inline: auto;
+  padding-inline: var(--center-padding, var(--space-4));
+}
+
+/* Composition: full-height layout with a centered focal child. */
+.cover {
+  display: flex;
+  flex-direction: column;
+  min-block-size: var(--cover-min-height, 100svh);
+  padding: var(--space-4);
+}
+
+.cover > * {
+  margin-block: auto;
+}
+
+.cover > :first-child:not(.cover-center) {
+  margin-block-start: 0;
+}
+
+.cover > :last-child:not(.cover-center) {
+  margin-block-end: 0;
+}
+
+/* Utility: hide visually while keeping content available to assistive tech. */
+.visually-hidden,
+.sr-only {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+/* Utility: add consistent vertical flow spacing between siblings. */
+.flow > * + * {
+  margin-block-start: var(--flow-space, var(--space-4));
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-muted {
+  color: var(--color-text-secondary);
+}
+
+.text-small {
+  font-size: var(--font-size-small);
+}
