@@ -23,9 +23,9 @@ The mark uses five petals in the brand's two accent colors:
 ## Favicon
 
 **File:** `apps/web/static/favicon.svg`  
-**Variant:** B1 — tighter viewBox crop (`250 150 530 680`) applied to the master paths.
+**Variant:** B1 — tighter viewBox crop (`250 150 530 680`) applied to the master paths, with a white keyline around the petal shapes for 16-32px readability on dark browser chrome.
 
-At 16–32px the tighter crop zooms in on the petal cluster, making the flower readable at small sizes. The gold center and original Recraft paths are preserved unchanged.
+At 16–32px the tighter crop zooms in on the petal cluster, making the flower readable at small sizes. The white keyline keeps the petal cracks and outer silhouette legible against dark tabs while preserving the gold center and original Recraft paths.
 
 ## Color Palette (Logo + Brand)
 
