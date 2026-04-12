@@ -2,11 +2,11 @@
   import { page } from '$app/stores';
   import {
     replaceLanguageInPath,
-    SUPPORTED_LANGUAGES,
     type SupportedLanguage,
   } from '$lib/config/languages.js';
 
   export let currentLanguage: SupportedLanguage;
+  export let availableLanguages: SupportedLanguage[] = [currentLanguage];
 
   let isOpen = false;
 
@@ -51,7 +51,7 @@
       </div>
 
       <div class="language-menu__list stack" style="--stack-space: var(--space-2)">
-        {#each SUPPORTED_LANGUAGES as language}
+        {#each availableLanguages as language}
           <a
             href={replaceLanguageInPath($page.url.pathname, language.code)}
             class:language-option--active={language.code === currentLanguage.code}

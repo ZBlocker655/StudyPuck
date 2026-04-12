@@ -1,123 +1,234 @@
 <script lang="ts">
-  import AuthButton from '$lib/components/AuthButton.svelte';
+  import { signIn } from '@auth/sveltekit/client';
   import type { PageData } from './$types.js';
 
   export let data: PageData;
-
-  $: typedSession = data.session as any;
   $: authError = (data as any).authError;
 </script>
 
 <svelte:head>
-	<title>StudyPuck - AI-Powered Language Learning</title>
-	<meta name="description" content="Learn languages with AI-powered translation drills and spaced repetition" />
+	<title>StudyPuck - Master vocabulary with focus</title>
+	<meta
+		name="description"
+		content="Master vocabulary through spaced repetition and AI translation practice."
+	/>
 </svelte:head>
 
-<main class="center stack landing-page">
-	<header class="stack landing-header">
-		<div class="stack" style="--stack-space: var(--space-2)">
-			<h1>🏒 StudyPuck</h1>
-			<p class="text-muted">AI-Powered Language Learning</p>
-		</div>
+<div class="landing-shell">
+	<header class="landing-topbar">
+		<div class="center landing-topbar__inner cluster">
+			<a class="brand cluster" href="/" aria-label="StudyPuck home">
+				<span class="brand__mark" aria-hidden="true">◉</span>
+				<span class="brand__name">StudyPuck</span>
+			</a>
 
-		{#if authError?.failed}
-			<div class="auth-error">
-				⚠️ Authentication temporarily unavailable
-			</div>
-		{/if}
+			<button type="button" class="signin-button signin-button--secondary" onclick={() => signIn('auth0')}>
+				Sign In
+			</button>
+		</div>
 	</header>
 
-	<section class="stack hero-panel">
-		<h2>Master Languages with AI-Powered Learning</h2>
-		<p>
-			StudyPuck combines spaced repetition flashcards with interactive AI translation drills
-			to help you learn languages more effectively.
-		</p>
+	<main class="center landing-page stack">
+		<section class="hero stack">
+			<p class="hero__eyebrow">StudyPuck</p>
+			<h1>Master vocabulary through spaced repetition and AI translation practice.</h1>
+			<p class="hero__summary">
+				A calm language-learning workspace for capturing notes, reviewing at the right moment,
+				and practicing active recall with AI-powered drills.
+			</p>
 
-		<div class="features grid" style="--grid-gap: var(--space-5); --grid-min-size: 18rem">
-			<div class="feature">
-				<h3>📚 Smart Cards</h3>
-				<p>Organize vocabulary with intelligent spaced repetition.</p>
+			<div class="hero__actions cluster">
+				<button type="button" class="signin-button" onclick={() => signIn('auth0')}>
+					Sign In <span aria-hidden="true">→</span>
+				</button>
 			</div>
 
-			<div class="feature">
-				<h3>🗣️ AI Conversations</h3>
-				<p>Practice translations in natural conversation flows.</p>
-			</div>
+			{#if authError?.failed}
+				<p class="auth-error" role="alert">Authentication is temporarily unavailable.</p>
+			{/if}
+		</section>
 
-			<div class="feature">
-				<h3>🎯 Personalized Learning</h3>
-				<p>Adaptive difficulty based on your progress.</p>
-			</div>
+		<section class="feature-grid" aria-label="StudyPuck features">
+			<article class="feature-card stack">
+				<p class="feature-card__icon" aria-hidden="true">📚</p>
+				<h2>Spaced Repetition</h2>
+				<p>Cards reviewed at the optimal moment, scientifically timed for long-term retention.</p>
+			</article>
+
+			<article class="feature-card stack">
+				<p class="feature-card__icon" aria-hidden="true">🤖</p>
+				<h2>AI Translation Drills</h2>
+				<p>Conversation-style practice powered by AI, tailored to your cards and study context.</p>
+			</article>
+		</section>
+	</main>
+
+	<footer class="landing-footer">
+		<div class="center landing-footer__inner cluster">
+			<p>© 2026 StudyPuck</p>
+			<a href="https://github.com/ZBlocker655/StudyPuck" rel="noreferrer" target="_blank">GitHub ↗</a>
 		</div>
-
-		<div class="stack landing-actions" style="--stack-space: var(--space-3)">
-			<p>Sign in to enter your active language workspace.</p>
-			<div class="landing-auth">
-				<AuthButton session={typedSession} />
-			</div>
-		</div>
-	</section>
-</main>
+	</footer>
+</div>
 
 <style>
-	.landing-page {
-		padding-block: var(--space-6);
-		--center-max: 62.5rem;
-		--stack-space: var(--space-6);
+	.landing-shell {
+		min-block-size: 100vh;
+		display: grid;
+		grid-template-rows: auto 1fr auto;
 	}
-	
-	.landing-page h1 {
-		font-size: var(--font-size-display);
+
+	.landing-topbar,
+	.landing-footer {
+		border-color: var(--color-border);
 	}
-	
-	.landing-header p {
+
+	.landing-topbar {
+		border-block-end: 1px solid var(--color-border);
+		background: color-mix(in srgb, var(--color-background) 88%, transparent);
+		backdrop-filter: blur(10px);
+	}
+
+	.landing-topbar__inner,
+	.landing-footer__inner {
+		justify-content: space-between;
+		min-block-size: 3.75rem;
+		--center-max: 72rem;
+		--cluster-space: var(--space-4);
+	}
+
+	.brand {
+		color: var(--color-text-primary);
+		text-decoration: none;
+		--cluster-space: var(--space-3);
+	}
+
+	.brand__name {
+		font-family: var(--font-heading);
 		font-size: var(--font-size-h4);
 	}
-	
-	.hero-panel {
-		background: var(--color-surface-subtle);
-		padding: var(--space-6);
-		border-radius: var(--radius-lg);
+
+	.landing-page {
+		padding-block: var(--space-8);
+		padding-inline: var(--space-5);
+		--center-max: 72rem;
+		--stack-space: var(--space-8);
 	}
 
-	.feature {
-		background: var(--color-surface);
-		padding: var(--space-5);
-		border-radius: var(--radius-lg);
-		box-shadow: var(--shadow-sm);
+	.hero {
+		max-inline-size: 44rem;
+		margin-inline: auto;
+		text-align: center;
+		--stack-space: var(--space-5);
 	}
 
-	.feature h3 {
-		margin: 0 0 var(--space-2) 0;
+	.hero__eyebrow {
+		margin: 0;
+		font-family: var(--font-ui);
+		font-size: var(--font-size-ui);
+		letter-spacing: var(--tracking-caps);
+		text-transform: uppercase;
+		color: var(--color-text-secondary);
 	}
 
-	.feature p {
-		margin: 0 0 var(--space-4) 0;
+	.hero h1,
+	.hero__summary,
+	.feature-card h2,
+	.feature-card p,
+	.landing-footer p {
+		margin: 0;
 	}
 
-	.landing-actions {
-		padding: var(--space-4);
+	.hero h1 {
+		font-size: clamp(var(--font-size-h1), 6vw, var(--font-size-display));
+		line-height: var(--leading-tight);
+		letter-spacing: var(--tracking-heading);
+	}
+
+	.hero__summary {
+		max-inline-size: 34rem;
+		margin-inline: auto;
+		font-size: var(--font-size-h4);
+		color: var(--color-text-secondary);
+	}
+
+	.hero__actions {
+		justify-content: center;
+	}
+
+	.signin-button {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: var(--space-2);
+		min-block-size: 2.75rem;
+		padding-block: var(--space-3);
+		padding-inline: var(--space-5);
+		border: 1px solid var(--color-primary);
 		border-radius: var(--radius-md);
+		background: var(--color-primary);
+		color: var(--color-text-inverse);
+		font-family: var(--font-ui);
+		font-size: var(--font-size-ui);
+		font-weight: 600;
+	}
+
+	.signin-button--secondary {
+		padding-block: var(--space-2);
+		padding-inline: var(--space-4);
+	}
+
+	.feature-grid {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: var(--space-5);
+	}
+
+	.feature-card {
+		padding: var(--space-5);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
 		background: var(--color-surface);
+		box-shadow: var(--shadow-sm);
+		--stack-space: var(--space-3);
 	}
 
-	.landing-auth :global(.auth-container) {
-		justify-content: flex-start;
+	.feature-card__icon {
+		margin: 0;
+		font-size: 2rem;
 	}
 
-	@media (max-width: 768px) {
-		.landing-page h1 {
-			font-size: var(--font-size-h2);
-		}
+	.feature-card p {
+		color: var(--color-text-secondary);
+	}
+
+	.landing-footer {
+		border-block-start: 1px solid var(--color-border);
+	}
+
+	.landing-footer a {
+		color: var(--color-text-secondary);
+		text-decoration: none;
 	}
 
 	.auth-error {
-		background: var(--color-error-bg);
+		margin: 0 auto;
+		padding: var(--space-3) var(--space-4);
 		border: 1px solid var(--color-error-border);
-		color: var(--color-error-text);
-		padding: var(--space-2) var(--space-3);
 		border-radius: var(--radius-md);
-		font-weight: 500;
+		background: var(--color-error-bg);
+		color: var(--color-error-text);
+		font-family: var(--font-ui);
+	}
+
+	@media (max-width: 40rem) {
+		.landing-page {
+			padding-inline: var(--space-4);
+			padding-block: var(--space-7);
+		}
+
+		.feature-grid {
+			grid-template-columns: 1fr;
+		}
 	}
 </style>
