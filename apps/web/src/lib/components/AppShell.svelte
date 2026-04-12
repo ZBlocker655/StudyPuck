@@ -1,5 +1,6 @@
 <script lang="ts">
   import AppNav from '$lib/components/AppNav.svelte';
+  import CommandBar from '$lib/components/CommandBar.svelte';
   import { getLanguageByCode } from '$lib/config/languages.js';
   import { theme } from '$lib/stores/theme.js';
   import { page } from '$app/stores';
@@ -27,9 +28,9 @@
   <div class="app-shell">
     <AppNav {session} {currentLanguage} />
 
-    <main id="main-content" class="app-main">
+    <CommandBar>
       {@render children()}
-    </main>
+    </CommandBar>
   </div>
 {:else}
   {@render children()}
@@ -40,18 +41,5 @@
     --shell-header-height: 3.75rem;
     --shell-sidebar-width: 12.5rem;
     --shell-mobile-nav-height: 4.5rem;
-  }
-
-  .app-main {
-    min-block-size: 100vh;
-    padding-block-start: calc(var(--shell-header-height) + var(--space-6));
-    padding-block-end: calc(var(--shell-mobile-nav-height) + var(--space-6) + env(safe-area-inset-bottom));
-  }
-
-  @media (min-width: 64rem) {
-    .app-main {
-      padding-inline-start: calc(var(--shell-sidebar-width) + var(--space-4));
-      padding-block-end: var(--space-6);
-    }
   }
 </style>
