@@ -1,5 +1,7 @@
 import { SvelteKitAuth } from '@auth/sveltekit';
 import Auth0 from '@auth/core/providers/auth0';
+import { sequence } from '@sveltejs/kit/hooks';
+import type { Handle, RequestEvent } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { getDb, upsertUser } from '@studypuck/database';
 import {
@@ -8,22 +10,45 @@ import {
 	getRedirectProxyUrl,
 	normalizeRedirectTarget,
 } from '$lib/server/public-origin';
+import { getE2ESession, isE2ETestModeEnabled } from '$lib/server/e2e-auth';
 
-export const { handle, signIn, signOut } = SvelteKitAuth(async (event) => {
+function getAuthSetting(
+	name: 'AUTH0_CLIENT_ID' | 'AUTH0_CLIENT_SECRET' | 'AUTH0_ISSUER' | 'AUTH0_AUDIENCE' | 'AUTH_SECRET',
+	event: RequestEvent
+) {
+	if (!isE2ETestModeEnabled()) {
+		return getEnvVar(name, env, event);
+	}
+
+	switch (name) {
+		case 'AUTH0_CLIENT_ID':
+			return env.AUTH0_CLIENT_ID || 'e2e-client-id';
+		case 'AUTH0_CLIENT_SECRET':
+			return env.AUTH0_CLIENT_SECRET || 'e2e-client-secret';
+		case 'AUTH0_ISSUER':
+			return env.AUTH0_ISSUER || 'https://studypuck.example.auth0.com/';
+		case 'AUTH0_AUDIENCE':
+			return env.AUTH0_AUDIENCE || 'https://studypuck.example/api';
+		case 'AUTH_SECRET':
+			return env.AUTH_SECRET || 'studypuck-e2e-secret';
+	}
+}
+
+const { handle: authHandle, signIn, signOut } = SvelteKitAuth(async (event) => {
 	const publicOrigin = getPublicOrigin(event, env);
 
 	return {
 		providers: [
 			Auth0({
-				clientId: getEnvVar('AUTH0_CLIENT_ID', env, event),
-				clientSecret: getEnvVar('AUTH0_CLIENT_SECRET', env, event),
-				issuer: getEnvVar('AUTH0_ISSUER', env, event),
-				authorization: { params: { audience: getEnvVar('AUTH0_AUDIENCE', env, event) } },
-				wellKnown: `${getEnvVar('AUTH0_ISSUER', env, event)}.well-known/openid-configuration`,
+				clientId: getAuthSetting('AUTH0_CLIENT_ID', event),
+				clientSecret: getAuthSetting('AUTH0_CLIENT_SECRET', event),
+				issuer: getAuthSetting('AUTH0_ISSUER', event),
+				authorization: { params: { audience: getAuthSetting('AUTH0_AUDIENCE', event) } },
+				wellKnown: `${getAuthSetting('AUTH0_ISSUER', event)}.well-known/openid-configuration`,
 			}),
 		],
 		redirectProxyUrl: getRedirectProxyUrl(event, env),
-		secret: getEnvVar('AUTH_SECRET', env, event),
+		secret: getAuthSetting('AUTH_SECRET', event),
 		useSecureCookies: publicOrigin.startsWith('https://'),
 		session: {
 			strategy: 'jwt',
@@ -93,3 +118,25 @@ export const { handle, signIn, signOut } = SvelteKitAuth(async (event) => {
 		},
 	};
 });
+
+const e2eSessionHandle: Handle = async ({ event, resolve }) => {
+	const auth = event.locals.auth;
+
+	event.locals.auth = async () => {
+		const e2eSession = getE2ESession(event.cookies);
+
+		if (e2eSession) {
+			return e2eSession;
+		}
+
+		return auth ? await auth() : null;
+	};
+
+	return resolve(event);
+};
+
+export const handle = isE2ETestModeEnabled()
+	? sequence(authHandle, e2eSessionHandle)
+	: authHandle;
+
+export { signIn, signOut };

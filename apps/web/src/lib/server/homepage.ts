@@ -111,9 +111,9 @@ export async function loadDashboardStats(
   ]);
 
   const streakDays = calculateStudyStreak([
-    ...entryActivity.map((row) => row.date),
-    ...reviewActivity.map((row) => row.date),
-    ...drillActivity.map((row) => row.date),
+    ...entryActivity.map((row: { date: string }) => row.date),
+    ...reviewActivity.map((row: { date: string }) => row.date),
+    ...drillActivity.map((row: { date: string }) => row.date),
   ]);
 
   return {

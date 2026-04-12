@@ -21,6 +21,10 @@
     "test": {
       "outputs": ["coverage/**"]
     },
+    "test:e2e": {
+      "cache": false,
+      "outputs": ["apps/web/test-results/**", "apps/web/playwright-report/**"]
+    },
     "clean": {
       "cache": false
     }

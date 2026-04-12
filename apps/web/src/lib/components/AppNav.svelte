@@ -346,7 +346,6 @@
     background: var(--color-border);
   }
 
-  .brand:focus-visible,
   .nav-link:focus-visible,
   .menu-link:focus-visible,
   .mobile-tab:focus-visible,

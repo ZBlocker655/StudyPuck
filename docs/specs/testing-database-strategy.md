@@ -311,13 +311,10 @@ jobs:
           DATABASE_URL: "postgresql://postgres:testpass@localhost:5432/testdb"
           AUTH0_TEST_DOMAIN: ${{ secrets.AUTH0_TEST_DOMAIN }}
       
-      - name: Run E2E tests (on PR only)
-        if: github.event_name == 'pull_request'
+      - name: Run E2E tests
         run: pnpm turbo test:e2e --filter=web
         env:
-          PLAYWRIGHT_BASE_URL: "http://localhost:5173"
-          TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
-          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
+          TEST_DATABASE_URL: "postgresql://test_user:test_password@localhost:5433/studypuck_test"
 
   deploy:
     needs: test
@@ -333,34 +330,40 @@ jobs:
           directory: apps/web/build
 ```
 
-**Testing Pipeline Strategy**:
+**Current Web Browser Test Strategy**:
 
-**1. Fast Feedback Loop**:
-- **Every push**: Unit tests (mocked, <2 min)
-- **Every push**: Integration tests with local Postgres (<5 min)
-- **Pull requests only**: E2E tests (realistic, <10 min)
+**1. Browser tests run against the real SvelteKit app**
+- Playwright starts the web app through `apps/web/playwright.config.ts`.
+- The Playwright web server runs database migrations before booting Vite.
+- Browser tests use the same route loaders, redirects, actions, and shell components as normal app usage.
 
-**2. Environment Management**:
-```javascript
-// Test environment configuration
-const testConfig = {
-  development: {
-    database: 'postgresql://postgres:password@localhost:5432/testdb',
-    auth: 'mocked',
-    ai: 'mocked'
-  },
-  integration: {
-    database: 'local-postgres',
-    auth: 'test-tenant', 
-    ai: 'test-api-keys'
-  },
-  e2e: {
-    database: 'preview-db',
-    auth: 'test-tenant',
-    ai: 'test-api-keys'
-  }
-};
+**2. Auth is handled by an e2e-only session harness**
+- Browser tests do **not** log into live Auth0.
+- When `E2E_TEST_MODE=enabled`, the app exposes the gated route `POST /__e2e__/session`.
+- Playwright uses that route to install an authenticated session cookie for a seeded test user.
+- Outside e2e mode, the route is unavailable and normal Auth0 behavior remains unchanged.
+
+**3. Data comes from the local test database**
+- Browser tests target `TEST_DATABASE_URL` (defaulting locally to `postgresql://test_user:test_password@localhost:5433/studypuck_test`).
+- Shared helpers in `apps/web/tests/e2e/support/` reset tables and seed only the user/language state needed for each scenario.
+- This keeps onboarding, dashboard redirects, settings tabs, and add-language flows deterministic without hard-coding fake page responses.
+
+**4. Local workflow**
+```bash
+# Start the Docker-backed test database first
+pnpm --filter @studypuck/database test:setup
+
+# Install browsers if needed
+pnpm --filter web exec playwright install chromium
+
+# Run browser UI tests
+pnpm turbo test:e2e --filter=web
 ```
+
+**5. Test selection guidance**
+- Use component/store tests for isolated state and rendering logic.
+- Use browser tests for SSR redirects, auth-aware branching, route transitions, tabs, dialogs, command-bar context changes, and form/action flows that cross page boundaries.
+- Meaningful UI work should update browser tests when those behaviors change; trivial text-only tweaks do not need new Playwright coverage.
 
 **3. Database Migration Testing**:
 ```bash
