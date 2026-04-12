@@ -1,4 +1,5 @@
 <script lang="ts">
+  import BrandLockup from '$lib/components/BrandLockup.svelte';
   import LanguageSwitcher from '$lib/components/LanguageSwitcher.svelte';
   import UserMenu from '$lib/components/UserMenu.svelte';
   import { getLanguageHomeHref, type SupportedLanguage } from '$lib/config/languages.js';
@@ -91,14 +92,11 @@
   }
 </script>
 
-<svelte:window on:keydown={handleKeydown} />
+<svelte:window onkeydown={handleKeydown} />
 
 <header class="app-header">
   <div class="app-header__inner center cluster">
-    <a class="brand cluster" href={getLanguageHomeHref(currentLanguage.code)}>
-      <span class="brand__mark" aria-hidden="true">◉</span>
-      <span class="brand__name">StudyPuck</span>
-    </a>
+    <BrandLockup href={getLanguageHomeHref(currentLanguage.code)} />
 
     <div class="app-header__controls cluster">
       <LanguageSwitcher currentLanguage={currentLanguage} availableLanguages={availableLanguages} />
@@ -165,7 +163,7 @@
     style="--stack-space: var(--space-1)"
     aria-haspopup="dialog"
     aria-expanded={moreSheetOpen}
-    on:click={() => (moreSheetOpen = true)}
+    onclick={() => (moreSheetOpen = true)}
   >
     <span aria-hidden="true">⋯</span>
     <span>More</span>
@@ -177,14 +175,14 @@
 </button>
 
 {#if moreSheetOpen}
-  <button type="button" class="sheet-backdrop" aria-label="Close more menu" on:click={closeMoreSheet}></button>
+  <button type="button" class="sheet-backdrop" aria-label="Close more menu" onclick={closeMoreSheet}></button>
 
   <section class="more-sheet stack" style="--stack-space: var(--space-4)" aria-label="More navigation">
     <div class="more-sheet__handle" aria-hidden="true"></div>
 
-    <a href={navItems[4].href} class="menu-link" on:click={closeMoreSheet}>Cards</a>
-    <a href={navItems[5].href} class="menu-link" on:click={closeMoreSheet}>Statistics</a>
-    <a href={settingsItem.href} class="menu-link" on:click={closeMoreSheet}>Settings</a>
+    <a href={navItems[4].href} class="menu-link" onclick={closeMoreSheet}>Cards</a>
+    <a href={navItems[5].href} class="menu-link" onclick={closeMoreSheet}>Statistics</a>
+    <a href={settingsItem.href} class="menu-link" onclick={closeMoreSheet}>Settings</a>
 
     <div class="sidebar-divider" aria-hidden="true"></div>
 
@@ -211,16 +209,10 @@
     --cluster-space: var(--space-4);
   }
 
-  .brand,
   .app-header__controls {
     text-decoration: none;
     color: var(--color-text-primary);
     --cluster-space: var(--space-3);
-  }
-
-  .brand__name {
-    font-family: var(--font-heading);
-    font-size: var(--font-size-h4);
   }
 
   .app-header__user {
