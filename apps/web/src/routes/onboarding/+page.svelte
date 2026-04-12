@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { ActionData, PageData } from './$types.js';
+  import { getUserInitials } from '$lib/utils/user.js';
 
   export let data: PageData;
   export let form: ActionData;
@@ -10,16 +11,6 @@
     selectedLanguages = form.selectedLanguages;
   }
 
-  function getInitials() {
-    const source = data.session?.user?.name ?? data.session?.user?.email ?? 'StudyPuck';
-
-    return source
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part[0]?.toUpperCase())
-      .join('');
-  }
 </script>
 
 <svelte:head>
@@ -38,7 +29,7 @@
         {#if data.session?.user?.image}
           <img src={data.session.user.image} alt="" class="avatar-image" />
         {:else}
-          <span>{getInitials()}</span>
+          <span>{getUserInitials(data.session?.user)}</span>
         {/if}
       </div>
     </div>
