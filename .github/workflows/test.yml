@@ -69,7 +69,7 @@ jobs:
         run: pnpm --filter web exec playwright install --with-deps chromium
 
       - name: Run web Playwright tests
-        run: pnpm --filter web test:e2e -- --project=chromium --pass-with-no-tests
+        run: pnpm --filter web exec playwright test --project=chromium --pass-with-no-tests
 
       - name: Run linter
         run: pnpm turbo lint --filter=web
