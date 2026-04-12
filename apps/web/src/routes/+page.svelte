@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { signIn } from '@auth/sveltekit/client';
+	import { signIn } from '@auth/sveltekit/client';
+	import BrandLockup from '$lib/components/BrandLockup.svelte';
   import type { PageData } from './$types.js';
 
   export let data: PageData;
@@ -17,10 +18,7 @@
 <div class="landing-shell">
 	<header class="landing-topbar">
 		<div class="center landing-topbar__inner cluster">
-			<a class="brand cluster" href="/" aria-label="StudyPuck home">
-				<span class="brand__mark" aria-hidden="true">◉</span>
-				<span class="brand__name">StudyPuck</span>
-			</a>
+			<BrandLockup href="/" />
 
 			<button type="button" class="signin-button signin-button--secondary" onclick={() => signIn('auth0')}>
 				Sign In
@@ -30,7 +28,9 @@
 
 	<main class="center landing-page stack">
 		<section class="hero stack">
-			<p class="hero__eyebrow">StudyPuck</p>
+			<div class="hero__brand">
+				<BrandLockup href="/" size="hero" label="StudyPuck" />
+			</div>
 			<h1>Master vocabulary through spaced repetition and AI translation practice.</h1>
 			<p class="hero__summary">
 				A calm language-learning workspace for capturing notes, reviewing at the right moment,
@@ -97,17 +97,6 @@
 		--cluster-space: var(--space-4);
 	}
 
-	.brand {
-		color: var(--color-text-primary);
-		text-decoration: none;
-		--cluster-space: var(--space-3);
-	}
-
-	.brand__name {
-		font-family: var(--font-heading);
-		font-size: var(--font-size-h4);
-	}
-
 	.landing-page {
 		padding-block: var(--space-8);
 		padding-inline: var(--space-5);
@@ -122,13 +111,9 @@
 		--stack-space: var(--space-5);
 	}
 
-	.hero__eyebrow {
-		margin: 0;
-		font-family: var(--font-ui);
-		font-size: var(--font-size-ui);
-		letter-spacing: var(--tracking-caps);
-		text-transform: uppercase;
-		color: var(--color-text-secondary);
+	.hero__brand {
+		display: flex;
+		justify-content: center;
 	}
 
 	.hero h1,

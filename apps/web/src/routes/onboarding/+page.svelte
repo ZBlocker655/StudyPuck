@@ -1,4 +1,5 @@
 <script lang="ts">
+  import BrandLockup from '$lib/components/BrandLockup.svelte';
   import type { ActionData, PageData } from './$types.js';
   import { getUserInitials } from '$lib/utils/user.js';
 
@@ -20,10 +21,7 @@
 <div class="onboarding-shell">
   <header class="onboarding-topbar">
     <div class="center onboarding-topbar__inner cluster">
-      <a class="brand cluster" href="/" aria-label="StudyPuck home">
-        <span class="brand__mark" aria-hidden="true">◉</span>
-        <span class="brand__name">StudyPuck</span>
-      </a>
+      <BrandLockup href="/" />
 
       <div class="avatar-badge" aria-label="Signed in account">
         {#if data.session?.user?.image}
@@ -105,17 +103,6 @@
     min-block-size: 3.75rem;
     --center-max: 72rem;
     --cluster-space: var(--space-4);
-  }
-
-  .brand {
-    color: var(--color-text-primary);
-    text-decoration: none;
-    --cluster-space: var(--space-3);
-  }
-
-  .brand__name {
-    font-family: var(--font-heading);
-    font-size: var(--font-size-h4);
   }
 
   .avatar-badge {
