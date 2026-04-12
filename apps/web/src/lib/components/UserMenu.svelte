@@ -1,6 +1,7 @@
 <script lang="ts">
   import { theme } from '$lib/stores/theme.js';
   import type { SupportedLanguage } from '$lib/config/languages.js';
+  import { getUserInitials } from '$lib/utils/user.js';
 
   export let session: {
     user: {
@@ -19,16 +20,6 @@
     isOpen = false;
   }
 
-  function getInitials() {
-    const source = session.user.name ?? session.user.email ?? 'StudyPuck';
-    return source
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part[0]?.toUpperCase())
-      .join('');
-  }
-
   function handleKeydown(event: KeyboardEvent) {
     if (event.key === 'Escape') {
       closeMenu();
@@ -41,13 +32,13 @@
 {#if mode === 'sheet'}
   <section class="user-sheet stack" style="--stack-space: var(--space-4)">
     <div class="cluster user-sheet__header">
-      <div class="avatar-badge" aria-hidden="true">
-        {#if session.user.image}
-          <img src={session.user.image} alt="" class="avatar-image" />
-        {:else}
-          <span>{getInitials()}</span>
-        {/if}
-      </div>
+        <div class="avatar-badge" aria-hidden="true">
+          {#if session.user.image}
+            <img src={session.user.image} alt="" class="avatar-image" />
+          {:else}
+            <span>{getUserInitials(session.user)}</span>
+          {/if}
+        </div>
 
       <div class="stack" style="--stack-space: var(--space-1)">
         <strong>{session.user.name ?? session.user.email}</strong>
@@ -87,7 +78,7 @@
         {#if session.user.image}
           <img src={session.user.image} alt="" class="avatar-image" />
         {:else}
-          <span>{getInitials()}</span>
+          <span>{getUserInitials(session.user)}</span>
         {/if}
       </span>
       <span class="visually-hidden">Open user menu</span>
