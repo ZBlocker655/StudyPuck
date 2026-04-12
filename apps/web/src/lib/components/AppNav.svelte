@@ -23,6 +23,11 @@
 
   let moreSheetOpen = false;
 
+  $: availableLanguages =
+    (($page.data as { availableLanguages?: SupportedLanguage[] }).availableLanguages ?? []).length > 0
+      ? (($page.data as { availableLanguages?: SupportedLanguage[] }).availableLanguages ?? [])
+      : [currentLanguage];
+
   $: navItems = [
     { label: 'Home', href: getLanguageHomeHref(currentLanguage.code), icon: '⌂', match: 'exact' },
     {
@@ -96,7 +101,7 @@
     </a>
 
     <div class="app-header__controls cluster">
-      <LanguageSwitcher currentLanguage={currentLanguage} />
+      <LanguageSwitcher currentLanguage={currentLanguage} availableLanguages={availableLanguages} />
       <div class="app-header__user">
         <UserMenu {session} {currentLanguage} />
       </div>
