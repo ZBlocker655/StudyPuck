@@ -42,16 +42,17 @@ StudyPuck is a hobby project focused on language learning through AI-powered tra
 10. **CSS Architecture & Methodology** → [css-architecture-analysis.md](css-architecture-analysis.md)
     - **Decision**: Progressive design system + CUBE CSS + dark mode + selective animations
 
-11. **Testing Strategy & Database Operations** → [testing-database-strategy.md](testing-database-strategy.md)
-    - **Decision**: Comprehensive testing with Vitest + Playwright, Local Postgres, hybrid auth testing, GitHub Actions CI/CD
-12. **UI Testing Guidelines** → [ui-testing-guidelines.md](ui-testing-guidelines.md)
+11. **Testing Strategy** → [testing-strategy.md](testing-strategy.md)
+    - **Decision**: Comprehensive testing with Vitest + Playwright, hybrid auth testing, and PR-gated CI validation
+12. **Database Testing Strategy** → [database-testing-strategy.md](database-testing-strategy.md)
+    - **Decision**: Keep database-specific testing and migration validation guidance separate from browser-test workflow details
+13. **Browser Testing Workflow** → [browser-testing-workflow.md](browser-testing-workflow.md)
+    - **Decision**: Run Playwright browser tests against an ephemeral Neon branch with automatic cleanup by default
+14. **UI Testing Guidelines** → [ui-testing-guidelines.md](ui-testing-guidelines.md)
     - **Decision**: Test UI contracts via Vitest component tests first, then Playwright for browser-critical flows
 
 ### 🔄 In Progress Explorations
-**Testing Strategy & Database Operations** 🧪 *Final Question*
-- File: `testing-database-strategy.md` (4 of 5 questions complete)
-- Decisions: Comprehensive testing, Vitest + Playwright, Local Postgres, hybrid auth testing
-- Remaining: Question 5 - CI/CD pipeline integration
+None at the moment.
 
 ### 📋 Pending Explorations (Priority Order)
 
@@ -67,8 +68,14 @@ StudyPuck is a hobby project focused on language learning through AI-powered tra
 2. ✅ **CSS Architecture & Methodology** → [css-architecture-analysis.md](css-architecture-analysis.md)
    - **Decision**: Progressive design system + CUBE CSS + dark mode + selective animations
 
-3. ✅ **Testing Strategy & Database Operations** → [testing-database-strategy.md](testing-database-strategy.md)
-   - **Decision**: Comprehensive testing with Vitest + Playwright, Local Postgres, hybrid auth testing, GitHub Actions CI/CD
+3. ✅ **Testing Strategy** → [testing-strategy.md](testing-strategy.md)
+   - **Decision**: Comprehensive testing with Vitest + Playwright, hybrid auth testing, and PR-gated CI validation
+
+4. ✅ **Database Testing Strategy** → [database-testing-strategy.md](database-testing-strategy.md)
+   - **Decision**: Keep database-specific testing and migration validation guidance separate from browser-test workflow details
+
+5. ✅ **Browser Testing Workflow** → [browser-testing-workflow.md](browser-testing-workflow.md)
+   - **Decision**: Run Playwright browser tests against an ephemeral Neon branch with automatic cleanup by default
 
 #### Phase 3: Advanced Features
 *Ready for future exploration when needed*

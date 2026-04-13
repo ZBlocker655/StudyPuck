@@ -8,7 +8,8 @@ It consolidates expectations from:
 
 - `docs/ux/non-functional-requirements.md`
 - `docs/ux/storyboards/*.md`
-- `docs/specs/testing-database-strategy.md`
+- `docs/specs/testing-strategy.md`
+- `docs/specs/browser-testing-workflow.md`
 - `docs/specs/css-architecture-analysis.md`
 
 ## Testing Philosophy for UI Work
