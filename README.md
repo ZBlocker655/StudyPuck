@@ -51,6 +51,9 @@ pnpm db:migrate:secure
 
 # Open Drizzle Studio
 pnpm db:studio:secure
+
+# Run Playwright browser tests against an ephemeral Neon branch
+pnpm test:e2e:secure
 ```
 
 The secure repo commands now run through the installed `varlock` CLI, using `.env.schema` as the source of truth. For local and Codespaces development, varlock resolves secrets through the existing Bitwarden helper wired via `exec()` in `.env.schema`, which preserves the approved "unlock once per shell, then run repo commands" workflow.

@@ -2,6 +2,60 @@ import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import * as schema from './schema.js';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type DatabaseConnection = any;
+type PostgresFactory = (
+  databaseUrl: string,
+  options?: {
+    max?: number;
+    prepare?: boolean;
+  }
+) => unknown;
+type PostgresDrizzleFactory = (
+  client: unknown,
+  options: {
+    schema: typeof schema;
+  }
+) => DatabaseConnection;
+
+const nodeConnectionCache = new Map<string, DatabaseConnection>();
+
+function isNodeRuntime() {
+  return typeof process !== 'undefined' && Boolean(process.versions?.node);
+}
+
+function createNodeDatabaseConnection(databaseUrl: string): DatabaseConnection {
+  const cached = nodeConnectionCache.get(databaseUrl);
+
+  if (cached) {
+    return cached;
+  }
+
+  const moduleApi = process.getBuiltinModule?.('module') as
+    | typeof import('node:module')
+    | undefined;
+
+  if (!moduleApi) {
+    throw new Error('Node module loader is unavailable for direct Postgres connections');
+  }
+
+  const require = moduleApi.createRequire(import.meta.url);
+  const postgres = require('postgres') as PostgresFactory;
+  const { drizzle: drizzlePostgres } = require('drizzle-orm/postgres-js') as {
+    drizzle: PostgresDrizzleFactory;
+  };
+
+  const client = postgres(databaseUrl, {
+    max: 10,
+    prepare: false,
+  });
+  const connection = drizzlePostgres(client, { schema });
+
+  nodeConnectionCache.set(databaseUrl, connection);
+
+  return connection;
+}
+
 /**
  * Create a database connection using the HTTP driver.
  * neon-http is stateless and request-scoped — safe for Cloudflare Workers
@@ -9,6 +63,10 @@ import * as schema from './schema.js';
  * no persistent connections are held across requests.
  */
 function createDatabaseConnection(databaseUrl: string) {
+  if (isNodeRuntime()) {
+    return createNodeDatabaseConnection(databaseUrl);
+  }
+
   const sql = neon(databaseUrl);
   return drizzle(sql, { schema });
 }

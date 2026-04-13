@@ -203,6 +203,13 @@ StudyPuck/
 - **Build verification** required before deployment
 - **No failing tests** can reach main branch
 
+### **Browser UI Testing Requirements**
+- **Meaningful UI changes should include Playwright coverage** when they affect routing, auth-aware page flow, tabs/dialogs, navigation shell behavior, or multi-step interactions.
+- **Do not require Playwright for trivial copy-only tweaks** with no behavior, routing, or interaction impact.
+- **Prefer component/store tests for isolated logic**, but use browser tests when the behavior depends on SSR loads, redirects, real forms/actions, command-bar context, or cross-page navigation.
+- **Keep browser tests on the real milestone flows** already in the product rather than on temporary throwaway placeholders.
+- **Use the shared e2e harness** in `apps/web/tests/e2e/` instead of inventing per-spec auth or seed logic.
+
 ### **Deployment Understanding**  
 - **Cloudflare automatically deploys** main branch to studypuck.app
 - **Feature branches get preview URLs** for testing
@@ -319,11 +326,14 @@ cd apps/web && pnpm dev
 # Run linting (same as CI)
 pnpm turbo lint --filter=web
 
+# Run browser UI tests (after starting the Docker-backed test database)
+pnpm turbo test:e2e --filter=web
+
 # Build verification (same as CI) 
 pnpm turbo build --filter=web
 
 # Run all tasks for web app
-pnpm turbo dev lint build --filter=web
+pnpm turbo test lint test:e2e build --filter=web
 ```
 
 ### **Project Management**

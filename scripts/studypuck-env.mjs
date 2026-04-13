@@ -11,6 +11,8 @@ export const requiredSecretKeys = [
 	'DATABASE_URL',
 ];
 
+const supportedSecretKeys = [...requiredSecretKeys, 'NEON_API_KEY'];
+
 export const optionalEnvKeys = ['AUTH_URL', 'AUTH_REDIRECT_PROXY_URL', 'ORIGIN'];
 
 const defaultBitwardenItem = 'StudyPuck Dev';
@@ -126,7 +128,7 @@ const readItemField = (item, fieldName) => {
 };
 
 export const resolveSecretValue = (key) => {
-	if (!requiredSecretKeys.includes(key)) {
+	if (!supportedSecretKeys.includes(key)) {
 		throw new Error(`Unsupported StudyPuck secret key: ${key}`);
 	}
 

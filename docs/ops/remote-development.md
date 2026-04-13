@@ -162,6 +162,15 @@ pnpm dev:workers:secure
 
 > `dev:workers:secure` writes secrets to a temporary `apps/web/.dev.vars` file (required by Wrangler's V8 isolate runtime) and deletes it when the server stops. The file is gitignored.
 
+For browser UI verification in either local development or Codespaces:
+
+```bash
+pnpm --filter web exec playwright install chromium
+pnpm test:e2e:secure
+```
+
+`test:e2e:secure` creates an ephemeral Neon branch from `development`, runs the Playwright suite against that branch, and deletes the branch in cleanup by default. Set `PRESERVE_TEST_DB_ON_FAILURE=1` only when you intentionally want to inspect a failed test database.
+
 ## Updating an Existing Remote Environment
 
 Use this workflow when the repository, toolchain, or devcontainer configuration changes and you want to bring the remote environment fully up to date.

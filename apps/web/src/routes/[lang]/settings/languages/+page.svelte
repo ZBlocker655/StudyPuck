@@ -12,7 +12,7 @@
 
   let addLanguageOpen = $state(false);
   let removeLanguageOpen = $state(false);
-  let selectedLanguageCode = $state(form?.selectedLanguageCode ?? '');
+  let selectedLanguageCode = $state('');
   let pendingRemovalLanguageId = $state<string | null>(null);
   let removeConfirmation = $state('');
   let removeNotice = $state('');

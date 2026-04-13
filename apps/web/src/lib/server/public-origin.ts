@@ -12,8 +12,11 @@ const getPlatformEnv = (event: Pick<RequestEvent, 'platform'>): Record<string, s
 	return platform?.env;
 };
 
-const isRemoteDevHostname = (hostname: string): boolean =>
+export const isRemoteDevHostname = (hostname: string): boolean =>
 	REMOTE_DEV_HOST_SUFFIXES.some((suffix) => hostname.endsWith(suffix));
+
+export const isLocalOrRemoteDevHostname = (hostname: string): boolean =>
+	LOCAL_HOSTNAMES.has(hostname) || isRemoteDevHostname(hostname);
 
 const shouldStripPort = (url: URL): boolean =>
 	!LOCAL_HOSTNAMES.has(url.hostname) &&
