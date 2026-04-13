@@ -20,7 +20,7 @@ export default defineConfig({
     ? {}
     : {
         webServer: {
-          command: `pnpm db:migrate && pnpm dev -- --host 127.0.0.1 --port ${port} --strictPort`,
+          command: `pnpm db:migrate && pnpm exec vite dev --host 127.0.0.1 --port ${port} --strictPort`,
           port,
           reuseExistingServer: false,
           timeout: 180_000,
