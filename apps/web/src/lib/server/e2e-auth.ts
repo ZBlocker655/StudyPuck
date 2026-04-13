@@ -11,8 +11,16 @@ type E2ESessionPayload = {
 	image?: string | null;
 };
 
+function getProcessEnvValue(name: string) {
+	if (typeof process === 'undefined') {
+		return undefined;
+	}
+
+	return process.env?.[name];
+}
+
 export function isE2ETestModeEnabled() {
-	return process.env.E2E_TEST_MODE === 'enabled';
+	return getProcessEnvValue('E2E_TEST_MODE') === 'enabled';
 }
 
 export function isE2ETestRequestAllowed(event: Pick<RequestEvent, 'url'>) {
