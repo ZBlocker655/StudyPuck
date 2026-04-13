@@ -10,13 +10,13 @@ import {
 	getRedirectProxyUrl,
 	normalizeRedirectTarget,
 } from '$lib/server/public-origin';
-import { getE2ESession, isE2ETestModeEnabled } from '$lib/server/e2e-auth';
+import { getE2ESession, isE2ETestRequestAllowed } from '$lib/server/e2e-auth';
 
 function getAuthSetting(
 	name: 'AUTH0_CLIENT_ID' | 'AUTH0_CLIENT_SECRET' | 'AUTH0_ISSUER' | 'AUTH0_AUDIENCE' | 'AUTH_SECRET',
 	event: RequestEvent
 ) {
-	if (!isE2ETestModeEnabled()) {
+	if (!isE2ETestRequestAllowed(event)) {
 		return getEnvVar(name, env, event);
 	}
 
@@ -123,7 +123,7 @@ const e2eSessionHandle: Handle = async ({ event, resolve }) => {
 	const auth = event.locals.auth;
 
 	event.locals.auth = async () => {
-		const e2eSession = getE2ESession(event.cookies);
+		const e2eSession = getE2ESession(event.cookies, event);
 
 		if (e2eSession) {
 			return e2eSession;
@@ -135,8 +135,6 @@ const e2eSessionHandle: Handle = async ({ event, resolve }) => {
 	return resolve(event);
 };
 
-export const handle = isE2ETestModeEnabled()
-	? sequence(authHandle, e2eSessionHandle)
-	: authHandle;
+export const handle = sequence(authHandle, e2eSessionHandle);
 
 export { signIn, signOut };

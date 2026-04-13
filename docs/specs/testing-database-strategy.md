@@ -339,26 +339,30 @@ jobs:
 
 **2. Auth is handled by an e2e-only session harness**
 - Browser tests do **not** log into live Auth0.
-- When `E2E_TEST_MODE=enabled`, the app exposes the gated route `POST /__e2e__/session`.
+- When `E2E_TEST_MODE=enabled`, the app exposes the gated route `POST /__e2e__/session` only on local or remote-dev hosts.
 - Playwright uses that route to install an authenticated session cookie for a seeded test user.
 - Outside e2e mode, the route is unavailable and normal Auth0 behavior remains unchanged.
 
-**3. Data comes from the local test database**
-- Browser tests target `TEST_DATABASE_URL` (defaulting locally to `postgresql://test_user:test_password@localhost:5433/studypuck_test`).
+**3. Data comes from an ephemeral Neon test branch**
+- Browser tests target `TEST_DATABASE_URL`, which `pnpm test:e2e:secure` points at a fresh Neon branch created from `development`.
 - Shared helpers in `apps/web/tests/e2e/support/` reset tables and seed only the user/language state needed for each scenario.
 - This keeps onboarding, dashboard redirects, settings tabs, and add-language flows deterministic without hard-coding fake page responses.
 
 **4. Local workflow**
 ```bash
-# Start the Docker-backed test database first
-pnpm --filter @studypuck/database test:setup
-
 # Install browsers if needed
 pnpm --filter web exec playwright install chromium
 
-# Run browser UI tests
-pnpm turbo test:e2e --filter=web
+# Run browser UI tests against a temporary Neon branch
+pnpm test:e2e:secure
+
+# Optional: preserve the branch after failures for debugging
+PRESERVE_TEST_DB_ON_FAILURE=1 pnpm test:e2e:secure
 ```
+
+- The helper script deletes any stale `test-e2e-web-*` branches before it starts a new run.
+- By default it always deletes the ephemeral branch in cleanup, even after test failures.
+- The debug preserve flag is an explicit escape hatch and should not be the normal workflow.
 
 **5. Test selection guidance**
 - Use component/store tests for isolated state and rendering logic.

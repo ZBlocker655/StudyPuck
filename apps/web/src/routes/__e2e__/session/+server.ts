@@ -4,7 +4,7 @@ import { getDb, upsertUser } from '@studypuck/database';
 import {
 	getE2ESessionCookieName,
 	getE2ESessionCookieOptions,
-	isE2ETestModeEnabled,
+	isE2ETestRequestAllowed,
 	serializeE2ESession,
 } from '$lib/server/e2e-auth';
 import type { RequestHandler } from './$types.js';
@@ -16,11 +16,12 @@ type RequestPayload = {
 	image?: string | null;
 };
 
-export const POST: RequestHandler = async ({ request, cookies }) => {
-	if (!isE2ETestModeEnabled()) {
+export const POST: RequestHandler = async (event) => {
+	if (!isE2ETestRequestAllowed(event)) {
 		throw error(404);
 	}
 
+	const { request, cookies } = event;
 	const payload = (await request.json()) as RequestPayload;
 
 	if (!payload.userId || !payload.email) {
@@ -53,11 +54,12 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 	return json({ ok: true });
 };
 
-export const DELETE: RequestHandler = async ({ cookies }) => {
-	if (!isE2ETestModeEnabled()) {
+export const DELETE: RequestHandler = async (event) => {
+	if (!isE2ETestRequestAllowed(event)) {
 		throw error(404);
 	}
 
+	const { cookies } = event;
 	cookies.delete(getE2ESessionCookieName(), getE2ESessionCookieOptions());
 
 	return json({ ok: true });

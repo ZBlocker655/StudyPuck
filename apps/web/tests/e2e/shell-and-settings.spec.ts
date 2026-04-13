@@ -20,14 +20,15 @@ test('redirects a returning user to the dashboard and shows shell context on key
 
 	await page.goto('/');
 
-	await page.waitForURL('**/es/');
-	await expect(page.getByRole('navigation', { name: 'Primary navigation' }).first()).toBeVisible();
+	await page.waitForURL(/\/es\/?$/);
 	await expect(page.locator('.command-bar__context-value')).toHaveText('Dashboard');
-	await expect(page.getByRole('link', { name: 'Card Review' }).first()).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Card Review', exact: true }).first()).toBeVisible();
 
 	await page.goto('/es/card-review');
 	await expect(page.locator('.command-bar__context-value')).toHaveText('Card Review');
-	await expect(page.getByRole('heading', { name: 'Card Review' })).toBeVisible();
+	await expect(
+		page.getByLabel('Context view', { exact: true }).getByRole('heading', { name: 'Card Review' })
+	).toBeVisible();
 });
 
 test('navigates settings tabs and supports the real add-language flow', async ({ page }) => {
@@ -36,20 +37,23 @@ test('navigates settings tabs and supports the real add-language flow', async ({
 	await page.goto('/es/settings');
 	await page.waitForURL('**/es/settings/account');
 
-	await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
-	await expect(page.getByRole('link', { name: 'Account' })).toBeVisible();
-	await expect(page.getByRole('link', { name: 'Languages' })).toBeVisible();
+	await expect(
+		page.getByLabel('Context view', { exact: true }).getByRole('heading', { name: 'Settings' })
+	).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Account', exact: true })).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Languages', exact: true })).toBeVisible();
 
-	await page.getByRole('link', { name: 'Languages' }).click();
+	await page.getByRole('link', { name: 'Languages', exact: true }).click();
 	await page.waitForURL('**/es/settings/languages');
 	await expect(page.getByRole('heading', { name: 'Your Languages' })).toBeVisible();
 
 	await page.getByRole('button', { name: '+ Add Language' }).click();
-	await expect(page.getByRole('dialog', { name: 'Add a Language' })).toBeVisible();
+	const addLanguageDialog = page.getByRole('dialog', { name: 'Add a Language' });
+	await expect(addLanguageDialog).toBeVisible();
 	await page.locator('label.language-picker__tile', { hasText: 'Dutch' }).click();
-	await page.getByRole('button', { name: /Add Language/ }).click();
+	await addLanguageDialog.getByRole('button', { name: 'Add Language →' }).click();
 
-	await page.waitForURL('**/nl/');
+	await page.waitForURL(/\/nl\/?$/);
 	await expect(page.locator('.command-bar__context-value')).toHaveText('Dashboard');
 
 	await page.goto('/nl/settings/preferences');

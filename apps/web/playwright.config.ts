@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const port = Number(process.env.PLAYWRIGHT_PORT ?? 4173);
+const managedServer = process.env.PLAYWRIGHT_MANAGED_SERVER === '1';
 const testDatabaseUrl =
   process.env.TEST_DATABASE_URL ??
   process.env.DATABASE_URL ??
@@ -8,23 +9,28 @@ const testDatabaseUrl =
 
 export default defineConfig({
   testDir: './tests/e2e',
-  fullyParallel: true,
+  fullyParallel: false,
   retries: process.env.CI ? 1 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  workers: 1,
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL ?? `http://127.0.0.1:${port}`,
     trace: 'on-first-retry',
   },
-  webServer: {
-    command: `pnpm db:migrate && pnpm dev -- --host 127.0.0.1 --port ${port}`,
-    port,
-    reuseExistingServer: !process.env.CI,
-    env: {
-      ...process.env,
-      DATABASE_URL: testDatabaseUrl,
-      E2E_TEST_MODE: 'enabled',
-    },
-  },
+  ...(managedServer
+    ? {}
+    : {
+        webServer: {
+          command: `pnpm db:migrate && pnpm dev -- --host 127.0.0.1 --port ${port} --strictPort`,
+          port,
+          reuseExistingServer: false,
+          timeout: 180_000,
+          env: {
+            ...process.env,
+            DATABASE_URL: testDatabaseUrl,
+            E2E_TEST_MODE: 'enabled',
+          },
+        },
+      }),
   projects: [
     {
       name: 'chromium',

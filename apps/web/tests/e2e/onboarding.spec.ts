@@ -20,7 +20,7 @@ test('redirects a first-time user to onboarding and completes language selection
 	await page.locator('label.language-tile', { hasText: 'Spanish' }).click();
 	await page.getByRole('button', { name: 'Get Started' }).click();
 
-	await page.waitForURL('**/es/');
+	await page.waitForURL(/\/es\/?$/);
 	await expect(page.getByText('Cards Due for Review')).toBeVisible();
 	await expect(page.getByText('Notes in Inbox')).toBeVisible();
 });

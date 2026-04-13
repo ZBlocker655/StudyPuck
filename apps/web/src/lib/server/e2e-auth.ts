@@ -1,5 +1,6 @@
 import { dev } from '$app/environment';
-import type { Cookies } from '@sveltejs/kit';
+import type { Cookies, RequestEvent } from '@sveltejs/kit';
+import { isLocalOrRemoteDevHostname } from '$lib/server/public-origin';
 
 const E2E_SESSION_COOKIE = 'studypuck_e2e_session';
 
@@ -14,6 +15,10 @@ export function isE2ETestModeEnabled() {
 	return process.env.E2E_TEST_MODE === 'enabled';
 }
 
+export function isE2ETestRequestAllowed(event: Pick<RequestEvent, 'url'>) {
+	return isE2ETestModeEnabled() && isLocalOrRemoteDevHostname(event.url.hostname);
+}
+
 export function getE2ESessionCookieName() {
 	return E2E_SESSION_COOKIE;
 }
@@ -22,8 +27,8 @@ export function serializeE2ESession(payload: E2ESessionPayload) {
 	return encodeURIComponent(JSON.stringify(payload));
 }
 
-export function getE2ESession(cookies: Cookies) {
-	if (!isE2ETestModeEnabled()) {
+export function getE2ESession(cookies: Pick<Cookies, 'get'>, event: Pick<RequestEvent, 'url'>) {
+	if (!isE2ETestRequestAllowed(event)) {
 		return null;
 	}
 
