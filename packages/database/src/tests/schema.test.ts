@@ -56,6 +56,7 @@ describe('Full schema — Card Entry tables', () => {
     expect(retrieved).toBeDefined();
     expect(retrieved.content).toBe(note.content);
     expect(retrieved.state).toBe('unprocessed');
+    expect(retrieved.aiState).toBe('complete');
     expect(retrieved.sourceType).toBe('manual');
   });
 

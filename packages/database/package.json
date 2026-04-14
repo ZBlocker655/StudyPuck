@@ -41,6 +41,7 @@
     "./types": "./src/types.ts",
     "./users": "./src/users.ts",
 		"./cards": "./src/cards.ts",
+		"./card-entry": "./src/card-entry.ts",
 		"./test-utils": "./src/test-utils.ts"
 	}
 }

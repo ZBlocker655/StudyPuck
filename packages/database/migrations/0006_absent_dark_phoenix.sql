@@ -1,0 +1,2 @@
+ALTER TABLE "inbox_notes" ADD COLUMN "ai_state" text DEFAULT 'complete';--> statement-breakpoint
+CREATE INDEX "idx_inbox_ai_state" ON "inbox_notes" USING btree ("user_id","language_id","ai_state","created_at");
