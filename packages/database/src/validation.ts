@@ -15,7 +15,8 @@ import {
 export const cardStatusSchema = z.enum(['draft', 'active', 'archived', 'deleted']);
 export const cardTypeSchema = z.enum(['word', 'pattern', 'complex_prompt']);
 export const cefrLevelSchema = z.enum(['A1', 'A2', 'B1', 'B2', 'C1', 'C2']);
-export const inboxNoteStateSchema = z.enum(['unprocessed', 'deferred', 'deleted']);
+export const inboxNoteStateSchema = z.enum(['unprocessed', 'deferred', 'processed', 'deleted']);
+export const inboxNoteAiStateSchema = z.enum(['queued', 'processing', 'complete', 'failed']);
 export const inboxSourceTypeSchema = z.enum(['manual', 'api', 'browser_extension', 'ifttt', 'zapier', 'n8n']);
 export const drillContextStateSchema = z.enum(['active', 'snoozed', 'dismissed']);
 
@@ -47,6 +48,7 @@ export const selectCardGroupSchema = createSelectSchema(cardGroups);
 // === Card Entry ===
 export const insertInboxNoteSchema = createInsertSchema(inboxNotes).extend({
   state: inboxNoteStateSchema.optional(),
+  aiState: inboxNoteAiStateSchema.optional(),
   sourceType: inboxSourceTypeSchema.optional(),
 });
 export const selectInboxNoteSchema = createSelectSchema(inboxNotes);

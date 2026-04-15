@@ -6,12 +6,14 @@ export const inboxNotes = pgTable('inbox_notes', {
   noteId: text('note_id').notNull(),
   content: text('content').notNull(),
   state: text('state').default('unprocessed'),
+  aiState: text('ai_state').default('complete'),
   sourceType: text('source_type').default('manual'),
   sourceMetadata: jsonb('source_metadata'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 }, (table) => ({
   pk: primaryKey({ columns: [table.userId, table.languageId, table.noteId] }),
   stateIdx: index('idx_inbox_state').on(table.userId, table.languageId, table.state, table.createdAt),
+  aiStateIdx: index('idx_inbox_ai_state').on(table.userId, table.languageId, table.aiState, table.createdAt),
   sourceIdx: index('idx_inbox_source').on(table.userId, table.languageId, table.sourceType),
 }));
 

@@ -4,8 +4,8 @@ import {
   cardReviewDailyStats,
   cardReviewSrs,
   getDb,
+  getCardEntryCounts,
   getActiveUserLanguages,
-  inboxNotes,
   translationDrillDailyStats,
   type StudyLanguage,
 } from '@studypuck/database';
@@ -52,7 +52,7 @@ export async function loadDashboardStats(
 ): Promise<DashboardStats> {
   const nowEpochSeconds = Math.floor(Date.now() / 1000);
 
-  const [reviewDueResult, inboxResult, entryActivity, reviewActivity, drillActivity] = await Promise.all([
+  const [reviewDueResult, cardEntryCounts, entryActivity, reviewActivity, drillActivity] = await Promise.all([
     database
       .select({ count: sql<number>`count(*)` })
       .from(cardReviewSrs)
@@ -63,16 +63,7 @@ export async function loadDashboardStats(
           lte(cardReviewSrs.nextDue, nowEpochSeconds)
         )
       ),
-    database
-      .select({ count: sql<number>`count(*)` })
-      .from(inboxNotes)
-      .where(
-        and(
-          eq(inboxNotes.userId, userId),
-          eq(inboxNotes.languageId, languageId),
-          eq(inboxNotes.state, 'unprocessed')
-        )
-      ),
+    getCardEntryCounts(userId, languageId, database as never),
     database
       .select({ date: cardEntryDailyStats.date })
       .from(cardEntryDailyStats)
@@ -118,7 +109,7 @@ export async function loadDashboardStats(
 
   return {
     reviewDueCount: Number(reviewDueResult[0]?.count ?? 0),
-    inboxNoteCount: Number(inboxResult[0]?.count ?? 0),
+    inboxNoteCount: cardEntryCounts.unprocessedNoteCount,
     streakDays,
   };
 }

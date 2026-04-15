@@ -104,6 +104,7 @@ export * from './schema.js';
 // Re-export operations modules
 export * from './users.js';
 export * from './cards.js';
+export * from './card-entry.js';
 
 // Re-export relations and types
 // Note: validation schemas are NOT re-exported here to avoid pulling drizzle-zod
