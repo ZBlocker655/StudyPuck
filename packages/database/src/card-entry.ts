@@ -248,7 +248,7 @@ export async function listInboxNotes(
 ): Promise<InboxNote[]> {
   const conn = db ?? await globalDb();
   const states = normalizeInboxStates(options?.state);
-  let query = conn
+  const query = conn
     .select()
     .from(inboxNotes)
     .where(and(
@@ -260,12 +260,16 @@ export async function listInboxNotes(
     ))
     .orderBy(options?.sort === 'newest-first' ? desc(inboxNotes.createdAt) : asc(inboxNotes.createdAt));
 
-  if (typeof options?.offset === 'number') {
-    query = query.offset(options.offset);
+  if (typeof options?.offset === 'number' && typeof options?.limit === 'number') {
+    return query.offset(options.offset).limit(options.limit);
   }
 
   if (typeof options?.limit === 'number') {
-    query = query.limit(options.limit);
+    return query.limit(options.limit);
+  }
+
+  if (typeof options?.offset === 'number') {
+    return query.offset(options.offset);
   }
 
   return query;
