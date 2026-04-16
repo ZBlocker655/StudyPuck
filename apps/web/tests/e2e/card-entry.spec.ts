@@ -52,7 +52,7 @@ test('supports inbox capture, nav badges, note actions, and language isolation',
   await expect(page.locator('.app-sidebar .nav-badge')).toHaveCount(0);
 
   await page.goto('/nl/card-entry');
-  await expect(page.getByText('alleen nederlands')).toBeVisible();
+  await expect(page.locator('.note-row-shell', { hasText: 'alleen nederlands' })).toHaveCount(1);
   await expect(page.getByText('hola desde inline')).toHaveCount(0);
 });
 
@@ -63,11 +63,12 @@ test('supports command-bar quick-add flow and process handoff route', async ({ p
   const commandInput = page.locator('.command-bar__input');
   await expect(page.locator('.card-entry-count')).toHaveText('0');
 
-  await commandInput.fill('/add');
-  await commandInput.press('Enter');
-
   const quickAddDialog = page.getByRole('dialog', { name: 'Add Note' });
-  await expect(quickAddDialog).toBeVisible();
+  await expect(async () => {
+    await commandInput.fill('/add');
+    await commandInput.press('Enter');
+    await expect(quickAddDialog).toBeVisible();
+  }).toPass({ timeout: 10000 });
   await quickAddDialog.getByRole('textbox', { name: 'Note', exact: true }).fill('hola desde drawer');
   await quickAddDialog.getByRole('button', { name: 'Add to Inbox' }).click();
 

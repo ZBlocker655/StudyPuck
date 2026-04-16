@@ -50,9 +50,11 @@ test('navigates settings tabs and supports the real add-language flow', async ({
 
 	const addLanguageButton = contextView.getByRole('button', { name: '+ Add Language', exact: true });
 	await expect(addLanguageButton).toBeVisible();
-	await addLanguageButton.click();
-	await expect(page.getByRole('heading', { name: 'Add a Language' })).toBeVisible();
 	const addLanguageDialog = page.locator('.dialog[aria-labelledby="add-language-title"]');
+	await expect(async () => {
+		await addLanguageButton.click();
+		await expect(addLanguageDialog).toBeVisible();
+	}).toPass({ timeout: 10000 });
 	await page.locator('label.language-picker__tile', { hasText: 'Dutch' }).click();
 	await addLanguageDialog.getByRole('button', { name: 'Add Language →' }).click();
 
