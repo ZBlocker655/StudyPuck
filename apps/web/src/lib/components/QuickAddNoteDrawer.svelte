@@ -91,7 +91,12 @@
     errorMessage = '';
 
     try {
-      const targetLanguageCode = selectedLanguageCode || $page.params.lang;
+      const targetLanguageCode = selectedLanguageCode || $page.params.lang || availableLanguages[0]?.code;
+
+      if (!targetLanguageCode) {
+        throw new Error('A language must be selected before adding a note.');
+      }
+
       await createInboxNoteRequest({
         languageId: targetLanguageCode,
         content: noteContent,

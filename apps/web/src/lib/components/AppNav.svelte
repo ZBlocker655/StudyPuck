@@ -8,7 +8,7 @@
   import { page } from '$app/stores';
 
   type NavItem = {
-    id: 'home' | 'card-entry' | 'card-review' | 'translation-drills' | 'cards' | 'stats';
+    id: 'home' | 'card-entry' | 'card-review' | 'translation-drills' | 'cards' | 'stats' | 'settings';
     label: string;
     href: string;
     icon: string;
@@ -61,6 +61,7 @@
   ] satisfies NavItem[];
 
   $: settingsItem = {
+    id: 'settings',
     label: 'Settings',
     href: `/${currentLanguage.code}/settings`,
     icon: '⚙',

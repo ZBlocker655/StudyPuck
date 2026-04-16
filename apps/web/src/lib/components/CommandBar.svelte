@@ -160,6 +160,13 @@
   }
 
   function submitCommandBar() {
+    const activeLanguageCode = $page.params.lang;
+
+    if (!activeLanguageCode) {
+      commandBar.submit();
+      return;
+    }
+
     if (inputElement) {
       commandBar.setInput(inputElement.value);
     }
@@ -167,11 +174,13 @@
     commandBar.submit((input) =>
       resolveCardEntryCommandResponse({
         input,
-        activeLanguageCode: $page.params.lang,
-        createNote: createInboxNoteRequest,
+        activeLanguageCode,
+        createNote: async (payload) => {
+          await createInboxNoteRequest(payload);
+        },
         openQuickAdd: (request) => cardEntryUi.openQuickAdd(request),
         onNoteCreated: async () => {
-          cardEntryShellCounts.adjustCount($page.params.lang, 1);
+          cardEntryShellCounts.adjustCount(activeLanguageCode, 1);
           await invalidateAll();
         },
       })

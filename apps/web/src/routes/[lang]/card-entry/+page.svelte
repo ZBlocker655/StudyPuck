@@ -1,5 +1,6 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
+  import type { SubmitFunction } from '@sveltejs/kit';
   import { invalidateAll } from '$app/navigation';
   import { navigating, page } from '$app/stores';
   import { cardEntryShellCounts } from '$lib/stores/cardEntryShell.js';
@@ -24,11 +25,12 @@
 
   $: nextSort = data.inbox.sort === 'oldest-first' ? 'newest-first' : 'oldest-first';
   $: sortLabel = data.inbox.sort === 'oldest-first' ? 'Oldest first' : 'Newest first';
+  $: currentLanguageCode = $page.params.lang ?? '';
   $: isSortNavigationPending =
     $navigating?.to?.url.pathname === $page.url.pathname &&
     $navigating?.to?.url.search !== $page.url.search;
 
-  function enhanceInlineAdd() {
+  const enhanceInlineAdd: SubmitFunction = () => {
     pendingInlineAdd = true;
 
     return async ({ result, update }) => {
@@ -37,15 +39,17 @@
 
       if (result.type === 'success') {
         inlineNoteContent = '';
-        cardEntryShellCounts.adjustCount($page.params.lang, 1);
+        if (currentLanguageCode) {
+          cardEntryShellCounts.adjustCount(currentLanguageCode, 1);
+        }
         refreshingInbox = true;
         await invalidateAll();
         refreshingInbox = false;
       }
     };
-  }
+  };
 
-  function enhanceRowAction(noteId: string, operation: 'defer-note' | 'delete-note') {
+  function enhanceRowAction(noteId: string, operation: 'defer-note' | 'delete-note'): SubmitFunction {
     return () => {
       pendingRowAction = { noteId, operation };
 
@@ -53,7 +57,9 @@
         await update();
 
         if (result.type === 'success') {
-          cardEntryShellCounts.adjustCount($page.params.lang, -1);
+          if (currentLanguageCode) {
+            cardEntryShellCounts.adjustCount(currentLanguageCode, -1);
+          }
           refreshingInbox = true;
           await invalidateAll();
           refreshingInbox = false;
@@ -391,6 +397,7 @@
   .note-row__content {
     display: -webkit-box;
     overflow: hidden;
+    line-clamp: 3;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 3;
     font-size: var(--font-size-h4);
