@@ -39,11 +39,11 @@ test('supports inbox capture, nav badges, note actions, and language isolation',
   await page.getByRole('textbox', { name: 'New note' }).fill('hola desde inline');
   await page.getByRole('button', { name: 'Add', exact: true }).click();
 
-  await expect(page.getByText('hola desde inline')).toBeVisible();
+  const inlineRow = page.locator('.note-row-shell', { hasText: 'hola desde inline' });
+  await expect(inlineRow.locator('.note-row__content')).toBeVisible();
   await expect(page.locator('.card-entry-count')).toHaveText('1');
   await expect(page.locator('.app-sidebar .nav-badge')).toHaveText('1');
 
-  const inlineRow = page.locator('.note-row-shell', { hasText: 'hola desde inline' });
   await inlineRow.hover();
   await inlineRow.getByRole('button', { name: 'Defer' }).click();
 
@@ -65,20 +65,23 @@ test('supports command-bar add flows, quick-add drawer, and process handoff rout
   await commandInput.fill('/add hola desde comando');
   await commandInput.press('Enter');
 
-  await expect(page.getByText('hola desde comando')).toBeVisible();
-  await expect(page.getByText('Added a note to Spanish.')).toBeVisible();
+  const commandRow = page.locator('.note-row-shell', { hasText: 'hola desde comando' });
+  await expect(commandRow.locator('.note-row__content')).toBeVisible();
+  await expect(
+    page.getByLabel('Conversation view', { exact: true }).getByText('Added a note to Spanish.')
+  ).toBeVisible();
 
   await commandInput.fill('/add');
   await commandInput.press('Enter');
 
   const quickAddDialog = page.getByRole('dialog', { name: 'Add Note' });
   await expect(quickAddDialog).toBeVisible();
-  await quickAddDialog.getByLabel('Note').fill('hola desde drawer');
+  await quickAddDialog.getByRole('textbox', { name: 'Note', exact: true }).fill('hola desde drawer');
   await quickAddDialog.getByRole('button', { name: 'Add to Inbox' }).click();
 
-  await expect(page.getByText('hola desde drawer')).toBeVisible();
-
   const drawerRow = page.locator('.note-row-shell', { hasText: 'hola desde drawer' });
+  await expect(drawerRow.locator('.note-row__content')).toBeVisible();
+
   await drawerRow.hover();
   await drawerRow.getByRole('link', { name: 'Process →' }).click();
 
