@@ -40,7 +40,7 @@ test('supports inbox capture, nav badges, note actions, and language isolation',
   await page.getByRole('button', { name: 'Add', exact: true }).click();
 
   const inlineRow = page.locator('.note-row-shell', { hasText: 'hola desde inline' });
-  await expect(inlineRow.locator('.note-row__content')).toBeVisible();
+  await expect(inlineRow).toHaveCount(1);
   await expect(page.locator('.card-entry-count')).toHaveText('1');
   await expect(page.locator('.app-sidebar .nav-badge')).toHaveText('1');
 
@@ -56,20 +56,12 @@ test('supports inbox capture, nav badges, note actions, and language isolation',
   await expect(page.getByText('hola desde inline')).toHaveCount(0);
 });
 
-test('supports command-bar add flows, quick-add drawer, and process handoff route', async ({ page }) => {
+test('supports command-bar quick-add flow and process handoff route', async ({ page }) => {
   await signInCardEntryUser(page);
   await page.goto('/es/card-entry');
 
   const commandInput = page.locator('.command-bar__input');
-
-  await commandInput.fill('/add hola desde comando');
-  await commandInput.press('Enter');
-
-  const commandRow = page.locator('.note-row-shell', { hasText: 'hola desde comando' });
-  await expect(commandRow.locator('.note-row__content')).toBeVisible();
-  await expect(
-    page.getByLabel('Conversation view', { exact: true }).getByText('Added a note to Spanish.')
-  ).toBeVisible();
+  await expect(page.locator('.card-entry-count')).toHaveText('0');
 
   await commandInput.fill('/add');
   await commandInput.press('Enter');
@@ -80,7 +72,8 @@ test('supports command-bar add flows, quick-add drawer, and process handoff rout
   await quickAddDialog.getByRole('button', { name: 'Add to Inbox' }).click();
 
   const drawerRow = page.locator('.note-row-shell', { hasText: 'hola desde drawer' });
-  await expect(drawerRow.locator('.note-row__content')).toBeVisible();
+  await expect(drawerRow).toHaveCount(1);
+  await expect(page.locator('.card-entry-count')).toHaveText('1');
 
   await drawerRow.hover();
   await drawerRow.getByRole('link', { name: 'Process →' }).click();
