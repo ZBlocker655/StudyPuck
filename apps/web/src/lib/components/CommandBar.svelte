@@ -1,7 +1,12 @@
 <script lang="ts">
   import { browser } from '$app/environment';
+  import { invalidateAll } from '$app/navigation';
   import { page } from '$app/stores';
   import { onMount, tick } from 'svelte';
+  import { createInboxNoteRequest } from '$lib/card-entry/client.js';
+  import { resolveCardEntryCommandResponse } from '$lib/command-bar/card-entry.js';
+  import { cardEntryShellCounts } from '$lib/stores/cardEntryShell.js';
+  import { cardEntryUi } from '$lib/stores/cardEntryUi.js';
   import {
     commandBar,
     getFilteredCommandGroups,
@@ -35,7 +40,7 @@
   const highlightedCommand = $derived(visibleCommands[safeHighlightedIndex] ?? null);
   const showDesktopConversation = $derived(!$commandBar.desktopConversationCollapsed);
   const showMobileConversation = $derived(
-    $commandBar.mobileSheetOpen && ($commandBar.messages.length > 0 || $commandBar.isWaiting),
+    !isDesktop && $commandBar.mobileSheetOpen && ($commandBar.messages.length > 0 || $commandBar.isWaiting),
   );
 
   function updateDesktopMode() {
@@ -121,20 +126,65 @@
     });
   }
 
+  function shouldSelectAutocompleteOnEnter() {
+    if (!autocompleteVisible || !highlightedCommand) {
+      return false;
+    }
+
+    const trimmedInput = $commandBar.input.trim();
+
+    if (
+      trimmedInput === highlightedCommand.command ||
+      trimmedInput.startsWith(`${highlightedCommand.command} `)
+    ) {
+      return false;
+    }
+
+    return true;
+  }
+
   function handleSubmit(event: SubmitEvent) {
     event.preventDefault();
 
-    if (autocompleteVisible && highlightedCommand) {
+    if (shouldSelectAutocompleteOnEnter() && highlightedCommand) {
       selectCommand(highlightedCommand);
       return;
     }
 
-    commandBar.submit();
+    submitCommandBar();
 
     tick().then(() => {
       resizeInput();
       focusInput();
     });
+  }
+
+  function submitCommandBar() {
+    const activeLanguageCode = $page.params.lang;
+
+    if (!activeLanguageCode) {
+      commandBar.submit();
+      return;
+    }
+
+    if (inputElement) {
+      commandBar.setInput(inputElement.value);
+    }
+
+    commandBar.submit((input) =>
+      resolveCardEntryCommandResponse({
+        input,
+        activeLanguageCode,
+        createNote: async (payload) => {
+          await createInboxNoteRequest(payload);
+        },
+        openQuickAdd: (request) => cardEntryUi.openQuickAdd(request),
+        onNoteCreated: async () => {
+          cardEntryShellCounts.adjustCount(activeLanguageCode, 1);
+          await invalidateAll();
+        },
+      })
+    );
   }
 
   function handleKeydown(event: KeyboardEvent) {
@@ -145,6 +195,12 @@
     }
 
     if (!autocompleteVisible) {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        submitCommandBar();
+        return;
+      }
+
       if (event.key === 'Escape' && !isDesktop) {
         commandBar.closeMobileSheet();
       }
@@ -167,6 +223,18 @@
     if (event.key === 'Tab' && highlightedCommand) {
       event.preventDefault();
       selectCommand(highlightedCommand);
+      return;
+    }
+
+    if (event.key === 'Enter' && shouldSelectAutocompleteOnEnter() && highlightedCommand) {
+      event.preventDefault();
+      selectCommand(highlightedCommand);
+      return;
+    }
+
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      submitCommandBar();
     }
   }
 

@@ -38,6 +38,11 @@ export type CommandBarState = {
   unreadCount: number;
 };
 
+export type CommandResponder = (
+  input: string,
+  routeContext: RouteContext
+) => string | null | Promise<string | null>;
+
 const COMMANDS: CommandDefinition[] = [
   {
     command: '/add',
@@ -233,8 +238,19 @@ function createCommandBarStore() {
     pendingResponseTimer = null;
   }
 
-  function finishPendingResponse(input: string, routeContext: RouteContext) {
+  async function finishPendingResponse(
+    input: string,
+    routeContext: RouteContext,
+    responder?: CommandResponder
+  ) {
     clearPendingTimer();
+    let responseText: string;
+
+    try {
+      responseText = (await responder?.(input, routeContext)) ?? buildAssistantResponse(input, routeContext);
+    } catch (error) {
+      responseText = error instanceof Error ? error.message : 'Something went wrong while handling that command.';
+    }
 
     store.update((state) => {
       if (!state.isWaiting) {
@@ -245,7 +261,7 @@ function createCommandBarStore() {
         ...state,
         isWaiting: false,
         lastSubmittedInput: null,
-        messages: [...state.messages, createMessage('assistant', buildAssistantResponse(input, routeContext))],
+        messages: [...state.messages, createMessage('assistant', responseText)],
         desktopConversationCollapsed: false,
         mobileSheetOpen: true,
         unreadCount: 0,
@@ -351,7 +367,7 @@ function createCommandBarStore() {
       }));
     },
 
-    submit() {
+    submit(responder?: CommandResponder) {
       let submittedInput = '';
       let routeContext = defaultRouteContext();
       let shouldScheduleResponse = false;
@@ -384,12 +400,12 @@ function createCommandBarStore() {
       clearPendingTimer();
 
       if (!browser) {
-        finishPendingResponse(submittedInput, routeContext);
+        void finishPendingResponse(submittedInput, routeContext, responder);
         return;
       }
 
       pendingResponseTimer = setTimeout(() => {
-        finishPendingResponse(submittedInput, routeContext);
+        void finishPendingResponse(submittedInput, routeContext, responder);
       }, 650);
     },
 
