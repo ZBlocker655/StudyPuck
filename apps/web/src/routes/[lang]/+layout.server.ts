@@ -2,6 +2,7 @@ import { redirect } from '@sveltejs/kit';
 import { getDb } from '@studypuck/database';
 import { env } from '$env/dynamic/private';
 import { DEFAULT_LANGUAGE, replaceLanguageInPath, getLanguageByCode } from '$lib/config/languages.js';
+import { loadCardEntryShellData } from '$lib/server/card-entry.js';
 import { loadActiveStudyLanguages } from '$lib/server/homepage.js';
 import type { LayoutServerLoad } from './$types.js';
 
@@ -33,7 +34,18 @@ export const load: LayoutServerLoad = async (event) => {
     throw redirect(303, `/${availableLanguages[0]?.code ?? DEFAULT_LANGUAGE.code}/`);
   }
 
+  let cardEntryShell = {
+    unprocessedNoteCount: 0,
+  };
+
+  try {
+    cardEntryShell = await loadCardEntryShellData(parentData.session.user.id, event.params.lang, database);
+  } catch (error) {
+    console.error('Failed to load Card Entry shell data:', error);
+  }
+
   return {
     availableLanguages,
+    cardEntryShell,
   };
 };

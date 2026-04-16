@@ -1,4 +1,4 @@
-import { createUser, addStudyLanguage, getDb } from '@studypuck/database';
+import { addStudyLanguage, createInboxNote, createUser, getDb } from '@studypuck/database';
 import { resetTestTables } from '@studypuck/database/test-utils';
 
 type SeedLanguage = {
@@ -12,6 +12,14 @@ type SeedUserOptions = {
 	name: string;
 	image?: string | null;
 	languages?: SeedLanguage[];
+};
+
+type SeedInboxNoteOptions = {
+	userId: string;
+	languageId: string;
+	content: string;
+	noteId?: string;
+	sourceType?: string;
 };
 
 const testDatabaseUrl =
@@ -54,4 +62,19 @@ export async function seedUser(options: SeedUserOptions) {
 		name: options.name,
 		image: options.image ?? null,
 	};
+}
+
+export async function seedInboxNote(options: SeedInboxNoteOptions) {
+	const database = getDb(testDatabaseUrl);
+
+	return createInboxNote(
+		{
+			userId: options.userId,
+			languageId: options.languageId,
+			noteId: options.noteId,
+			content: options.content,
+			sourceType: options.sourceType ?? 'manual',
+		},
+		database as never
+	);
 }

@@ -3,9 +3,12 @@
   import LanguageSwitcher from '$lib/components/LanguageSwitcher.svelte';
   import UserMenu from '$lib/components/UserMenu.svelte';
   import { getLanguageHomeHref, type SupportedLanguage } from '$lib/config/languages.js';
+  import { cardEntryShellCounts } from '$lib/stores/cardEntryShell.js';
+  import { cardEntryUi } from '$lib/stores/cardEntryUi.js';
   import { page } from '$app/stores';
 
   type NavItem = {
+    id: 'home' | 'card-entry' | 'card-review' | 'translation-drills' | 'cards' | 'stats';
     label: string;
     href: string;
     icon: string;
@@ -21,6 +24,7 @@
     };
   };
   export let currentLanguage: SupportedLanguage;
+  export let cardEntryUnprocessedCount = 0;
 
   let moreSheetOpen = false;
 
@@ -30,27 +34,30 @@
       : [currentLanguage];
 
   $: navItems = [
-    { label: 'Home', href: getLanguageHomeHref(currentLanguage.code), icon: '⌂', match: 'exact' },
+    { id: 'home', label: 'Home', href: getLanguageHomeHref(currentLanguage.code), icon: '⌂', match: 'exact' },
     {
+      id: 'card-entry',
       label: 'Card Entry',
       href: `/${currentLanguage.code}/card-entry`,
       icon: '↧',
       match: 'prefix',
     },
     {
+      id: 'card-review',
       label: 'Card Review',
       href: `/${currentLanguage.code}/card-review`,
       icon: '▤',
       match: 'prefix',
     },
     {
+      id: 'translation-drills',
       label: 'Translation Drills',
       href: `/${currentLanguage.code}/translation-drills`,
       icon: '◌',
       match: 'prefix',
     },
-    { label: 'Cards', href: `/${currentLanguage.code}/cards`, icon: '☰', match: 'prefix' },
-    { label: 'Statistics', href: `/${currentLanguage.code}/stats`, icon: '◷', match: 'prefix' },
+    { id: 'cards', label: 'Cards', href: `/${currentLanguage.code}/cards`, icon: '☰', match: 'prefix' },
+    { id: 'stats', label: 'Statistics', href: `/${currentLanguage.code}/stats`, icon: '◷', match: 'prefix' },
   ] satisfies NavItem[];
 
   $: settingsItem = {
@@ -61,6 +68,10 @@
   } satisfies NavItem;
 
   $: mobilePrimaryItems = navItems.slice(0, 4);
+  $: pageCardEntryUnprocessedCount =
+    (($page.data as { inbox?: { unprocessedNoteCount?: number } }).inbox?.unprocessedNoteCount ?? null);
+  $: liveCardEntryUnprocessedCount =
+    pageCardEntryUnprocessedCount ?? $cardEntryShellCounts[currentLanguage.code] ?? cardEntryUnprocessedCount;
 
   function normalisePath(pathname: string) {
     return pathname.endsWith('/') && pathname.length > 1 ? pathname.slice(0, -1) : pathname;
@@ -115,15 +126,27 @@
         class:nav-link--active={isActive(item)}
         class="nav-link cluster"
         aria-current={isActive(item) ? 'page' : undefined}
-      >
-        <span aria-hidden="true">{item.icon}</span>
-        <span>{item.label}</span>
+        >
+          <span aria-hidden="true">{item.icon}</span>
+          <span class="nav-link__label">
+            <span>{item.label}</span>
+            {#if item.id === 'card-entry' && liveCardEntryUnprocessedCount > 0}
+              <span class="nav-badge" aria-label={`${liveCardEntryUnprocessedCount} unprocessed notes`}>
+                {liveCardEntryUnprocessedCount}
+              </span>
+            {/if}
+          </span>
       </a>
     {/each}
 
     <div class="sidebar-divider" aria-hidden="true"></div>
 
-    <button type="button" class="quick-add" disabled aria-label="Add new note">
+    <button
+      type="button"
+      class="quick-add"
+      aria-label="Add new note"
+      onclick={() => cardEntryUi.openQuickAdd({ languageCode: currentLanguage.code })}
+    >
       <span aria-hidden="true">+</span>
       <span>Quick Add</span>
     </button>
@@ -151,7 +174,12 @@
       aria-current={isActive(item) ? 'page' : undefined}
       style="--stack-space: var(--space-1)"
     >
-      <span aria-hidden="true">{item.icon}</span>
+      <span class="mobile-tab__icon-wrap">
+        <span aria-hidden="true">{item.icon}</span>
+        {#if item.id === 'card-entry' && liveCardEntryUnprocessedCount > 0}
+          <span class="mobile-nav-badge" aria-hidden="true">{liveCardEntryUnprocessedCount}</span>
+        {/if}
+      </span>
       <span>{item.label}</span>
     </a>
   {/each}
@@ -170,7 +198,12 @@
   </button>
 </nav>
 
-<button type="button" class="mobile-fab" disabled aria-label="Add new note">
+<button
+  type="button"
+  class="mobile-fab"
+  aria-label="Add new note"
+  onclick={() => cardEntryUi.openQuickAdd({ languageCode: currentLanguage.code })}
+>
   <span aria-hidden="true">+</span>
 </button>
 
@@ -242,6 +275,40 @@
     font-size: var(--font-size-ui);
   }
 
+  .nav-link__label,
+  .mobile-tab__icon-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .nav-badge,
+  .mobile-nav-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-inline-size: 1.5rem;
+    min-block-size: 1.5rem;
+    padding-inline: 0.4rem;
+    border-radius: 999px;
+    background: var(--color-primary);
+    color: var(--color-text-inverse);
+    font-family: var(--font-ui);
+    font-size: var(--font-size-caption);
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .mobile-nav-badge {
+    position: absolute;
+    inset-block-start: -0.35rem;
+    inset-inline-end: -0.7rem;
+    min-inline-size: 1.25rem;
+    min-block-size: 1.25rem;
+    padding-inline: 0.25rem;
+    font-size: 0.7rem;
+  }
+
   .nav-link--active,
   .mobile-tab--active {
     background: var(--color-primary-subtle);
@@ -264,10 +331,6 @@
     color: var(--color-text-secondary);
   }
 
-  .quick-add:disabled {
-    cursor: not-allowed;
-  }
-
   .mobile-tabbar {
     position: fixed;
     inset-inline: 0;
@@ -283,6 +346,7 @@
   }
 
   .mobile-tab {
+    position: relative;
     align-items: center;
     min-block-size: 3rem;
     padding-block: var(--space-2);
@@ -309,11 +373,6 @@
     color: var(--color-text-inverse);
     box-shadow: var(--shadow-md);
     font-size: var(--font-size-h2);
-  }
-
-  .mobile-fab:disabled {
-    cursor: not-allowed;
-    opacity: 0.8;
   }
 
   .sheet-backdrop {
