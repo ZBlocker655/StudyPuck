@@ -202,7 +202,7 @@ export async function createInboxNote(
       .values({
         ...noteData,
         noteId: noteData.noteId ?? createId('note'),
-        aiState: noteData.aiState ?? 'complete',
+        aiState: noteData.aiState ?? 'queued',
         createdAt: new Date(),
       })
       .returning();
