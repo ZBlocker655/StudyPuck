@@ -1,5 +1,6 @@
-import { neon } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-http';
+import { Pool, neon, neonConfig } from '@neondatabase/serverless';
+import { drizzle as drizzleHttp } from 'drizzle-orm/neon-http';
+import { drizzle as drizzleServerless } from 'drizzle-orm/neon-serverless';
 import * as schema from './schema.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -68,7 +69,17 @@ function createDatabaseConnection(databaseUrl: string) {
   }
 
   const sql = neon(databaseUrl);
-  return drizzle(sql, { schema });
+  return drizzleHttp(sql, { schema });
+}
+
+function createWorkerTransactionDatabaseConnection(databaseUrl: string): DatabaseConnection {
+  neonConfig.poolQueryViaFetch = true;
+
+  const pool = new Pool({
+    connectionString: databaseUrl,
+  });
+
+  return drizzleServerless(pool, { schema });
 }
 
 /**
@@ -86,6 +97,28 @@ export function getDb(databaseUrl?: string) {
   }
 
   return createDatabaseConnection(url);
+}
+
+/**
+ * Execute work with a transaction-capable database client in runtimes where
+ * neon-http cannot support Drizzle transactions.
+ */
+export async function withTransactionDb<T>(
+  databaseUrl: string,
+  callback: (db: DatabaseConnection) => Promise<T>
+): Promise<T> {
+  if (isNodeRuntime()) {
+    return callback(createNodeDatabaseConnection(databaseUrl));
+  }
+
+  const db = createWorkerTransactionDatabaseConnection(databaseUrl);
+  const pool = db.$client as Pool;
+
+  try {
+    return await callback(db);
+  } finally {
+    await pool.end();
+  }
 }
 
 /**

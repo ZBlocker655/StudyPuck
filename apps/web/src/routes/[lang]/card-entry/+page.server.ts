@@ -1,5 +1,5 @@
 import { fail, redirect, type Actions, type ServerLoad } from '@sveltejs/kit';
-import { getDb } from '@studypuck/database';
+import { getDb, withTransactionDb } from '@studypuck/database';
 import { env } from '$env/dynamic/private';
 import {
   CardEntryRequestError,
@@ -64,12 +64,25 @@ export const actions: Actions = {
       throw redirect(303, '/');
     }
 
+    const userId = session.user.id;
+
     const formData = await event.request.formData();
     const content = formData.get('content')?.toString() ?? '';
-    const database = getDb(env.DATABASE_URL);
+    const databaseUrl = env.DATABASE_URL;
+
+    if (!databaseUrl) {
+      return fail(500, {
+        operation: 'add-note' as const,
+        errorMessage: 'The note service is not configured right now.',
+        submittedContent: content,
+      });
+    }
 
     try {
-      await createCardEntryNoteForLanguage(session.user.id, languageCode, content, database);
+      await withTransactionDb(
+        databaseUrl,
+        (database) => createCardEntryNoteForLanguage(userId, languageCode, content, database as never)
+      );
 
       return {
         operation: 'add-note' as const,
@@ -101,12 +114,25 @@ export const actions: Actions = {
       throw redirect(303, '/');
     }
 
+    const userId = session.user.id;
+
     const formData = await event.request.formData();
     const noteId = formData.get('noteId')?.toString() ?? '';
-    const database = getDb(env.DATABASE_URL);
+    const databaseUrl = env.DATABASE_URL;
+
+    if (!databaseUrl) {
+      return fail(500, {
+        operation: 'defer-note' as const,
+        noteId,
+        errorMessage: 'The note service is not configured right now.',
+      });
+    }
 
     try {
-      await deferCardEntryNoteForLanguage(session.user.id, languageCode, noteId, database);
+      await withTransactionDb(
+        databaseUrl,
+        (database) => deferCardEntryNoteForLanguage(userId, languageCode, noteId, database as never)
+      );
 
       return {
         operation: 'defer-note' as const,
@@ -139,12 +165,25 @@ export const actions: Actions = {
       throw redirect(303, '/');
     }
 
+    const userId = session.user.id;
+
     const formData = await event.request.formData();
     const noteId = formData.get('noteId')?.toString() ?? '';
-    const database = getDb(env.DATABASE_URL);
+    const databaseUrl = env.DATABASE_URL;
+
+    if (!databaseUrl) {
+      return fail(500, {
+        operation: 'delete-note' as const,
+        noteId,
+        errorMessage: 'The note service is not configured right now.',
+      });
+    }
 
     try {
-      await deleteCardEntryNoteForLanguage(session.user.id, languageCode, noteId, database);
+      await withTransactionDb(
+        databaseUrl,
+        (database) => deleteCardEntryNoteForLanguage(userId, languageCode, noteId, database as never)
+      );
 
       return {
         operation: 'delete-note' as const,
