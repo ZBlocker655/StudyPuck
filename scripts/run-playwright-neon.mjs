@@ -1,7 +1,18 @@
-import { execFileSync, execSync, spawn } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveStudypuckEnv, resolveSecretValue } from './studypuck-env.mjs';
+import {
+	cleanupStaleBranches,
+	createBranchName,
+	deleteBranch,
+	getConnectionOptions,
+	getExpirationTimestamp,
+	getNeonBranchEnv,
+	runCommandStreaming,
+	runNeon,
+	shouldPreserveOnFailure,
+	formatWindowsCommand,
+} from './neon-ephemeral-branch.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, '..');
@@ -13,59 +24,6 @@ const SERVER_HOST = '127.0.0.1';
 const SERVER_PORT = Number(process.env.PLAYWRIGHT_PORT ?? 4173);
 const SERVER_URL = `http://${SERVER_HOST}:${SERVER_PORT}`;
 const SERVER_START_TIMEOUT_MS = 180_000;
-
-const quoteWindowsArg = (value) => {
-	if (!/[\s"]/u.test(value)) {
-		return value;
-	}
-
-	return `"${value.replace(/(\\*)"/g, '$1$1\\"').replace(/(\\+)$/g, '$1$1')}"`;
-};
-
-const formatWindowsCommand = (command, commandArgs) =>
-	[quoteWindowsArg(command), ...commandArgs.map(quoteWindowsArg)].join(' ');
-
-const runCommandCapture = (command, commandArgs, env) => {
-	if (process.platform === 'win32') {
-		return execSync(formatWindowsCommand(command, commandArgs), {
-			encoding: 'utf8',
-			env,
-			stdio: ['ignore', 'pipe', 'pipe'],
-		}).trim();
-	}
-
-	return execFileSync(command, commandArgs, {
-		encoding: 'utf8',
-		env,
-		stdio: ['ignore', 'pipe', 'pipe'],
-	}).trim();
-};
-
-const runCommandStreaming = (command, commandArgs, env, cwd) =>
-	new Promise((resolve) => {
-		const child =
-			process.platform === 'win32'
-				? spawn(formatWindowsCommand(command, commandArgs), {
-						cwd,
-						env,
-						shell: true,
-						stdio: 'inherit',
-					})
-				: spawn(command, commandArgs, {
-						cwd,
-						env,
-						stdio: 'inherit',
-					});
-
-		child.on('exit', (code, signal) => {
-			if (signal) {
-				process.kill(process.pid, signal);
-				return;
-			}
-
-			resolve(code ?? 1);
-		});
-	});
 
 const startLongRunningCommand = (command, commandArgs, env, cwd) =>
 	process.platform === 'win32'
@@ -102,63 +60,7 @@ const waitForServer = async (url, timeoutMs) => {
 	throw new Error(`Timed out waiting ${timeoutMs}ms for ${url} to become ready.`);
 };
 
-const runNeon = (args, env) => runCommandCapture('npx', ['--yes', 'neonctl', ...args], env);
-
-const deleteBranch = (branchName, env) => {
-	runNeon(['branches', 'delete', branchName, '--force'], env);
-};
-
-const listBranches = (env) => {
-	const output = runNeon(['branches', 'list', '--output', 'json'], env);
-	const parsed = JSON.parse(output);
-	return Array.isArray(parsed) ? parsed : [];
-};
-
-const createBranchName = () => `${BRANCH_PREFIX}${Date.now().toString(36)}`;
-
-const getExpirationTimestamp = () => {
-	const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-	return expiresAt.toISOString();
-};
-
-const shouldPreserveOnFailure = () =>
-	['1', 'true', 'yes'].includes((process.env.PRESERVE_TEST_DB_ON_FAILURE ?? '').toLowerCase());
-
-const getConnectionOptions = (databaseUrl) => {
-	const parsed = new URL(databaseUrl);
-	const roleName = decodeURIComponent(parsed.username);
-	const databaseName = decodeURIComponent(parsed.pathname.replace(/^\//, ''));
-
-	if (!roleName || !databaseName) {
-		throw new Error('DATABASE_URL must include both a role name and database name.');
-	}
-
-	return { roleName, databaseName };
-};
-
-const cleanupStaleBranches = (env) => {
-	const staleBranches = listBranches(env)
-		.map((branch) => branch?.name)
-		.filter((name) => typeof name === 'string' && name.startsWith(BRANCH_PREFIX));
-
-	for (const branchName of staleBranches) {
-		console.log(`Removing stale browser-test branch: ${branchName}`);
-		deleteBranch(branchName, env);
-	}
-};
-
-const getBaseEnv = () => {
-	const resolvedEnv = resolveStudypuckEnv();
-	const neonApiKey = process.env.NEON_API_KEY || resolveSecretValue('NEON_API_KEY');
-
-	return {
-		...process.env,
-		...resolvedEnv,
-		NEON_API_KEY: neonApiKey,
-	};
-};
-
-const baseEnv = getBaseEnv();
+const baseEnv = getNeonBranchEnv({ includeStudypuckEnv: true });
 const { roleName, databaseName } = getConnectionOptions(baseEnv.DATABASE_URL);
 const preserveOnFailure = shouldPreserveOnFailure();
 let branchName;
@@ -166,9 +68,13 @@ let branchCreated = false;
 let serverProcess;
 
 try {
-	cleanupStaleBranches(baseEnv);
+	cleanupStaleBranches({
+		env: baseEnv,
+		prefix: BRANCH_PREFIX,
+		label: 'browser-test',
+	});
 
-	branchName = createBranchName();
+	branchName = createBranchName(BRANCH_PREFIX);
 	console.log(`Creating ephemeral browser-test branch: ${branchName}`);
 	runNeon(
 		[

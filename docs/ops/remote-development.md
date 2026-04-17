@@ -171,6 +171,14 @@ pnpm test:e2e:secure
 
 `test:e2e:secure` creates an ephemeral Neon branch from `development`, runs the Playwright suite against that branch, and deletes the branch in cleanup by default. Set `PRESERVE_TEST_DB_ON_FAILURE=1` only when you intentionally want to inspect a failed test database.
 
+For database-package integration tests in local development or Codespaces:
+
+```bash
+pnpm test:db:branch:secure
+```
+
+This is the canonical `@studypuck/database` workflow. It creates a dedicated ephemeral Neon branch, runs the package `*.test.ts` suite against that branch, and deletes it during cleanup by default. Use `pnpm --filter @studypuck/database test:docker` only when you intentionally want the local Docker fast path instead.
+
 ## Updating an Existing Remote Environment
 
 Use this workflow when the repository, toolchain, or devcontainer configuration changes and you want to bring the remote environment fully up to date.

@@ -65,7 +65,7 @@ curl -f https://studypuck.app/api/health
 ### **Migration Safety Validation**
 ```bash
 # Test migration on development branch first
-DATABASE_URL=$DEV_DATABASE_URL pnpm migrate
+DATABASE_URL=$DEV_DATABASE_URL pnpm migrate:apply
 
 # Verify no data loss
 DATABASE_URL=$DEV_DATABASE_URL psql -c "SELECT COUNT(*) FROM users;"
@@ -92,7 +92,7 @@ The GitHub Actions production workflow executes these steps:
     DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
   run: |
     cd packages/database
-    pnpm migrate  # Apply any new migrations to production
+    pnpm migrate:apply  # Apply any new migrations to production
 ```
 
 **What happens:**
@@ -314,7 +314,7 @@ cd packages/database
 ls migrations/ | tail -5
 
 # 2. Create fixing migration
-pnpm generate --custom --name fix-migration-issue
+pnpm migrate:generate --custom --name fix-migration-issue
 
 # 3. Write SQL to fix the issue (not revert)
 # migrations/[new-fix-migration].sql

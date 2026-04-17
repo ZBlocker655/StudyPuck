@@ -144,13 +144,13 @@ if (existsSync(envPath)) {
 ### **Migration Commands**
 ```bash
 # Generate new migration
-pnpm run generate
+pnpm migrate:generate
 
 # Apply migrations (uses environment DATABASE_URL)
-pnpm run migrate
+pnpm migrate:apply
 
 # Check migration status
-pnpm run studio  # Opens Drizzle Studio
+pnpm migrate:studio  # Opens Drizzle Studio
 ```
 
 ### **Known Limitations**
@@ -170,42 +170,58 @@ pnpm run studio  # Opens Drizzle Studio
 
 ## Testing Strategy
 
-StudyPuck uses a **two-tier hybrid testing approach** to balance test speed, cost, and production parity.
+StudyPuck uses a hybrid database-testing approach with one canonical cross-environment path and one explicit local fast path.
 
-### Tier 1: Docker Compose Tests (default, runs every CI pass)
+### Canonical package suite: ephemeral Neon branch (`*.test.ts`)
 
-All standard integration tests use a local Docker Postgres instance (`pgvector/pgvector:pg15`):
+The main `@studypuck/database` integration suite now runs against a fresh ephemeral Neon branch by default:
 
 ```bash
-# Start test database
 cd packages/database
-pnpm test:setup
-
-# Run all tests
 pnpm test
-
-# Stop and clean up
-pnpm test:cleanup
+# or explicitly:
+pnpm test:branch
 ```
 
-- **Fast**: runs in memory via `tmpfs`, no network latency
-- **Free**: no Neon quota consumption
-- **Offline**: works without internet or Neon credentials
+- **Cross-environment**: same workflow in local secure runs, Codespaces, and CI
+- **Branch-safe**: always tests against a disposable branch cloned from `development`
+- **Cleanup by default**: branch is deleted automatically unless debug preservation is requested
 - File pattern: `*.test.ts`
 
-### Tier 2: Ephemeral Neon Tests (on-demand, NOT in every CI pass)
+To preserve a failing test branch for inspection:
+
+```bash
+PRESERVE_TEST_DB_ON_FAILURE=1 pnpm test:branch
+```
+
+### Optional local fast path: Docker Compose (`*.test.ts`)
+
+Docker remains available when you intentionally want local speed or offline iteration:
+
+```bash
+cd packages/database
+pnpm test:docker
+```
+
+For watch/debug loops with an explicitly managed local database:
+
+```bash
+pnpm test:docker:setup
+pnpm test:docker:watch
+pnpm test:docker:cleanup
+```
+
+- **Fast**: no Neon network round-trip during the test run
+- **Offline**: works without Neon credentials
+- **Opt-in only**: use this only when you deliberately want the local tradeoff
+
+### Issue-scoped branch tests (on-demand, NOT in every CI pass)
 
 For real-world validation (e.g., verifying a migration against a production-like Neon branch):
 
 ```bash
-# Create a dedicated test branch
-neon branches create test-issue-N --parent development
-
-# Set connection string
-export NEON_TEST_DATABASE_URL="postgresql://..."
-
-# Run Neon tests only
-pnpm test:neon
+# Point NEON_TEST_DATABASE_URL at a dedicated issue branch
+pnpm test:branch:issue
 ```
 
 - **Production parity**: uses the actual Neon serverless driver and engine
@@ -223,7 +239,7 @@ migration-smoke.neon.test.ts      ❌ will fail CI — no issue number
 ### Ephemeral Test Lifecycle
 
 1. **Create**: write `*-issue-N.neon.test.ts` alongside the issue work
-2. **Run**: `pnpm test:neon` with `NEON_TEST_DATABASE_URL` pointing at a test branch
+2. **Run**: `pnpm test:branch:issue` with `NEON_TEST_DATABASE_URL` pointing at a test branch
 3. **Retain**: the test lives until the issue closes
 4. **Delete**: when issue #N is closed, **delete the file in the closing PR**
 
@@ -237,8 +253,9 @@ This ensures ephemeral tests never accumulate and never degrade test suite perfo
 
 | Scenario | Use |
 |---|---|
-| CRUD operations, business logic, query correctness | `*.test.ts` (Docker) |
-| Migration applies cleanly (routine) | `*.test.ts` (Docker) |
+| CRUD operations, business logic, query correctness | `pnpm test` / `pnpm test:branch` |
+| Migration applies cleanly (routine) | `pnpm test` / `pnpm test:branch` |
+| Fast local iteration without Neon | `pnpm test:docker` |
 | Migration against realistic data volume or edge cases | `*-issue-N.neon.test.ts` (Neon) |
 | Verifying Neon serverless driver behavior | `*-issue-N.neon.test.ts` (Neon) |
 

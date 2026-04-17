@@ -13,11 +13,17 @@
     "migrate:drop": "drizzle-kit drop",
     "migrate:check": "drizzle-kit check",
     "validate:safety": "node scripts/validate-migration-safety.js",
-    "test": "vitest run",
-    "test:watch": "vitest watch",
-    "test:neon": "vitest run --config vitest.neon.config.ts",
-    "test:setup": "docker-compose -f docker-compose.test.yml up -d",
-    "test:cleanup": "docker-compose -f docker-compose.test.yml down -v"
+    "test": "pnpm test:branch",
+    "test:branch": "node ../../scripts/run-database-package-branch-tests.mjs",
+    "test:branch:raw": "vitest run",
+    "test:branch:issue": "vitest run --config vitest.neon.config.ts",
+    "test:docker": "node ../../scripts/run-database-package-docker-tests.mjs",
+    "test:docker:raw": "vitest run",
+    "test:docker:watch": "vitest watch",
+    "test:docker:setup": "docker-compose -f docker-compose.test.yml up -d",
+    "test:docker:cleanup": "docker-compose -f docker-compose.test.yml down -v",
+    "test:watch": "pnpm test:docker:watch",
+    "test:neon": "pnpm test:branch:issue"
   },
 	"dependencies": {
 		"@neondatabase/serverless": "^0.10.1",
