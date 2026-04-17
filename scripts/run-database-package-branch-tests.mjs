@@ -4,7 +4,6 @@ import {
 	cleanupStaleBranches,
 	createBranchName,
 	deleteBranch,
-	getConnectionOptions,
 	getExpirationTimestamp,
 	getNeonBranchEnv,
 	runCommandStreaming,
@@ -18,8 +17,10 @@ const packageDir = resolve(repoRoot, 'packages', 'database');
 const BRANCH_PREFIX = 'test-db-package-';
 const PARENT_BRANCH = 'development';
 
-const baseEnv = getNeonBranchEnv({ allowSecretFallback: false });
-const { roleName, databaseName } = getConnectionOptions(baseEnv.DATABASE_URL);
+const baseEnv = getNeonBranchEnv({
+	allowSecretFallback: false,
+	requireDatabaseUrl: false,
+});
 const preserveOnFailure = shouldPreserveOnFailure();
 let branchName;
 let branchCreated = false;
@@ -48,19 +49,18 @@ try {
 	);
 	branchCreated = true;
 
-	const testDatabaseUrl = runNeon(
-		[
-			'connection-string',
-			branchName,
+	const connectionStringArgs = ['connection-string', branchName, '--ssl', 'require'];
+	if (baseEnv.DATABASE_URL) {
+		const { roleName, databaseName } = getConnectionOptions(baseEnv.DATABASE_URL);
+		connectionStringArgs.push(
 			'--database-name',
 			databaseName,
 			'--role-name',
-			roleName,
-			'--ssl',
-			'require',
-		],
-		baseEnv
-	);
+			roleName
+		);
+	}
+
+	const testDatabaseUrl = runNeon(connectionStringArgs, baseEnv);
 
 	const testEnv = {
 		...baseEnv,

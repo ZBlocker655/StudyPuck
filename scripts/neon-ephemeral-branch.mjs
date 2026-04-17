@@ -100,6 +100,7 @@ export const cleanupStaleBranches = ({ env, prefix, label }) => {
 export const getNeonBranchEnv = ({
 	includeStudypuckEnv = false,
 	allowSecretFallback = true,
+	requireDatabaseUrl = true,
 } = {}) => {
 	const env = { ...process.env };
 
@@ -107,7 +108,7 @@ export const getNeonBranchEnv = ({
 		Object.assign(env, resolveStudypuckEnv());
 	}
 
-	if (!env.DATABASE_URL) {
+	if (!env.DATABASE_URL && requireDatabaseUrl) {
 		env.DATABASE_URL = env.DEV_DATABASE_URL || env.PROD_DATABASE_URL;
 		if (!env.DATABASE_URL) {
 			if (!allowSecretFallback) {
