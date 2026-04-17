@@ -49,7 +49,7 @@ Migration tracking out of sync with actual database state
 
 # Solution 1: Use fresh database branch
 neon branches create feature/fresh --parent development
-DATABASE_URL=fresh-branch-url pnpm migrate
+DATABASE_URL=fresh-branch-url pnpm migrate:apply
 
 # Solution 2: Manual tracking fix (advanced)
 # See database-branching-guide.md for detailed procedure
@@ -223,7 +223,7 @@ git rebase main
 # 2. Regenerate migrations
 cd packages/database
 rm -rf migrations
-pnpm generate  # Regenerates migrations from current schema
+pnpm migrate:generate  # Regenerates migrations from current schema
 
 # 3. Commit regenerated migrations
 git add migrations/
@@ -305,7 +305,7 @@ echo $DATABASE_URL
 timeout 10 psql $DATABASE_URL -c "SELECT NOW();"
 
 # Check migrations applied
-pnpm migrate
+pnpm migrate:apply
 
 # Check tables exist
 psql $DATABASE_URL -c "\dt"
@@ -329,7 +329,7 @@ pnpm turbo check-types --filter=web
 
 # 2. Update database types
 cd packages/database
-pnpm generate  # Regenerates types from schema
+pnpm migrate:generate  # Regenerates migrations from schema changes
 
 # 3. Clear TypeScript cache
 rm -rf apps/web/.svelte-kit/tsconfig.tsbuildinfo

@@ -40,7 +40,8 @@ StudyPuck currently has two distinct database-backed test paths:
 
 1. **Database package / migration validation**
    - focused on schema correctness, queries, and migration behavior
-   - currently uses the repo's Postgres container/service-container path
+   - uses an ephemeral Neon branch as the canonical cross-environment workflow
+   - keeps Docker as an explicit local fast path only
 
 2. **Browser testing**
    - focused on real app flows through SvelteKit + Playwright
@@ -48,13 +49,18 @@ StudyPuck currently has two distinct database-backed test paths:
 
 ## Current Database-Package Test Workflow
 
-The current `@studypuck/database` integration-test path uses Postgres container infrastructure:
+The current `@studypuck/database` package test surface is:
 
-- local setup via `pnpm --filter @studypuck/database test:setup`
-- local cleanup via `pnpm --filter @studypuck/database test:cleanup`
-- CI via the GitHub Actions Postgres service container
+| Purpose | Command | Notes |
+|---|---|---|
+| Canonical full suite | `pnpm --filter @studypuck/database test` | Creates an ephemeral Neon branch, runs the `*.test.ts` suite, and deletes the branch by default |
+| Explicit canonical mode | `pnpm --filter @studypuck/database test:branch` | Same as `test` |
+| Preserve branch on failure | `PRESERVE_TEST_DB_ON_FAILURE=1 pnpm --filter @studypuck/database test:branch` | Debug-only escape hatch |
+| Optional local fast path | `pnpm --filter @studypuck/database test:docker` | Uses Docker Postgres and cleans up automatically |
+| Explicit Docker lifecycle | `pnpm --filter @studypuck/database test:docker:setup` / `test:docker:cleanup` | For local watch/debug loops |
+| Issue-scoped extra branch tests | `pnpm --filter @studypuck/database test:branch:issue` | Runs `*.neon.test.ts` tests that stay separate from the permanent suite |
 
-This remains the current package-level database test baseline even though browser tests now use a different workflow.
+CI should treat the branch workflow as the primary package-test path. Docker remains available when a contributor intentionally wants the local speed/offline tradeoff.
 
 ## Migration Testing
 
@@ -73,4 +79,4 @@ Typical concerns:
 
 ## Notes on Future Evolution
 
-The browser-test workflow has already moved to ephemeral Neon branches for better cross-environment support. Database-package integration tests are still documented separately here because they remain a distinct workflow and tradeoff space.
+The browser-test workflow and the database-package workflow now both rely on ephemeral Neon branches for their canonical cross-environment path, but they remain separate harnesses with different goals and setup details.

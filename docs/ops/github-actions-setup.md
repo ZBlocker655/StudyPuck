@@ -47,11 +47,9 @@ jobs:
         cache: 'pnpm'
     - run: pnpm install
     
-    # TODO: Add database testing with ephemeral branches
-    # See "Enhanced Test Workflow" section below
-      
     - name: Run full test suite
       run: |
+        pnpm turbo test --filter=@studypuck/database
         pnpm turbo lint --filter=web
         pnpm turbo check-types --filter=web
         pnpm turbo build --filter=web
@@ -105,12 +103,13 @@ jobs:
       run: |
         # Apply all migrations from development + any new ones in PR
         cd packages/database
-        pnpm migrate  # Idempotent - only new migrations apply
+        pnpm migrate:apply  # Idempotent - only new migrations apply
         
     - name: Run full test suite
       env:
         DATABASE_URL: ${{ steps.create_db.outputs.test_db_url }}
       run: |
+        pnpm turbo test --filter=@studypuck/database
         pnpm turbo lint --filter=web
         pnpm turbo check-types --filter=web
         pnpm turbo test --filter=web
@@ -255,7 +254,7 @@ jobs:
         DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
       run: |
         cd packages/database
-        pnpm migrate  # Apply any new migrations to production
+        pnpm migrate:apply  # Apply any new migrations to production
         
     - name: Wait for Cloudflare deployment
       run: |
@@ -401,10 +400,10 @@ gh run rerun [run-id]
 ```bash
 # Check migration file syntax
 cd packages/database
-pnpm generate # Should not produce new files if schema unchanged
+pnpm migrate:generate # Should not produce new files if schema unchanged
 
 # Test migration locally first
-DATABASE_URL=$PROD_DATABASE_URL pnpm migrate
+DATABASE_URL=$PROD_DATABASE_URL pnpm migrate:apply
 ```
 
 #### **"Workflow hangs or times out"**
@@ -433,7 +432,7 @@ DATABASE_URL=$PROD_DATABASE_URL pnpm migrate
 - name: Debug database connection
   run: |
     cd packages/database
-    timeout 30 pnpm migrate || echo "Migration timed out"
+    timeout 30 pnpm migrate:apply || echo "Migration timed out"
 ```
 
 ## Workflow Monitoring & Maintenance

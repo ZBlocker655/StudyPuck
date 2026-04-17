@@ -61,6 +61,9 @@ echo "Current DATABASE_URL: ${DATABASE_URL:0:20}..."
 # Follow human-guided workflow in interactive-development.md
 # Work collaboratively with human oversight
 # Use existing database environment (typically development)
+# Prefer secure local/Codespaces commands such as:
+#   pnpm test:db:branch:secure
+#   pnpm --filter @studypuck/database test:docker   # explicit local-only fast path
 ```
 
 #### **For Cloud Copilot (Autonomous)**
@@ -97,6 +100,7 @@ docs/ops/README.md ←── Start here for overview
 - For varlock guidance, consult `https://varlock.dev/llms.txt` first; use `https://varlock.dev/llms-small.txt` for the abridged docs and `https://varlock.dev/llms-full.txt` for the complete docs when updating agent workflows or env-spec usage.
 - StudyPuck's approved local/Codespaces varlock mechanism uses `exec()` in `.env.schema` to call the repo Bitwarden helper, preserving the "unlock Bitwarden once per shell session" UX.
 - For local development and Codespaces, prefer the secure repo commands such as `pnpm env:check:secure`, `pnpm dev:secure`, `pnpm dev:workers:secure`, `pnpm db:migrate:secure`, and `pnpm db:studio:secure`.
+- For local development and Codespaces, prefer `pnpm test:db:branch:secure` for `@studypuck/database` integration tests. Use `pnpm --filter @studypuck/database test:docker` only when you intentionally want the local Docker fast path.
 - The approved local/Codespaces secret source is Bitwarden. Expect a Bitwarden item with custom fields named after the StudyPuck env vars.
 - GitHub Actions and Cloudflare stay on platform-native env injection. Do not migrate production secrets into versioned files.
 - Never print real secret values. Report variable names or masked presence only.
@@ -136,10 +140,10 @@ cd apps/web && pnpm dev:workers  # Production-like testing
 
 ### **Technology Stack** ✅ ESTABLISHED
 - **Frontend**: SvelteKit + TypeScript + CUBE CSS
-- **Backend**: Cloudflare Workers + D1 + KV
+- **Backend**: Cloudflare Workers + Neon Postgres
 - **Auth**: Auth0 + Auth.js
 - **AI**: Google Gemini Flash (primary), GPT-4o-mini (secondary)
-- **Testing**: Vitest + Playwright
+- **Testing**: Vitest + Playwright + Neon database branches
 - **Validation**: Zod for schema validation and type safety
 - **Monorepo**: PNPM + Turborepo
 
@@ -323,17 +327,23 @@ cd apps/web && pnpm dev
 
 ### **Testing & Linting**
 ```bash
+# Canonical database-package integration tests (local/Codespaces secure flow)
+pnpm test:db:branch:secure
+
+# Optional local-only Docker fast path for database-package tests
+pnpm --filter @studypuck/database test:docker
+
 # Run linting (same as CI)
 pnpm turbo lint --filter=web
 
-# Run browser UI tests (after starting the Docker-backed test database)
-pnpm turbo test:e2e --filter=web
+# Run browser UI tests against an ephemeral Neon branch
+pnpm test:e2e:secure
 
 # Build verification (same as CI) 
 pnpm turbo build --filter=web
 
-# Run all tasks for web app
-pnpm turbo test lint test:e2e build --filter=web
+# Run the standard web verification set
+pnpm turbo test lint build --filter=web
 ```
 
 ### **Project Management**

@@ -49,18 +49,22 @@ git status        # Check repository state
 #### **Database Branch Strategy:**
 ```bash
 # Human decides: Use existing development branch
-DATABASE_URL="postgresql://...@ep-development.region.aws.neon.tech/db"
+export DATABASE_URL="postgresql://...@ep-development.region.aws.neon.tech/db"
 
 # Or Human decides: Create feature branch for experimental work  
 neon branches create feature/auth-implementation --parent development
-DATABASE_URL="postgresql://...@ep-feature-auth.region.aws.neon.tech/db"
+export DATABASE_URL="postgresql://...@ep-feature-auth.region.aws.neon.tech/db"
 ```
 
 #### **Environment Configuration:**
 ```bash
-# AI sets up local environment using established patterns
+# AI uses the repo's secure commands for local/Codespaces work
 # Human reviews and approves environment choices
-echo "DATABASE_URL=..." >> .env
+pnpm env:check:secure
+
+# If this session should target a specific feature branch, export DATABASE_URL
+# in the current shell before running secure commands.
+pnpm db:migrate:secure
 ```
 
 ### **Phase 3: Implementation with Human Oversight**
@@ -88,6 +92,12 @@ echo "DATABASE_URL=..." >> .env
 
 # Human: "Now test the authentication"
 # AI: Creates auth test, runs it, shows output
+
+# Canonical database-package test workflow
+pnpm test:db:branch:secure
+
+# Optional local-only Docker fast path when explicitly requested
+pnpm --filter @studypuck/database test:docker
 ```
 
 #### **Validation Steps:**
@@ -119,8 +129,8 @@ neonctl branches delete feature/issue-N
 #   ensure `neonctl` is available on your PATH
 #   neonctl branches delete feature/issue-N
 
-# Revert apps/web/.env DATABASE_URL back to development branch
-# (uncomment development line, remove feature branch line)
+# If DATABASE_URL was temporarily exported to a feature branch, switch the shell
+# back to the development branch connection before the next task.
 
 # Documentation updates
 # Report completion status
@@ -154,6 +164,7 @@ neonctl branches delete feature/issue-N
 #### **Safe Migration Pattern:**
 ```bash
 # 1. AI generates migration
+cd packages/database
 pnpm migrate:generate
 
 # 2. AI shows migration to human for review
@@ -163,6 +174,11 @@ cat packages/database/migrations/0001_create_users.sql
 # "That looks good, apply it"
 
 # 4. AI applies migration
+cd /workspaces/StudyPuck
+pnpm db:migrate:secure
+
+# Or, if the shell is already pointed at the chosen direct DATABASE_URL:
+cd packages/database
 pnpm migrate:apply
 
 # 5. AI verifies migration succeeded

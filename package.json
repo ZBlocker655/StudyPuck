@@ -16,6 +16,8 @@
     "db:generate:secure": "node scripts/run-with-bitwarden-env.mjs -- pnpm --filter @studypuck/database migrate:generate",
     "db:migrate:secure": "node scripts/run-with-bitwarden-env.mjs -- pnpm --filter @studypuck/database migrate:apply",
     "db:studio:secure": "node scripts/run-with-bitwarden-env.mjs -- pnpm --filter @studypuck/database migrate:studio",
+    "test:db:branch:secure": "node scripts/run-with-bitwarden-env.mjs -- pnpm --filter @studypuck/database test",
+    "test:db:docker": "pnpm --filter @studypuck/database test:docker",
     "test:e2e:secure": "node scripts/run-playwright-neon.mjs",
     "test:e2e:stop": "pwsh -NoProfile -File scripts\\stop-port-process.ps1 -Port 4173",
     "env:check:secure": "node scripts/run-with-bitwarden-env.mjs --check",

@@ -25,7 +25,7 @@ echo "Current DATABASE_URL: ${DATABASE_URL:0:20}..."
 
 # Check database connectivity
 cd packages/database
-pnpm run migrate # Should succeed without errors
+pnpm migrate:apply # Should succeed without errors
 ```
 
 ### **Phase 2: Feature Development**
@@ -43,12 +43,12 @@ DATABASE_URL=$DEV_DATABASE_URL
 
 ### **Phase 3: Testing & Validation**
 ```bash
-# Agent runs tests
+# Agent runs the canonical database-package tests plus app tests
+pnpm --filter @studypuck/database test
 pnpm turbo test --filter=web
 
-# Agent validates database operations
-cd packages/database
-# Test basic operations without modifying schema
+# Docker remains an explicit local-only escape hatch, not the agent default:
+# pnpm --filter @studypuck/database test:docker
 ```
 
 ### **Phase 4: Documentation & Handoff**
@@ -104,7 +104,7 @@ git checkout -b agent/issue-45-implementation
 
 # Step 2: Apply existing migrations to catch up
 cd packages/database
-DATABASE_URL=$AGENT_DATABASE_URL pnpm migrate
+DATABASE_URL=$AGENT_DATABASE_URL pnpm migrate:apply
 
 # Step 3: Develop feature in complete isolation
 # - Create new migrations if needed
@@ -112,6 +112,7 @@ DATABASE_URL=$AGENT_DATABASE_URL pnpm migrate
 # - Ensure no dependencies on external state
 
 # Step 4: Validate implementation
+DATABASE_URL=$AGENT_DATABASE_URL NEON_API_KEY=$NEON_API_KEY pnpm --filter @studypuck/database test
 pnpm turbo lint check-types test build --filter=web
 
 # Step 5: Submit PR with complete implementation
@@ -227,7 +228,10 @@ neonctl branches list | grep "agent/" | xargs -I {} neonctl branches delete {} -
 ```bash
 # DO: Always verify migrations work before submitting PR
 cd packages/database
-DATABASE_URL=$AGENT_DATABASE_URL pnpm migrate
+DATABASE_URL=$AGENT_DATABASE_URL pnpm migrate:apply
+
+# DO: Treat the package branch workflow as canonical
+DATABASE_URL=$AGENT_DATABASE_URL NEON_API_KEY=$NEON_API_KEY pnpm --filter @studypuck/database test
 
 # DO: Test with clean schema state
 # Agent branches start from development baseline
@@ -256,7 +260,7 @@ git commit -m "Add user authentication feature
 ### **Error Handling**
 ```bash
 # DO: Check command success before proceeding
-if ! pnpm migrate; then
+if ! pnpm migrate:apply; then
   echo "Migration failed - aborting feature development"
   exit 1
 fi

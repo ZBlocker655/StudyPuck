@@ -74,28 +74,34 @@ pnpm migrate:push
 ```bash
 cd packages/database
 
-# Start Docker test database
-pnpm test:setup
-
-# Run all database integration tests (Docker)
+# Run the canonical package suite on an ephemeral Neon branch
 pnpm test
 
-# Run in watch mode during development
-pnpm test:watch
+# Equivalent explicit canonical command
+pnpm test:branch
 
-# Run ephemeral Neon tests (requires NEON_TEST_DATABASE_URL)
-pnpm test:neon
+# Keep the branch on failure for debugging
+PRESERVE_TEST_DB_ON_FAILURE=1 pnpm test:branch
 
-# Stop and remove test database
-pnpm test:cleanup
+# Run the optional local Docker fast path
+pnpm test:docker
+
+# Optional explicit Docker lifecycle for watch/debug loops
+pnpm test:docker:setup
+pnpm test:docker:watch
+pnpm test:docker:cleanup
+
+# Run issue-scoped extra branch tests only
+pnpm test:branch:issue
 ```
 
 ### **Two-Tier Testing Strategy**
 
 | Test Type | File Pattern | Database | Runs In |
 |---|---|---|---|
-| Integration (permanent) | `*.test.ts` | Docker Compose | Every CI push |
-| Real-world validation (ephemeral) | `*-issue-N.neon.test.ts` | Neon branch | Manual / on-demand |
+| Canonical integration suite | `*.test.ts` | Ephemeral Neon branch | Codespaces, CI, local secure runs |
+| Optional local fast path | `*.test.ts` | Docker Compose | Local-only when speed/offline matters |
+| Real-world issue validation | `*-issue-N.neon.test.ts` | Neon branch | Manual / on-demand |
 
 See [Database Branching Guide](./database-branching-guide.md#testing-strategy) for full details on the ephemeral Neon test lifecycle, naming conventions, and the CI enforcement script.
 

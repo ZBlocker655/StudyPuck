@@ -27,18 +27,21 @@
 - **Scenario**: Human working with AI assistant in real-time (Copilot CLI, ChatGPT, etc.)
 - **Control**: Human directs, AI executes
 - **Database**: Use development branch, human manages branching decisions
+- **Testing**: Use `pnpm test:db:branch:secure` as the canonical database-package test path; use Docker only when you intentionally want the local fast path
 - **Example**: "Create a migration for the users table"
 
 ### **Autonomous AI Development** 
 - **Scenario**: AI agent assigned to GitHub issue, works independently
 - **Control**: AI manages entire workflow start to finish
 - **Database**: AI creates feature branches, follows strict automated procedures
+- **Testing**: Agent workflows should treat `@studypuck/database` branch-based tests as canonical
 - **Example**: GitHub Copilot assigned to Issue #35
 
 ### **Manual Development**
 - **Scenario**: Human developer working alone without AI assistance
 - **Control**: Human does everything manually
 - **Database**: Human creates branches, runs migrations, manages workflow
+- **Testing**: Prefer branch-based package tests; keep Docker as an explicit local-only shortcut
 - **Example**: Traditional software development
 
 ## 🚨 **Current Session Type: INTERACTIVE DEVELOPMENT** ✅
@@ -55,6 +58,7 @@
 - **"Last Possible Moment" migrations**: Development branch stays clean until production deployment
 - **Feature isolation**: Use database branches for schema changes
 - **Direct connections**: Required for reliable migration tracking
+- **Canonical DB tests**: `@studypuck/database` uses ephemeral Neon branch tests as the default cross-environment workflow
 - **No manual deployment**: Everything automated via GitHub Actions + Cloudflare
 
 ## 📚 Documentation Standards

@@ -68,10 +68,10 @@ DATABASE_URL=$DEV_DATABASE_URL
 neon branches create feature/issue-45 --parent development
 
 # Get feature-specific connection string
-neon connection-string feature/issue-45
+export DATABASE_URL="$(neon connection-string feature/issue-45)"
 
-# Update local environment
-echo "DATABASE_URL='postgresql://...@feature-issue-45.example.neon.tech/db'" >> .env.local
+# Keep using the repo's secure commands; the exported DATABASE_URL overrides
+# the default Bitwarden-provided database target for this shell session only.
 
 # Advantages: Complete isolation, no conflicts
 # Disadvantages: Additional setup, resource usage
@@ -84,10 +84,10 @@ echo "DATABASE_URL='postgresql://...@feature-issue-45.example.neon.tech/db'" >> 
 ```bash
 # Verify environment setup
 cd packages/database
-pnpm migrate # Should apply existing migrations successfully
+pnpm migrate:apply # Should apply existing migrations successfully
 
-cd apps/web
-pnpm dev # Should start without errors
+cd /workspaces/StudyPuck
+pnpm dev:secure # Should start without errors
 ```
 
 #### **2.2 Iterative Development**
@@ -96,15 +96,16 @@ pnpm dev # Should start without errors
 1. Write code and tests
 2. Create database migrations (if needed):
    cd packages/database
-   pnpm generate # Creates new migration file
-   pnpm migrate  # Applies to feature database
-   
+   pnpm migrate:generate # Creates new migration file
+   pnpm migrate:apply    # Applies to feature database
+    
 3. Test feature functionality:
-   cd apps/web
-   pnpm dev
+   cd /workspaces/StudyPuck
+   pnpm dev:secure
    # Manual testing in browser
-   
+    
 4. Run automated tests:
+   pnpm test:db:branch:secure
    pnpm turbo test --filter=web
    
 5. Verify build works:
@@ -125,16 +126,17 @@ pnpm dev # Should start without errors
 
 # 1. Generate migration
 cd packages/database
-pnpm generate
+pnpm migrate:generate
 
 # 2. Review generated migration
 cat migrations/[latest-migration-file].sql
 
 # 3. Test migration locally
-pnpm migrate
+pnpm migrate:apply
 
 # 4. Verify schema changes
-pnpm studio # Opens Drizzle Studio to inspect schema
+cd /workspaces/StudyPuck
+pnpm db:studio:secure # Opens Drizzle Studio to inspect schema
 
 # 5. Test migration rollback safety (if possible)
 # Note: Most migrations are forward-only
@@ -147,12 +149,13 @@ pnpm studio # Opens Drizzle Studio to inspect schema
 #### **3.1 Local Testing**
 ```bash
 # Run full test suite
+pnpm test:db:branch:secure
 pnpm turbo lint check-types test build --filter=web
 
 # Test with fresh database state (if using feature branch)
 neon branches reset feature/issue-45 --parent development
-cd packages/database && pnpm migrate
-cd apps/web && pnpm test
+cd packages/database && pnpm migrate:apply
+cd /workspaces/StudyPuck && pnpm test:db:branch:secure
 
 # Manual testing checklist:
 echo "Manual Testing Checklist:
@@ -281,6 +284,7 @@ git checkout feature/issue-45-user-authentication
 git rebase main
 
 # Final test run
+pnpm test:db:branch:secure
 pnpm turbo lint check-types test build --filter=web
 ```
 
@@ -314,7 +318,7 @@ neon branches delete feature/issue-45
 curl -f https://studypuck.app/api/health
 
 # Update local development environment
-cd packages/database && pnpm migrate # Gets latest production schema
+cd packages/database && pnpm migrate:apply # Gets latest production schema
 ```
 
 ## Multi-Developer Coordination
@@ -384,16 +388,17 @@ psql $DATABASE_URL -c "SELECT COUNT(*) FROM users;" # Should work
 ### **Development Tools**
 ```bash
 # Database inspection
-pnpm studio # Opens Drizzle Studio
+cd /workspaces/StudyPuck
+pnpm db:studio:secure # Opens Drizzle Studio
 
 # Database CLI access  
 psql $DATABASE_URL
 
 # Migration management
 cd packages/database
-pnpm generate # Create new migration
-pnpm migrate  # Apply migrations
-pnpm push     # Push schema directly (dev only)
+pnpm migrate:generate # Create new migration
+pnpm migrate:apply    # Apply migrations
+pnpm migrate:push     # Push schema directly (dev only)
 ```
 
 ## Troubleshooting Common Issues
@@ -402,12 +407,12 @@ pnpm push     # Push schema directly (dev only)
 
 #### **"DATABASE_URL not found"**
 ```bash
-# Check environment file
-cat .env | grep DATABASE_URL
+# Check secure environment resolution
+pnpm env:check:secure | grep DATABASE_URL
 
 # Verify Drizzle config
 cd packages/database
-head -20 drizzle.config.ts | grep dotenv
+head -20 drizzle.config.ts
 ```
 
 #### **"Migration failed"**
@@ -433,20 +438,21 @@ pnpm install
 
 # Reset database to clean state
 neon branches reset feature/my-feature --parent development
-cd packages/database && pnpm migrate
+cd packages/database && pnpm migrate:apply
 ```
 
 ### **Integration Issues**
 
 #### **"Feature works locally but fails in PR"**
 ```bash
-# GitHub Actions uses development database + your migrations
-# Check that migrations work on clean development baseline
+# GitHub Actions runs the canonical branch-based database-package test flow.
+# Check that migrations and package tests work on a clean development baseline.
 
 # Test locally:
 neon branches create test-integration --parent development
-DATABASE_URL=test-integration-url pnpm migrate
-DATABASE_URL=test-integration-url pnpm test
+export DATABASE_URL=test-integration-url
+cd packages/database && pnpm migrate:apply
+cd /workspaces/StudyPuck && pnpm test:db:branch:secure
 
 # Cleanup
 neon branches delete test-integration
@@ -461,7 +467,7 @@ git rebase main
 # Resolve any non-migration conflicts
 cd packages/database
 rm -rf migrations
-pnpm generate # Regenerate with current schema
+pnpm migrate:generate # Regenerate with current schema
 ```
 
 ---
