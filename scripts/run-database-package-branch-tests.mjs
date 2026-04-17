@@ -18,7 +18,7 @@ const packageDir = resolve(repoRoot, 'packages', 'database');
 const BRANCH_PREFIX = 'test-db-package-';
 const PARENT_BRANCH = 'development';
 
-const baseEnv = getNeonBranchEnv();
+const baseEnv = getNeonBranchEnv({ allowSecretFallback: false });
 const { roleName, databaseName } = getConnectionOptions(baseEnv.DATABASE_URL);
 const preserveOnFailure = shouldPreserveOnFailure();
 let branchName;

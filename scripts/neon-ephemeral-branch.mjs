@@ -97,7 +97,10 @@ export const cleanupStaleBranches = ({ env, prefix, label }) => {
 	}
 };
 
-export const getNeonBranchEnv = ({ includeStudypuckEnv = false } = {}) => {
+export const getNeonBranchEnv = ({
+	includeStudypuckEnv = false,
+	allowSecretFallback = true,
+} = {}) => {
 	const env = { ...process.env };
 
 	if (includeStudypuckEnv) {
@@ -105,11 +108,23 @@ export const getNeonBranchEnv = ({ includeStudypuckEnv = false } = {}) => {
 	}
 
 	if (!env.DATABASE_URL) {
-		env.DATABASE_URL =
-			env.DEV_DATABASE_URL || env.PROD_DATABASE_URL || resolveSecretValue('DATABASE_URL');
+		env.DATABASE_URL = env.DEV_DATABASE_URL || env.PROD_DATABASE_URL;
+		if (!env.DATABASE_URL) {
+			if (!allowSecretFallback) {
+				throw new Error(
+					'DATABASE_URL is required for the Neon branch workflow. Provide DATABASE_URL or DEV_DATABASE_URL in the environment before running this command.'
+				);
+			}
+			env.DATABASE_URL = resolveSecretValue('DATABASE_URL');
+		}
 	}
 
 	if (!env.NEON_API_KEY) {
+		if (!allowSecretFallback) {
+			throw new Error(
+				'NEON_API_KEY is required for the Neon branch workflow. Provide it in the environment before running this command.'
+			);
+		}
 		env.NEON_API_KEY = resolveSecretValue('NEON_API_KEY');
 	}
 
