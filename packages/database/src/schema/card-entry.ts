@@ -6,7 +6,7 @@ export const inboxNotes = pgTable('inbox_notes', {
   noteId: text('note_id').notNull(),
   content: text('content').notNull(),
   state: text('state').default('unprocessed'),
-  aiState: text('ai_state').default('complete'),
+  aiState: text('ai_state').default('queued'),
   sourceType: text('source_type').default('manual'),
   sourceMetadata: jsonb('source_metadata'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),

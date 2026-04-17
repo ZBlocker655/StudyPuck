@@ -37,7 +37,7 @@ describe('Card Entry database operations', () => {
     await db.insert(studyLanguages).values(TEST_LANG);
   });
 
-  it('creates inbox notes with default ai_state and updates capture stats', async () => {
+  it('creates inbox notes with default ai_state queued and updates capture stats', async () => {
     const created = await createInboxNote({
       userId: TEST_USER.userId,
       languageId: TEST_LANG.languageId,
@@ -47,7 +47,7 @@ describe('Card Entry database operations', () => {
 
     expect(created.noteId).toMatch(/^note-/);
     expect(created.state).toBe('unprocessed');
-    expect(created.aiState).toBe('complete');
+    expect(created.aiState).toBe('queued');
 
     const [stats] = await db.select().from(cardEntryDailyStats);
     expect(stats.notesCaptured).toBe(1);

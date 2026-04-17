@@ -29,6 +29,14 @@ Card Entry maintains language-specific inboxes, ensuring that material from diff
 - **Draft Card Workflow**: After cards are promoted to active status, notes can be deleted while preserving the cards
 - **No Complex State Management**: Notes exist in simple states (unprocessed, deferred, or deleted) without elaborate workflow tracking
 
+### AI Preprocessing Requirement
+
+Every newly created inbox note — regardless of entry point — **must enter the AI preprocessing pipeline**. There is no valid case for a newly captured inbox note to bypass AI processing.
+
+- **Initial AI state**: All newly created notes are created with `ai_state: 'queued'`. This applies to every note creation entry point: inline inbox add, Quick Add drawer, and command bar `/add`.
+- **No manual-note exception**: Notes entered manually by the user are subject to the same AI preprocessing requirement as notes ingested from external integrations. The `sourceType` does not affect the initial `ai_state`.
+- **AI state lifecycle**: Once created at `'queued'`, the AI preprocessing pipeline advances the note through `'processing'` → `'complete'` (or `'failed'` on error). The Note Processing Workspace reacts to this state to show a loading banner while preprocessing is in-flight and draft card panels once processing completes.
+
 ### Card Processing Workflow
 
 The transformation from rough notes to structured cards involves several key steps:

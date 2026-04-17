@@ -22,7 +22,7 @@ The following decisions were made during the UX design process. Each is captured
 | 7 | **Sign-off: single "Sign off — Promote all to active" button** — clicking it promotes all linked draft cards to active status; note becomes "processed" | Simple; batch approval at end of review session |
 | 8 | **Duplicate detection: inline warning on card panel + sign-off confirmation** — each draft card gets an inline warning badge/banner if a similar existing card is detected (async); if any unresolved warnings remain when user clicks Sign off, a confirmation dialog appears | Inline warning catches it during review; confirmation is a safety net |
 | 9 | **AI preprocessing loading state: single loading banner** — "AI is preparing your cards…" with a spinner shown above the draft card area while async preprocessing is in-flight; no card panels shown yet | Clean; not distracting |
-| 10 | **AI schema gap flagged as requirement** — the current `inboxNotes` schema has no `ai_state` field; the ability to show the AI loading state requires a backend addition (e.g., `ai_state: 'queued' \| 'processing' \| 'complete' \| 'failed'`); document this in the spec as a requirement note | Backend requirement; frontend must poll or receive push updates |
+| 10 | **AI schema resolved** — the `inboxNotes` schema includes an `ai_state` field (`'queued' \| 'processing' \| 'complete' \| 'failed'`); all newly created notes start at `ai_state: 'queued'` regardless of entry point; the frontend polls or subscribes to react when preprocessing completes | Backend requirement fulfilled; frontend integration remains |
 | 11 | **Draft Cards standalone view: same row format as Card Library** — same row layout (content preview, groups, date), with an added "Draft" badge replacing the active status indicator, and a "Source note" snippet below the content | Consistency; users already know the Card Library row pattern |
 | 12 | **AI suggestions: inline below the relevant field** — group suggestions appear below the group picker; example sentence suggestions appear below the example sentences field; etc. | No context switching; suggestions are co-located with the field they affect |
 | 13 | **AI suggestion interaction: one-click accept, ✕ dismiss, click-to-edit** — each suggestion is a chip/row; single click adds it to the field; ✕ button dismisses it; clicking the suggestion text opens it in an inline edit before accepting | Fast accept; escape hatch for modification |
@@ -33,13 +33,13 @@ The following decisions were made during the UX design process. Each is captured
 
 ## Open Requirements
 
-> ⚠️ **Backend requirement**: The `inboxNotes` schema currently has no `ai_state` field. Showing the AI loading state (Decision 9) and reacting to AI processing completion requires a new field:
+> ✅ **Backend resolved**: The `inboxNotes` schema includes the `ai_state` field:
 >
 > ```typescript
 > ai_state: 'queued' | 'processing' | 'complete' | 'failed'
 > ```
 >
-> The frontend must either poll the note's `ai_state` or receive a push update (e.g., via Server-Sent Events or a WebSocket subscription) to know when to transition from the loading banner to the populated draft card panels. This field must be added before the AI preprocessing feature can be implemented end-to-end.
+> All newly created inbox notes are created with `ai_state: 'queued'`, regardless of entry point (inline inbox add, Quick Add drawer, or `/add` command). The frontend must either poll the note's `ai_state` or receive a push update (e.g., via Server-Sent Events or a WebSocket subscription) to know when to transition from the loading banner to the populated draft card panels.
 
 ---
 
@@ -223,7 +223,7 @@ Triggered from anywhere in the app by:
 
 **On mobile:** The drawer is full-screen (covers the entire screen above the bottom safe area), with a drag handle at the top for swipe-to-dismiss. The note textarea gets keyboard focus immediately, raising the software keyboard.
 
-**Submission:** The note is created with `state: 'unprocessed'`, `sourceType: 'manual'`, and the current `languageId`. It appears in the inbox immediately. The AI preprocessing pipeline (`ai_state` transition) begins asynchronously.
+**Submission:** The note is created with `state: 'unprocessed'`, `ai_state: 'queued'`, `sourceType: 'manual'`, and the current `languageId`. It appears in the inbox immediately. The AI preprocessing pipeline picks it up from the `'queued'` state and advances it through `'processing'` → `'complete'` (or `'failed'`) asynchronously.
 
 ---
 
