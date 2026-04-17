@@ -17,6 +17,8 @@ jobs:
       AUTH0_ISSUER: ${{ secrets.AUTH0_ISSUER }}
       AUTH0_AUDIENCE: ${{ secrets.AUTH0_AUDIENCE }}
       DATABASE_URL: ${{ secrets.DEV_DATABASE_URL }}
+      DEV_DATABASE_URL: ${{ secrets.DEV_DATABASE_URL }}
+      PROD_DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
       NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
       TEST_DATABASE_URL: postgresql://test_user:test_password@localhost:5433/studypuck_test
 

@@ -105,7 +105,8 @@ export const getNeonBranchEnv = ({ includeStudypuckEnv = false } = {}) => {
 	}
 
 	if (!env.DATABASE_URL) {
-		env.DATABASE_URL = resolveSecretValue('DATABASE_URL');
+		env.DATABASE_URL =
+			env.DEV_DATABASE_URL || env.PROD_DATABASE_URL || resolveSecretValue('DATABASE_URL');
 	}
 
 	if (!env.NEON_API_KEY) {
