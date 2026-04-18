@@ -114,7 +114,9 @@ jobs:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
         run: |
           echo "📋 Syncing development branch to production state..."
-          npx neonctl branches reset development --parent
+          PRESERVE_NAME=development-preserved-$(date +%Y%m%d_%H%M%S)
+          npx neonctl branches reset development --parent --preserve-under-name "$PRESERVE_NAME"
+          echo "ℹ️ Previous development state preserved as: $PRESERVE_NAME"
           echo "✅ Development branch synced to production state"
       
       # Rollback on failure
