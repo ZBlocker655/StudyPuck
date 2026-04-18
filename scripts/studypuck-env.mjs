@@ -11,9 +11,18 @@ export const requiredSecretKeys = [
 	'DATABASE_URL',
 ];
 
-const supportedSecretKeys = [...requiredSecretKeys, 'NEON_API_KEY'];
+export const optionalSecretKeys = ['NEON_API_KEY', 'GEMINI_API_KEY', 'OPENAI_API_KEY'];
 
-export const optionalEnvKeys = ['AUTH_URL', 'AUTH_REDIRECT_PROXY_URL', 'ORIGIN'];
+const supportedSecretKeys = [...requiredSecretKeys, ...optionalSecretKeys];
+
+export const optionalEnvKeys = [
+	'AUTH_URL',
+	'AUTH_REDIRECT_PROXY_URL',
+	'ORIGIN',
+	'STUDYPUCK_AI_PRIMARY_PROVIDER',
+	'GEMINI_TEXT_MODEL',
+	'OPENAI_TEXT_MODEL',
+];
 
 const defaultBitwardenItem = 'StudyPuck Dev';
 let cachedItem;
@@ -147,6 +156,26 @@ export const resolveStudypuckEnv = () => {
 
 	for (const key of requiredSecretKeys) {
 		resolved[key] = resolveSecretValue(key);
+	}
+
+	for (const key of optionalSecretKeys) {
+		if (process.env[key]) {
+			resolved[key] = process.env[key];
+			continue;
+		}
+
+		try {
+			resolved[key] = resolveSecretValue(key);
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+
+			if (message.includes(`missing a custom field named ${key}`)) {
+				resolved[key] = '';
+				continue;
+			}
+
+			throw error;
+		}
 	}
 
 	for (const key of optionalEnvKeys) {

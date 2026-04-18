@@ -1,7 +1,7 @@
 import { execFileSync, execSync, spawn } from 'node:child_process';
 import { writeFileSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
-import { maskValue, resolveStudypuckEnv, requiredSecretKeys } from './studypuck-env.mjs';
+import { maskValue, optionalEnvKeys, optionalSecretKeys, resolveStudypuckEnv, requiredSecretKeys } from './studypuck-env.mjs';
 
 const args = process.argv.slice(2);
 const overrides = {};
@@ -199,7 +199,13 @@ if (writeDevVars) {
 			: 'http://127.0.0.1:8788';
 	}
 
-	const devVarsKeys = [...requiredSecretKeys, ...Object.keys(overrides), 'ORIGIN'];
+	const devVarsKeys = [
+		...requiredSecretKeys,
+		...optionalSecretKeys,
+		...optionalEnvKeys,
+		...Object.keys(overrides),
+		'ORIGIN',
+	];
 	const lines = devVarsKeys
 		.filter((k) => fallbackEnv[k])
 		.map((k) => `${k}="${fallbackEnv[k].replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`)

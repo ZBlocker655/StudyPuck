@@ -1,30 +1,165 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { page } from '$app/stores';
+  import type { CardEntryNoteShellData } from '$lib/server/card-entry.js';
   import type { PageData } from './$types.js';
 
-  let { data } = $props<{ data: PageData }>();
+  export let data: PageData;
+
+  let note: CardEntryNoteShellData = data.note;
+  let isRefreshing = false;
+  let pollingError: string | null = null;
+  let pollTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function clearPollTimer() {
+    if (!pollTimer) {
+      return;
+    }
+
+    clearTimeout(pollTimer);
+    pollTimer = null;
+  }
+
+  function shouldPollAiState(currentNote: CardEntryNoteShellData) {
+    return currentNote.aiState === 'queued' || currentNote.aiState === 'processing';
+  }
+
+  async function refreshProcessingState() {
+    if (isRefreshing) {
+      return;
+    }
+
+    isRefreshing = true;
+
+    try {
+      const response = await fetch(`/${$page.params.lang}/card-entry/notes/${note.noteId}/processing`);
+
+      if (!response.ok) {
+        throw new Error(`Unexpected note processing status response: ${response.status}`);
+      }
+
+      note = await response.json();
+      pollingError = null;
+    } catch (error) {
+      console.error('Failed to refresh Card Entry note processing state:', error);
+      pollingError = 'The latest AI processing status could not be loaded right now.';
+    } finally {
+      isRefreshing = false;
+
+      if (shouldPollAiState(note)) {
+        pollTimer = setTimeout(() => {
+          void refreshProcessingState();
+        }, 2_000);
+      }
+    }
+  }
+
+  onMount(() => {
+    if (shouldPollAiState(note)) {
+      void refreshProcessingState();
+    }
+
+    return () => {
+      clearPollTimer();
+    };
+  });
 </script>
 
 <svelte:head>
-  <title>Process Note – StudyPuck</title>
+  <title>Note Processing – StudyPuck</title>
 </svelte:head>
 
 <section class="note-shell stack" style="--stack-space: var(--space-5)">
   <a class="note-shell__back" href={`/${$page.params.lang}/card-entry`}>← Back to inbox</a>
 
   <header class="note-shell__header stack" style="--stack-space: var(--space-3)">
-    <p class="note-shell__meta">{data.note.sourceLabel} · {data.note.createdAtLabel}</p>
-    <h1>Processing workspace is next</h1>
-    <p class="note-shell__content">{data.note.content}</p>
+    <p class="note-shell__meta">{note.sourceLabel} · {note.createdAtLabel}</p>
+    <h1>Note Processing</h1>
+    <p class="note-shell__content">{note.content}</p>
   </header>
 
-  <section class="note-shell__placeholder stack" style="--stack-space: var(--space-3)" aria-labelledby="note-shell-placeholder-title">
-    <h2 id="note-shell-placeholder-title">Temporary handoff page</h2>
-    <p>
-      This route is wired so the inbox’s Process action already lands in the right place. The full draft-card
-      workspace is still scheduled for issue 117.
-    </p>
-  </section>
+  {#if note.aiState === 'queued' || note.aiState === 'processing'}
+    <section class="note-shell__status note-shell__status--loading stack" style="--stack-space: var(--space-3)" aria-live="polite">
+      <h2>AI is preparing your cards…</h2>
+      <p>
+        {note.aiState === 'queued'
+          ? 'This note is queued for preprocessing.'
+          : 'Draft cards are being generated for this note now.'}
+      </p>
+      {#if pollingError}
+        <p class="note-shell__status-detail">{pollingError}</p>
+      {:else if isRefreshing}
+        <p class="note-shell__status-detail">Refreshing the latest processing state…</p>
+      {/if}
+    </section>
+  {:else if note.aiState === 'failed'}
+    <section class="note-shell__status note-shell__status--error stack" style="--stack-space: var(--space-3)" role="alert">
+      <h2>AI processing failed</h2>
+      <p>The note stays in Card Entry so it can still be finished manually as the workspace evolves.</p>
+      {#if pollingError}
+        <p class="note-shell__status-detail">{pollingError}</p>
+      {/if}
+    </section>
+  {/if}
+
+  {#if note.draftCards.length > 0}
+    <section class="draft-preview stack" style="--stack-space: var(--space-4)" aria-labelledby="draft-preview-title">
+      <div class="draft-preview__heading stack" style="--stack-space: var(--space-2)">
+        <h2 id="draft-preview-title">Draft cards</h2>
+        <p>The shared AI preprocessing pipeline has populated these draft fields for the upcoming inline editor.</p>
+      </div>
+
+      {#each note.draftCards as draftCard}
+        <article class="draft-preview__card stack" style="--stack-space: var(--space-3)">
+          <div class="stack" style="--stack-space: var(--space-2)">
+            <p class="draft-preview__label">Content</p>
+            <p class="draft-preview__value">{draftCard.content}</p>
+          </div>
+
+          {#if draftCard.meaning}
+            <div class="stack" style="--stack-space: var(--space-2)">
+              <p class="draft-preview__label">Meaning</p>
+              <p class="draft-preview__value">{draftCard.meaning}</p>
+            </div>
+          {/if}
+
+          {#if draftCard.examples.length > 0}
+            <div class="stack" style="--stack-space: var(--space-2)">
+              <p class="draft-preview__label">Examples</p>
+              <ul class="draft-preview__list">
+                {#each draftCard.examples as example}
+                  <li>{example}</li>
+                {/each}
+              </ul>
+            </div>
+          {/if}
+
+          {#if draftCard.mnemonics.length > 0}
+            <div class="stack" style="--stack-space: var(--space-2)">
+              <p class="draft-preview__label">Mnemonics</p>
+              <ul class="draft-preview__list">
+                {#each draftCard.mnemonics as mnemonic}
+                  <li>{mnemonic}</li>
+                {/each}
+              </ul>
+            </div>
+          {/if}
+
+          {#if draftCard.llmInstructions}
+            <div class="stack" style="--stack-space: var(--space-2)">
+              <p class="draft-preview__label">LLM instructions</p>
+              <p class="draft-preview__value">{draftCard.llmInstructions}</p>
+            </div>
+          {/if}
+        </article>
+      {/each}
+    </section>
+  {:else if note.aiState === 'complete'}
+    <section class="note-shell__status stack" style="--stack-space: var(--space-3)">
+      <h2>No draft cards were generated</h2>
+      <p>The note finished preprocessing without draft output, so it remains ready for manual follow-up.</p>
+    </section>
+  {/if}
 </section>
 
 <style>
@@ -34,8 +169,14 @@
 
   .note-shell__back,
   .note-shell__meta,
-  .note-shell__placeholder p,
-  .note-shell__content {
+  .note-shell__content,
+  .note-shell__status h2,
+  .note-shell__status p,
+  .draft-preview__heading h2,
+  .draft-preview__heading p,
+  .draft-preview__label,
+  .draft-preview__value,
+  .draft-preview__list {
     margin: 0;
   }
 
@@ -46,7 +187,8 @@
   }
 
   .note-shell__header,
-  .note-shell__placeholder {
+  .note-shell__status,
+  .draft-preview__card {
     padding: var(--space-5);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
@@ -54,7 +196,8 @@
     box-shadow: var(--shadow-sm);
   }
 
-  .note-shell__meta {
+  .note-shell__meta,
+  .draft-preview__label {
     color: var(--color-text-secondary);
     font-family: var(--font-ui);
     font-size: var(--font-size-caption);
@@ -62,14 +205,33 @@
     text-transform: uppercase;
   }
 
-  .note-shell__header h1,
-  .note-shell__placeholder h2 {
-    margin: 0;
-  }
-
   .note-shell__content {
     font-size: var(--font-size-h4);
     line-height: 1.5;
+  }
+
+  .note-shell__status--loading {
+    border-color: color-mix(in srgb, var(--color-primary) 40%, var(--color-border));
+  }
+
+  .note-shell__status--error {
+    border-color: color-mix(in srgb, var(--color-danger-text) 40%, var(--color-border));
+  }
+
+  .note-shell__status-detail {
+    color: var(--color-text-secondary);
+  }
+
+  .draft-preview__heading p {
+    color: var(--color-text-secondary);
+  }
+
+  .draft-preview__value {
+    line-height: 1.5;
+  }
+
+  .draft-preview__list {
+    padding-inline-start: 1.25rem;
   }
 
   .note-shell__back:focus-visible {

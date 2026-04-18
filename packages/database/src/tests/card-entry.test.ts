@@ -8,11 +8,13 @@ import {
   createInboxNote,
   deferInboxNote,
   deleteInboxNote,
+  finalizeInboxNoteAiProcessing,
   getCardEntryCounts,
   getDraftCardsForLanguage,
   getNoteWithDraftCards,
   listInboxNotes,
   signOffNote,
+  transitionInboxNoteAiState,
   updateInboxNoteAiState,
 } from '../card-entry.js';
 
@@ -257,5 +259,66 @@ describe('Card Entry database operations', () => {
 
     const [stats] = await db.select().from(cardEntryDailyStats);
     expect(stats.notesDeferred).toBe(1);
+  });
+
+  it('claims queued notes for preprocessing and finalizes generated draft cards idempotently', async () => {
+    await createInboxNote({
+      userId: TEST_USER.userId,
+      languageId: TEST_LANG.languageId,
+      noteId: 'note-ai-preprocess',
+      content: 'anotar cuando usar por si acaso',
+      sourceType: 'manual',
+    }, db);
+
+    const claimed = await transitionInboxNoteAiState(
+      TEST_USER.userId,
+      TEST_LANG.languageId,
+      'note-ai-preprocess',
+      'queued',
+      'processing',
+      db
+    );
+
+    expect(claimed?.aiState).toBe('processing');
+
+    const finalized = await finalizeInboxNoteAiProcessing(
+      {
+        userId: TEST_USER.userId,
+        languageId: TEST_LANG.languageId,
+        noteId: 'note-ai-preprocess',
+        draftCards: [
+          {
+            content: 'por si acaso',
+            meaning: 'just in case',
+            examples: ['Llevo agua por si acaso.'],
+            mnemonics: ['Think of taking something along just in case.'],
+          },
+        ],
+      },
+      db
+    );
+
+    expect(finalized?.note.aiState).toBe('complete');
+    expect(finalized?.draftCards).toHaveLength(1);
+    expect(finalized?.draftCards[0]?.content).toBe('por si acaso');
+
+    const finalizedAgain = await finalizeInboxNoteAiProcessing(
+      {
+        userId: TEST_USER.userId,
+        languageId: TEST_LANG.languageId,
+        noteId: 'note-ai-preprocess',
+        draftCards: [
+          {
+            content: 'duplicate draft should not be created',
+          },
+        ],
+      },
+      db
+    );
+
+    expect(finalizedAgain?.draftCards).toHaveLength(1);
+
+    const counts = await getCardEntryCounts(TEST_USER.userId, TEST_LANG.languageId, db);
+    expect(counts.draftCardCount).toBe(1);
   });
 });

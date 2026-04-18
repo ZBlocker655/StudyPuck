@@ -68,6 +68,14 @@ EXAMPLE_API_KEY=exec('node scripts/bitwarden-secret.mjs EXAMPLE_API_KEY')
 EXAMPLE_BASE_URL=
 ```
 
+### Example: optional Bitwarden-backed secret
+
+```env-spec
+# Optional fallback provider key.
+# @optional @sensitive @type=string
+EXAMPLE_OPTIONAL_SECRET=exec('node scripts/bitwarden-optional-secret.mjs EXAMPLE_OPTIONAL_SECRET')
+```
+
 ### Example: browser-safe public value
 
 ```env-spec
@@ -84,6 +92,12 @@ If the value is sensitive and should be available in local dev/Codespaces, wire 
 
 ```env-spec
 MY_SECRET=exec('node scripts/bitwarden-secret.mjs MY_SECRET')
+```
+
+If the secret is intentionally optional, use the optional helper so local env validation still passes when the Bitwarden field is absent:
+
+```env-spec
+OPTIONAL_SECRET=exec('node scripts/bitwarden-optional-secret.mjs OPTIONAL_SECRET')
 ```
 
 Then add the same custom field name to the approved Bitwarden item, normally:
