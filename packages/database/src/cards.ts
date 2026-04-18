@@ -1,4 +1,5 @@
-import { eq, and, sql, desc } from 'drizzle-orm';
+import { eq, and, sql, desc, inArray } from 'drizzle-orm';
+import type { PgDatabase } from 'drizzle-orm/pg-core';
 import { db } from './index.js';
 import { cards, groups, cardGroups, type Card, type NewCard, type Group, type NewGroup, type CardGroup, type NewCardGroup } from './schema.js';
 
@@ -6,6 +7,13 @@ import { cards, groups, cardGroups, type Card, type NewCard, type Group, type Ne
  * Card and Group database operations
  * Handles CRUD operations for study content
  */
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyDb = PgDatabase<any, any, any>;
+
+function getConn(database?: AnyDb) {
+  return database ?? (db as AnyDb);
+}
 
 // === Card Operations ===
 
@@ -79,9 +87,10 @@ export async function updateCard(
   userId: string, 
   languageId: string, 
   cardId: string, 
-  updates: Partial<Omit<NewCard, 'userId' | 'languageId' | 'cardId'>>
+  updates: Partial<Omit<NewCard, 'userId' | 'languageId' | 'cardId'>>,
+  database?: AnyDb
 ): Promise<Card | null> {
-  const result = await db
+  const result = await getConn(database)
     .update(cards)
     .set({
       ...updates,
@@ -187,8 +196,8 @@ export async function findSimilarCards(
 /**
  * Get all groups for a user+language
  */
-export async function getGroups(userId: string, languageId: string): Promise<Group[]> {
-  return await db
+export async function getGroups(userId: string, languageId: string, database?: AnyDb): Promise<Group[]> {
+  return await getConn(database)
     .select()
     .from(groups)
     .where(and(
@@ -201,8 +210,8 @@ export async function getGroups(userId: string, languageId: string): Promise<Gro
 /**
  * Get a specific group by ID
  */
-export async function getGroup(userId: string, languageId: string, groupId: string): Promise<Group | null> {
-  const result = await db
+export async function getGroup(userId: string, languageId: string, groupId: string, database?: AnyDb): Promise<Group | null> {
+  const result = await getConn(database)
     .select()
     .from(groups)
     .where(and(
@@ -218,8 +227,8 @@ export async function getGroup(userId: string, languageId: string, groupId: stri
 /**
  * Create a new group
  */
-export async function createGroup(groupData: NewGroup): Promise<Group> {
-  const result = await db
+export async function createGroup(groupData: NewGroup, database?: AnyDb): Promise<Group> {
+  const result = await getConn(database)
     .insert(groups)
     .values({
       ...groupData,
@@ -237,9 +246,10 @@ export async function updateGroup(
   userId: string, 
   languageId: string, 
   groupId: string, 
-  updates: Partial<Omit<NewGroup, 'userId' | 'languageId' | 'groupId'>>
+  updates: Partial<Omit<NewGroup, 'userId' | 'languageId' | 'groupId'>>,
+  database?: AnyDb
 ): Promise<Group | null> {
-  const result = await db
+  const result = await getConn(database)
     .update(groups)
     .set(updates)
     .where(and(
@@ -295,8 +305,8 @@ export async function findSimilarGroups(
 /**
  * Add a card to a group
  */
-export async function addCardToGroup(cardGroupData: NewCardGroup): Promise<CardGroup> {
-  const result = await db
+export async function addCardToGroup(cardGroupData: NewCardGroup, database?: AnyDb): Promise<CardGroup> {
+  const result = await getConn(database)
     .insert(cardGroups)
     .values({
       ...cardGroupData,
@@ -314,9 +324,10 @@ export async function removeCardFromGroup(
   userId: string, 
   languageId: string, 
   cardId: string, 
-  groupId: string
+  groupId: string,
+  database?: AnyDb
 ): Promise<void> {
-  await db
+  await getConn(database)
     .delete(cardGroups)
     .where(and(
       eq(cardGroups.userId, userId),
@@ -370,8 +381,8 @@ export async function getCardsInGroup(userId: string, languageId: string, groupI
 /**
  * Get all groups for a specific card
  */
-export async function getCardGroups(userId: string, languageId: string, cardId: string): Promise<Group[]> {
-  const result = await db
+export async function getCardGroups(userId: string, languageId: string, cardId: string, database?: AnyDb): Promise<Group[]> {
+  const result = await getConn(database)
     .select({
       userId: groups.userId,
       languageId: groups.languageId,
@@ -398,4 +409,63 @@ export async function getCardGroups(userId: string, languageId: string, cardId: 
     .orderBy(groups.groupName);
   
   return result;
+}
+
+export async function getCardGroupsForCards(
+  userId: string,
+  languageId: string,
+  cardIds: string[],
+  database?: AnyDb
+): Promise<Map<string, Group[]>> {
+  const groupsByCardId = new Map<string, Group[]>();
+
+  if (cardIds.length === 0) {
+    return groupsByCardId;
+  }
+
+  const rows = await getConn(database)
+    .select({
+      cardId: cardGroups.cardId,
+      userId: groups.userId,
+      languageId: groups.languageId,
+      groupId: groups.groupId,
+      groupName: groups.groupName,
+      description: groups.description,
+      embedding: groups.embedding,
+      embeddingModel: groups.embeddingModel,
+      embeddingGeneratedAt: groups.embeddingGeneratedAt,
+      createdAt: groups.createdAt,
+      metadata: groups.metadata,
+    })
+    .from(cardGroups)
+    .innerJoin(groups, and(
+      eq(groups.userId, cardGroups.userId),
+      eq(groups.languageId, cardGroups.languageId),
+      eq(groups.groupId, cardGroups.groupId)
+    ))
+    .where(and(
+      eq(cardGroups.userId, userId),
+      eq(cardGroups.languageId, languageId),
+      inArray(cardGroups.cardId, cardIds)
+    ))
+    .orderBy(cardGroups.cardId, groups.groupName);
+
+  for (const row of rows) {
+    const existingGroups = groupsByCardId.get(row.cardId) ?? [];
+    existingGroups.push({
+      userId: row.userId,
+      languageId: row.languageId,
+      groupId: row.groupId,
+      groupName: row.groupName,
+      description: row.description,
+      embedding: row.embedding,
+      embeddingModel: row.embeddingModel,
+      embeddingGeneratedAt: row.embeddingGeneratedAt,
+      createdAt: row.createdAt,
+      metadata: row.metadata,
+    });
+    groupsByCardId.set(row.cardId, existingGroups);
+  }
+
+  return groupsByCardId;
 }

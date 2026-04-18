@@ -92,7 +92,7 @@ The Card Detail drawer is a **shared component** accessible from multiple surfac
 | **Groups** | Group membership (multi-select) |
 | **Example sentences** | Zero or more; ordered list |
 | **Mnemonics** | Zero or more personal memory aids |
-| **LLM instructions** | Optional AI guidance for Translation Drills |
+| **LLM instructions** | Optional AI guidance for Translation Drills, labeled in the UI as `Special instructions for practicing this card` with helper text clarifying that StudyPuck should focus on, avoid, or reinforce specific quiz behavior for the card |
 
 ### Actions Available from the Drawer
 

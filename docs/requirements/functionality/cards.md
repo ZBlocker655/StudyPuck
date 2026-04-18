@@ -31,7 +31,7 @@ Unlike traditional flashcards, StudyPuck cards are structured as study prompts r
 - **Status lifecycle**: Cards progress from 'draft' (private review) to 'active' (available across applications); soft-deleting a card sets status to 'deleted' and records a `deleted_at` timestamp, removing it from all active surfaces while preserving SRS history
 - **Multiple example sentences**: Demonstrate usage in context during review
 - **Mnemonic prompts**: Personal memory encoding reminders for how you decided to remember a word or concept
-- **LLM instructions**: Optional guidance for how the AI should use this card when generating translation sentences
+- **LLM instructions**: Optional guidance for how the AI should use this card when generating translation sentences; surfaced in the UI as `Special instructions for practicing this card`
 - **Variable length**: Can range from a few words to full paragraph prompts
 
 ## Organization
