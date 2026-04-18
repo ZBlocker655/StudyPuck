@@ -49,8 +49,8 @@ jobs:
 
           echo "🧹 Cleaning up old production backup branches..."
           OLD_BACKUPS=$(npx neonctl branches list --output json | \
-            jq -r '[.[] | select(.name | startswith("production-backup-"))] | sort_by(.created_at) | reverse | .[1:] | .[].name')
-          if [ -n "$OLD_BACKUPS" ]; then
+            jq -r '[.[] | select(.name | startswith("production-backup-"))] | sort_by(.created_at // "") | reverse | .[1:] | .[].name')
+          if printf '%s\n' "$OLD_BACKUPS" | grep -q '[^[:space:]]'; then
             echo "$OLD_BACKUPS" | while read -r branch; do
               echo "🗑️ Deleting old backup: $branch"
               npx neonctl branches delete "$branch" || echo "⚠️ Failed to delete $branch"
@@ -120,8 +120,8 @@ jobs:
 
           echo "🧹 Cleaning up old preserved development branches..."
           OLD_PRESERVED_BRANCHES=$(npx neonctl branches list --output json | \
-            jq -r '[.[] | select(.name | startswith("development-preserved-"))] | sort_by(.created_at) | reverse | .[1:] | .[].name')
-          if [ -n "$OLD_PRESERVED_BRANCHES" ]; then
+            jq -r '[.[] | select(.name | startswith("development-preserved-"))] | sort_by(.created_at // "") | reverse | .[1:] | .[].name')
+          if printf '%s\n' "$OLD_PRESERVED_BRANCHES" | grep -q '[^[:space:]]'; then
             echo "$OLD_PRESERVED_BRANCHES" | while read -r branch; do
               echo "🗑️ Deleting old preserved branch: $branch"
               npx neonctl branches delete "$branch" || echo "⚠️ Failed to delete $branch"
