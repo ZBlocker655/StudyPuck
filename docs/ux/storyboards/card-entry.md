@@ -308,10 +308,11 @@ Each panel contains:
 | Field | Type | Detail |
 |---|---|---|
 | Content | Multi-line textarea | The card's primary content. Placeholder: "Card content…" |
-| Groups | Multi-select token input | Selected groups shown as pills. `[+ Add group]` opens the group picker dropdown. Inline group creation: `+ Create "[typed text]"` at the bottom of dropdown — see [card-library-and-groups.md](./card-library-and-groups.md) |
-| Example sentences | Ordered list of text inputs | Each item has a `✕` remove button. `[ + Add ]` button adds a new blank row. |
-| Mnemonics | Ordered list of text inputs | Same add/remove pattern as example sentences. |
-| LLM instructions | Collapsible textarea | Collapsed by default ("▸ LLM instructions"). Expanding reveals a textarea for per-card instructions to the AI. |
+| Meaning | Multi-line textarea | Editable meaning/translation field. Placeholder: "Meaning…" |
+| Groups | Multi-select token input | Selected groups shown as pills. `[+ Add group]` opens a dropdown containing only groups not already associated with the card. Leaving the group-search area closes the dropdown. Inline group creation: `+ Create "[typed text]"` at the bottom of dropdown — see [card-library-and-groups.md](./card-library-and-groups.md) |
+| Example sentences | Ordered list of multi-line textareas | Each item wraps text, starts slightly taller than a single line, and scrolls vertically if needed. Each item has a `✕` remove button. `[ + Add ]` button adds a new blank row. |
+| Mnemonics | Ordered list of multi-line textareas | Same add/remove pattern as example sentences, with wrapping text and vertical scrolling for longer notes. |
+| LLM instructions | Collapsible textarea | Collapsed by default ("▸ Special instructions for practicing this card"). Expanding reveals helper text: `Optional: tell StudyPuck what to focus on, avoid, or reinforce, when it is quizzing you on this card.` |
 
 **AI suggestions (inline below the relevant field — Decision 12):**
 

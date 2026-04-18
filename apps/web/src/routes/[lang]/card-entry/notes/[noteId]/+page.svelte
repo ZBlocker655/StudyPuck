@@ -1,15 +1,36 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import type { ActionData, PageData } from './$types.js';
   import { page } from '$app/stores';
+  import { onMount } from 'svelte';
+  import DraftCardEditor from '$lib/components/card-entry/DraftCardEditor.svelte';
+  import { getUnresolvedDuplicateWarnings, replaceDraftCardInNote } from '$lib/card-entry/workspace.js';
   import type { CardEntryNoteShellData } from '$lib/server/card-entry.js';
-  import type { PageData } from './$types.js';
 
   export let data: PageData;
+  export let form: ActionData;
 
   let note: CardEntryNoteShellData = data.note;
   let isRefreshing = false;
   let pollingError: string | null = null;
+  let workspaceError: string | null = null;
+  let addCardPending = false;
   let pollTimer: ReturnType<typeof setTimeout> | null = null;
+  let showDuplicateDialog = false;
+  let signOffForm: HTMLFormElement | null = null;
+
+  $: currentLang = $page.params.lang ?? '';
+  $: actionError = (form as { errorMessage?: string } | null | undefined)?.errorMessage ?? null;
+  $: unresolvedDuplicateWarnings = getUnresolvedDuplicateWarnings(note);
+  $: signOffDisabled =
+    note.draftCards.length === 0 || note.aiState === 'queued' || note.aiState === 'processing';
+  $: signOffLabel =
+    note.draftCards.length === 0
+      ? 'Sign off unavailable — add at least one draft card'
+      : note.aiState === 'queued' || note.aiState === 'processing'
+        ? 'Sign off unavailable while AI is still processing'
+        : `Sign off — Promote all to active (${note.draftCards.length} ${
+            note.draftCards.length === 1 ? 'card' : 'cards'
+          }) →`;
 
   function clearPollTimer() {
     if (!pollTimer) {
@@ -32,7 +53,7 @@
     isRefreshing = true;
 
     try {
-      const response = await fetch(`/${$page.params.lang}/card-entry/notes/${note.noteId}/processing`);
+      const response = await fetch(`/${currentLang}/card-entry/notes/${note.noteId}/processing`);
 
       if (!response.ok) {
         throw new Error(`Unexpected note processing status response: ${response.status}`);
@@ -54,6 +75,69 @@
     }
   }
 
+  async function addDraftCard() {
+    if (addCardPending) {
+      return;
+    }
+
+    addCardPending = true;
+    workspaceError = null;
+
+    try {
+      const response = await fetch(`/${currentLang}/card-entry/notes/${note.noteId}/draft-cards`, {
+        method: 'POST',
+      });
+
+      const updatedNote = (await response.json().catch(() => null)) as
+        | (CardEntryNoteShellData & { message?: string })
+        | null;
+
+      if (!response.ok || !updatedNote?.noteId) {
+        throw new Error(updatedNote?.message ?? 'A draft card could not be created right now.');
+      }
+
+      note = updatedNote;
+    } catch (error) {
+      workspaceError = error instanceof Error ? error.message : 'A draft card could not be created right now.';
+    } finally {
+      addCardPending = false;
+    }
+  }
+
+  function handleDraftCardUpdated(event: CustomEvent<{ card: CardEntryNoteShellData['draftCards'][number]; availableGroups: CardEntryNoteShellData['availableGroups'] }>) {
+    note = replaceDraftCardInNote(note, event.detail.card, event.detail.availableGroups);
+    workspaceError = null;
+  }
+
+  function handleDraftCardRemoved(event: CustomEvent<{ note: CardEntryNoteShellData }>) {
+    note = event.detail.note;
+    workspaceError = null;
+  }
+
+  function handleSignOffClick(event: MouseEvent) {
+    if (signOffDisabled || unresolvedDuplicateWarnings.length === 0) {
+      return;
+    }
+
+    event.preventDefault();
+    showDuplicateDialog = true;
+  }
+
+  function closeDuplicateDialog() {
+    showDuplicateDialog = false;
+  }
+
+  function submitSignOffAnyway() {
+    showDuplicateDialog = false;
+    signOffForm?.requestSubmit();
+  }
+
+  function handleKeydown(event: KeyboardEvent) {
+    if (event.key === 'Escape' && showDuplicateDialog) {
+      closeDuplicateDialog();
+    }
+  }
+
   onMount(() => {
     if (shouldPollAiState(note)) {
       void refreshProcessingState();
@@ -65,130 +149,184 @@
   });
 </script>
 
+<svelte:window on:keydown={handleKeydown} />
+
 <svelte:head>
   <title>Note Processing – StudyPuck</title>
 </svelte:head>
 
-<section class="note-shell stack" style="--stack-space: var(--space-5)">
-  <a class="note-shell__back" href={`/${$page.params.lang}/card-entry`}>← Back to inbox</a>
+<section class="note-workspace stack" style="--stack-space: var(--space-4)">
+  <a class="note-workspace__back" href={`/${$page.params.lang}/card-entry`}>← Back to inbox</a>
 
-  <header class="note-shell__header stack" style="--stack-space: var(--space-3)">
-    <p class="note-shell__meta">{note.sourceLabel} · {note.createdAtLabel}</p>
-    <h1>Note Processing</h1>
-    <p class="note-shell__content">{note.content}</p>
+  {#if actionError || workspaceError}
+    <section class="note-workspace__alert" role="alert">
+      <h2>Action failed</h2>
+      <p>{actionError ?? workspaceError}</p>
+    </section>
+  {/if}
+
+  <header class="note-workspace__header stack" style="--stack-space: var(--space-3)">
+    <div class="note-workspace__header-top cluster">
+      <div class="stack" style="--stack-space: var(--space-1)">
+        <p class="note-workspace__meta">{note.sourceLabel} · {note.createdAtLabel}</p>
+        <h1>Note Processing</h1>
+      </div>
+
+      <div class="note-workspace__actions cluster">
+        <form method="POST" action="?/deferNote">
+          <button type="submit" class="note-workspace__action">Defer</button>
+        </form>
+        <form method="POST" action="?/deleteNote">
+          <button type="submit" class="note-workspace__action note-workspace__action--danger">Delete</button>
+        </form>
+      </div>
+    </div>
+
+    <p class="note-workspace__content">{note.content}</p>
   </header>
 
   {#if note.aiState === 'queued' || note.aiState === 'processing'}
-    <section class="note-shell__status note-shell__status--loading stack" style="--stack-space: var(--space-3)" aria-live="polite">
+    <section class="note-workspace__status note-workspace__status--loading stack" style="--stack-space: var(--space-2)" aria-live="polite">
       <h2>AI is preparing your cards…</h2>
       <p>
         {note.aiState === 'queued'
           ? 'This note is queued for preprocessing.'
-          : 'Draft cards are being generated for this note now.'}
+          : 'Draft cards are still being generated for this note.'}
       </p>
       {#if pollingError}
-        <p class="note-shell__status-detail">{pollingError}</p>
+        <p class="note-workspace__status-detail">{pollingError}</p>
       {:else if isRefreshing}
-        <p class="note-shell__status-detail">Refreshing the latest processing state…</p>
+        <p class="note-workspace__status-detail">Refreshing the latest processing state…</p>
       {/if}
     </section>
   {:else if note.aiState === 'failed'}
-    <section class="note-shell__status note-shell__status--error stack" style="--stack-space: var(--space-3)" role="alert">
+    <section class="note-workspace__status note-workspace__status--error stack" style="--stack-space: var(--space-2)" role="alert">
       <h2>AI processing failed</h2>
-      <p>The note stays in Card Entry so it can still be finished manually as the workspace evolves.</p>
+      <p>You can keep working here manually and add draft cards yourself.</p>
       {#if pollingError}
-        <p class="note-shell__status-detail">{pollingError}</p>
+        <p class="note-workspace__status-detail">{pollingError}</p>
       {/if}
     </section>
   {/if}
 
-  {#if note.draftCards.length > 0}
-    <section class="draft-preview stack" style="--stack-space: var(--space-4)" aria-labelledby="draft-preview-title">
-      <div class="draft-preview__heading stack" style="--stack-space: var(--space-2)">
-        <h2 id="draft-preview-title">Draft cards</h2>
-        <p>The shared AI preprocessing pipeline has populated these draft fields for the upcoming inline editor.</p>
-      </div>
+  <section class="note-workspace__drafts stack" style="--stack-space: var(--space-4)" aria-labelledby="draft-panels-title">
+    <div class="stack" style="--stack-space: var(--space-1)">
+      <h2 id="draft-panels-title">Draft cards</h2>
+      <p class="note-workspace__supporting">
+        Edit each linked draft inline. Fields save automatically when focus leaves them.
+      </p>
+    </div>
 
-      {#each note.draftCards as draftCard}
-        <article class="draft-preview__card stack" style="--stack-space: var(--space-3)">
-          <div class="stack" style="--stack-space: var(--space-2)">
-            <p class="draft-preview__label">Content</p>
-            <p class="draft-preview__value">{draftCard.content}</p>
+    {#if note.draftCards.length === 0}
+      <section class="note-workspace__empty">
+        <h3>No draft cards yet</h3>
+        <p>
+          {note.aiState === 'queued' || note.aiState === 'processing'
+            ? 'AI is still working, but you can start a manual draft now.'
+            : 'Add a draft card to start shaping this note into active cards.'}
+        </p>
+      </section>
+    {:else}
+      {#each note.draftCards as draftCard (draftCard.cardId)}
+        <DraftCardEditor
+          lang={currentLang}
+          noteId={note.noteId}
+          card={draftCard}
+          availableGroups={note.availableGroups}
+          on:updated={handleDraftCardUpdated}
+          on:removed={handleDraftCardRemoved}
+        />
+      {/each}
+    {/if}
+
+    <button
+      type="button"
+      class="note-workspace__add-card"
+      disabled={addCardPending}
+      on:click={() => void addDraftCard()}
+    >
+      {addCardPending ? 'Adding draft card...' : '+ Add another card'}
+    </button>
+  </section>
+
+  <div class="note-workspace__signoff">
+    <form method="POST" action="?/signOffNote" bind:this={signOffForm}>
+      <button
+        type="submit"
+        class="note-workspace__signoff-button"
+        disabled={signOffDisabled}
+        aria-disabled={signOffDisabled}
+        on:click={handleSignOffClick}
+      >
+        {signOffLabel}
+      </button>
+    </form>
+  </div>
+
+  {#if showDuplicateDialog}
+    <div class="note-workspace__dialog-backdrop">
+      <div class="note-workspace__dialog" role="alertdialog" aria-modal="true" aria-labelledby="duplicate-dialog-title">
+        <div class="stack" style="--stack-space: var(--space-3)">
+          <div class="stack" style="--stack-space: var(--space-1)">
+            <h2 id="duplicate-dialog-title">Duplicate warnings</h2>
+            <p>These draft cards still have possible duplicates.</p>
           </div>
 
-          {#if draftCard.meaning}
-            <div class="stack" style="--stack-space: var(--space-2)">
-              <p class="draft-preview__label">Meaning</p>
-              <p class="draft-preview__value">{draftCard.meaning}</p>
-            </div>
-          {/if}
+          <div class="stack" style="--stack-space: var(--space-2)">
+            {#each unresolvedDuplicateWarnings as warning}
+              <section class="note-workspace__dialog-warning">
+                <p class="note-workspace__dialog-card">{warning.cardLabel}</p>
+                <p class="note-workspace__dialog-copy">{warning.similarCardLabel}</p>
+              </section>
+            {/each}
+          </div>
 
-          {#if draftCard.examples.length > 0}
-            <div class="stack" style="--stack-space: var(--space-2)">
-              <p class="draft-preview__label">Examples</p>
-              <ul class="draft-preview__list">
-                {#each draftCard.examples as example}
-                  <li>{example}</li>
-                {/each}
-              </ul>
-            </div>
-          {/if}
-
-          {#if draftCard.mnemonics.length > 0}
-            <div class="stack" style="--stack-space: var(--space-2)">
-              <p class="draft-preview__label">Mnemonics</p>
-              <ul class="draft-preview__list">
-                {#each draftCard.mnemonics as mnemonic}
-                  <li>{mnemonic}</li>
-                {/each}
-              </ul>
-            </div>
-          {/if}
-
-          {#if draftCard.llmInstructions}
-            <div class="stack" style="--stack-space: var(--space-2)">
-              <p class="draft-preview__label">LLM instructions</p>
-              <p class="draft-preview__value">{draftCard.llmInstructions}</p>
-            </div>
-          {/if}
-        </article>
-      {/each}
-    </section>
-  {:else if note.aiState === 'complete'}
-    <section class="note-shell__status stack" style="--stack-space: var(--space-3)">
-      <h2>No draft cards were generated</h2>
-      <p>The note finished preprocessing without draft output, so it remains ready for manual follow-up.</p>
-    </section>
+          <div class="note-workspace__dialog-actions cluster">
+            <button type="button" class="note-workspace__dialog-button note-workspace__dialog-button--primary" on:click={submitSignOffAnyway}>
+              Promote anyway
+            </button>
+            <button type="button" class="note-workspace__dialog-button" on:click={closeDuplicateDialog}>
+              Go back
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   {/if}
 </section>
 
 <style>
-  .note-shell {
-    padding: calc(var(--shell-header-height) + var(--space-5)) var(--space-4) calc(var(--space-7) + 4.5rem);
+  .note-workspace {
+    padding: calc(var(--shell-header-height) + var(--space-5)) var(--space-4) calc(var(--space-8) + 5rem);
   }
 
-  .note-shell__back,
-  .note-shell__meta,
-  .note-shell__content,
-  .note-shell__status h2,
-  .note-shell__status p,
-  .draft-preview__heading h2,
-  .draft-preview__heading p,
-  .draft-preview__label,
-  .draft-preview__value,
-  .draft-preview__list {
+  .note-workspace__back,
+  .note-workspace__meta,
+  .note-workspace__content,
+  .note-workspace__supporting,
+  .note-workspace__empty h3,
+  .note-workspace__empty p,
+  .note-workspace__status h2,
+  .note-workspace__status p,
+  .note-workspace__alert h2,
+  .note-workspace__alert p,
+  .note-workspace__dialog h2,
+  .note-workspace__dialog p,
+  .note-workspace__dialog-card,
+  .note-workspace__dialog-copy {
     margin: 0;
   }
 
-  .note-shell__back {
+  .note-workspace__back {
     color: var(--color-primary-text);
     font-family: var(--font-ui);
     text-decoration: none;
   }
 
-  .note-shell__header,
-  .note-shell__status,
-  .draft-preview__card {
+  .note-workspace__header,
+  .note-workspace__status,
+  .note-workspace__empty,
+  .note-workspace__alert {
     padding: var(--space-5);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
@@ -196,8 +334,20 @@
     box-shadow: var(--shadow-sm);
   }
 
-  .note-shell__meta,
-  .draft-preview__label {
+  .note-workspace__header {
+    position: sticky;
+    inset-block-start: calc(var(--shell-header-height) + var(--space-3));
+    z-index: 2;
+  }
+
+  .note-workspace__header-top,
+  .note-workspace__actions,
+  .note-workspace__dialog-actions {
+    justify-content: space-between;
+    gap: var(--space-3);
+  }
+
+  .note-workspace__meta {
     color: var(--color-text-secondary);
     font-family: var(--font-ui);
     font-size: var(--font-size-caption);
@@ -205,50 +355,152 @@
     text-transform: uppercase;
   }
 
-  .note-shell__content {
+  .note-workspace__content {
+    max-inline-size: var(--measure-body);
     font-size: var(--font-size-h4);
-    line-height: 1.5;
+    line-height: var(--leading-body);
   }
 
-  .note-shell__status--loading {
-    border-color: color-mix(in srgb, var(--color-primary) 40%, var(--color-border));
-  }
-
-  .note-shell__status--error {
-    border-color: color-mix(in srgb, var(--color-danger-text) 40%, var(--color-border));
-  }
-
-  .note-shell__status-detail {
+  .note-workspace__supporting,
+  .note-workspace__status-detail,
+  .note-workspace__empty p,
+  .note-workspace__dialog-copy {
     color: var(--color-text-secondary);
   }
 
-  .draft-preview__heading p {
-    color: var(--color-text-secondary);
+  .note-workspace__status--loading {
+    border-color: color-mix(in srgb, var(--color-primary) 35%, var(--color-border));
   }
 
-  .draft-preview__value {
-    line-height: 1.5;
+  .note-workspace__status--error,
+  .note-workspace__alert {
+    border-color: color-mix(in srgb, var(--color-error-text) 35%, var(--color-border));
   }
 
-  .draft-preview__list {
-    padding-inline-start: 1.25rem;
+  .note-workspace__drafts {
+    padding-block-end: var(--space-3);
   }
 
-  .note-shell__back:focus-visible {
+  .note-workspace__add-card,
+  .note-workspace__action,
+  .note-workspace__signoff-button,
+  .note-workspace__dialog-button {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-subtle);
+    color: var(--color-text-primary);
+    font-family: var(--font-ui);
+    font-size: var(--font-size-ui);
+    padding: var(--space-2) var(--space-4);
+  }
+
+  .note-workspace__add-card {
+    inline-size: fit-content;
+  }
+
+  .note-workspace__action--danger {
+    color: var(--color-error-text);
+    border-color: color-mix(in srgb, var(--color-error-text) 35%, var(--color-border));
+  }
+
+  .note-workspace__signoff {
+    position: sticky;
+    inset-block-end: var(--space-3);
+    z-index: 3;
+  }
+
+  .note-workspace__signoff-button {
+    inline-size: min(100%, 44rem);
+    padding: var(--space-4) var(--space-5);
+    border-color: color-mix(in srgb, var(--color-primary) 35%, var(--color-border));
+    background: var(--color-surface-raised);
+    box-shadow: var(--shadow-sm);
+    color: var(--color-primary-text);
+    font-weight: 600;
+  }
+
+  .note-workspace__signoff-button:disabled {
+    color: var(--color-text-disabled);
+    border-color: var(--color-border);
+  }
+
+  .note-workspace__dialog-backdrop {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: var(--space-4);
+    background: color-mix(in srgb, var(--color-background) 20%, transparent);
+    backdrop-filter: blur(2px);
+    z-index: 10;
+  }
+
+  .note-workspace__dialog {
+    inline-size: min(100%, 34rem);
+    padding: var(--space-5);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface-raised);
+    box-shadow: var(--shadow-md);
+  }
+
+  .note-workspace__dialog-warning {
+    padding: var(--space-3);
+    border: 1px solid var(--color-warning-border);
+    border-radius: var(--radius-md);
+    background: var(--color-warning-bg);
+  }
+
+  .note-workspace__dialog-card {
+    color: var(--color-warning-text);
+    font-family: var(--font-ui);
+    font-weight: 600;
+  }
+
+  .note-workspace__dialog-copy {
+    color: var(--color-warning-text);
+  }
+
+  .note-workspace__dialog-button--primary {
+    color: var(--color-primary-text);
+    border-color: color-mix(in srgb, var(--color-primary) 35%, var(--color-border));
+  }
+
+  .note-workspace__back:focus-visible,
+  .note-workspace__add-card:focus-visible,
+  .note-workspace__action:focus-visible,
+  .note-workspace__signoff-button:focus-visible,
+  .note-workspace__dialog-button:focus-visible {
     outline: 2px solid var(--color-primary);
     outline-offset: 2px;
   }
 
   @media (min-width: 64rem) {
-    .note-shell {
+    .note-workspace {
       padding-inline: calc(var(--shell-sidebar-width) + var(--space-6)) var(--space-6);
-      padding-block-end: calc(var(--space-7) + 5rem);
     }
   }
 
-  @media (max-width: 63.99rem) {
-    .note-shell {
+  @media (max-width: 48rem) {
+    .note-workspace {
       padding-inline: var(--space-3);
+      padding-block-end: calc(var(--space-8) + 6rem);
+    }
+
+    .note-workspace__header-top,
+    .note-workspace__actions,
+    .note-workspace__dialog-actions {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .note-workspace__signoff-button {
+      inline-size: 100%;
+    }
+
+    .note-workspace__dialog {
+      align-self: end;
+      inline-size: 100%;
     }
   }
 </style>

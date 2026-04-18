@@ -289,30 +289,31 @@ If a save request fails (network error, server error), the indicator changes to 
 #### Groups (Multi-Select with Inline Creation)
 
 - **Visual:** A token input field — selected groups appear as removable pills (e.g., `Greetings ✕`). An inline `+ Add group` trigger opens the group picker dropdown below the field.
-- **Dropdown behavior:** On click/focus, a dropdown list opens showing all groups for the active language, sorted alphabetically. Already-assigned groups appear checked at the top (and can be unchecked to remove). Unassigned groups are listed below.
+- **Dropdown behavior:** On click/focus, a dropdown list opens showing only groups for the active language that are **not already assigned** to the card, sorted alphabetically. Choosing a group adds it to the card as a pill. When focus leaves the group-search area, the dropdown closes.
 - **Live search within dropdown:** Typing in the field filters the dropdown list in real time.
 - **Inline group creation:** If the typed text does not match any existing group, a `+ Create "[typed text]"` option appears as the last item in the dropdown. Selecting it immediately creates the group (name only; description is empty by default) and adds it to this card. The new group pill appears in the field.
 - **Save behavior:** Each addition or removal of a group tag saves immediately (not on drawer blur — the change is atomic and discrete).
-- **Keyboard:** Arrow keys navigate the dropdown; Enter selects; Escape closes the dropdown.
+- **Keyboard:** Typing filters the list in real time; Escape closes the dropdown.
 
 #### Example Sentences
 
-- **Visual:** A numbered, ordered list of text inputs. Each item has a `✕` remove button on the right. A `+ Add Example` button appears below the list (or inline after the last item).
+- **Visual:** A numbered, ordered list of multi-line text areas. Each item wraps text, starts slightly taller than a single line, and can scroll vertically if the content grows long. Each item has a `✕` remove button on the right. A `+ Add Example` button appears below the list (or inline after the last item).
 - **Placeholder for empty item:** `Type an example sentence…`
 - **Behavior:** Items save on blur. Order is preserved (drag-to-reorder is deferred to a future iteration). Removing an item is immediate (no confirmation); the list re-numbers.
 - **Empty state:** If no examples exist, only the `+ Add Example` button is shown.
 
 #### Mnemonics
 
-- **Visual:** Same pattern as Example Sentences but without ordered numbering. Each mnemonic is a text area (multi-line), not a single-line input.
+- **Visual:** Same pattern as Example Sentences but without ordered numbering. Each mnemonic is a multi-line text area with wrapping text and vertical scrolling for longer notes.
 - **Placeholder:** `Type a mnemonic…`
 - **Behavior:** Add/remove, saves on blur. No ordering.
 - **Empty state:** `+ Add Mnemonic` button.
 
 #### LLM Instructions
 
-- **Visual:** A multi-line text area, collapsed by default behind a disclosure toggle (`▸ LLM Instructions`). Clicking the toggle expands the field.
-- **Placeholder:** `Custom instructions for the LLM when this card is in context…`
+- **Visual:** A multi-line text area, collapsed by default behind a disclosure toggle (`▸ Special instructions for practicing this card`). Clicking the toggle expands the field.
+- **Helper text:** `Optional: tell StudyPuck what to focus on, avoid, or reinforce, when it is quizzing you on this card.`
+- **Placeholder:** `Optional instructions for how StudyPuck should quiz you on this card...`
 - **Behavior:** Saves on blur. The expanded/collapsed state persists only for the current drawer session (not persisted globally).
 - **Rationale for disclosure:** Most users will rarely set LLM instructions; hiding it by default reduces cognitive load without removing the capability.
 
