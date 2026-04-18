@@ -3,13 +3,10 @@ import {
   getNoteWithDraftCards,
   transitionInboxNoteAiState,
   type InboxNoteAiState,
+  type TransactionCapableDatabaseConnection,
 } from '@studypuck/database';
 import { buildCardEntryPreprocessPrompt, cardEntryPreprocessResponseSchema } from '$lib/server/ai-prompts/card-entry.js';
 import { createAiService } from '$lib/server/ai-service.js';
-
-type DatabaseClient = {
-  [key: string]: unknown;
-};
 
 const TERMINAL_AI_STATES: InboxNoteAiState[] = ['complete', 'failed'];
 
@@ -17,14 +14,14 @@ export async function ensureCardEntryNoteProcessingState(input: {
   userId: string;
   languageId: string;
   noteId: string;
-  database: DatabaseClient;
+  transactionDatabase: TransactionCapableDatabaseConnection;
   privateEnv: Record<string, string | undefined>;
 }) {
   const workspace = await getNoteWithDraftCards(
     input.userId,
     input.languageId,
     input.noteId,
-    input.database as never
+    input.transactionDatabase as never
   );
 
   if (!workspace) {
@@ -45,11 +42,11 @@ export async function ensureCardEntryNoteProcessingState(input: {
     input.noteId,
     'queued',
     'processing',
-    input.database as never
+    input.transactionDatabase as never
   );
 
   if (!claimed) {
-    return getNoteWithDraftCards(input.userId, input.languageId, input.noteId, input.database as never);
+    return getNoteWithDraftCards(input.userId, input.languageId, input.noteId, input.transactionDatabase as never);
   }
 
   try {
@@ -88,7 +85,7 @@ export async function ensureCardEntryNoteProcessingState(input: {
           cardType: 'word',
         })),
       },
-      input.database as never
+      input.transactionDatabase as never
     );
   } catch (error) {
     console.error('Card Entry AI preprocessing failed:', error);
@@ -99,9 +96,9 @@ export async function ensureCardEntryNoteProcessingState(input: {
       input.noteId,
       'processing',
       'failed',
-      input.database as never
+      input.transactionDatabase as never
     );
 
-    return getNoteWithDraftCards(input.userId, input.languageId, input.noteId, input.database as never);
+    return getNoteWithDraftCards(input.userId, input.languageId, input.noteId, input.transactionDatabase as never);
   }
 }

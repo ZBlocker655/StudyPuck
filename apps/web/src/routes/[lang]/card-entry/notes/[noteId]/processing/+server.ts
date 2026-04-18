@@ -1,5 +1,5 @@
 import { error, json, type RequestHandler } from '@sveltejs/kit';
-import { getDb } from '@studypuck/database';
+import { withTransactionDb } from '@studypuck/database';
 import { env } from '$env/dynamic/private';
 import { ensureCardEntryNoteProcessingState } from '$lib/server/card-entry-ai.js';
 import { CardEntryRequestError, loadCardEntryNoteShellData } from '$lib/server/card-entry.js';
@@ -13,23 +13,29 @@ export const GET: RequestHandler = async (event) => {
   if (!userId || !languageId || !noteId) {
     throw error(401, 'You must be signed in to check this note.');
   }
-
-  const database = getDb(env.DATABASE_URL);
+  
+  const databaseUrl = env.DATABASE_URL;
+  
+  if (!databaseUrl) {
+    throw error(500, 'The note processing service is not configured right now.');
+  }
 
   try {
-    const workspace = await ensureCardEntryNoteProcessingState({
-      userId,
-      languageId,
-      noteId,
-      database,
-      privateEnv: env,
+    const note = await withTransactionDb(databaseUrl, async (database) => {
+      const workspace = await ensureCardEntryNoteProcessingState({
+        userId,
+        languageId,
+        noteId,
+        transactionDatabase: database,
+        privateEnv: env,
+      });
+
+      if (!workspace) {
+        throw error(404, 'Card Entry note not found.');
+      }
+
+      return loadCardEntryNoteShellData(userId, languageId, noteId, database);
     });
-
-    if (!workspace) {
-      throw error(404, 'Card Entry note not found.');
-    }
-
-    const note = await loadCardEntryNoteShellData(userId, languageId, noteId, database);
 
     return json(note);
   } catch (requestError) {

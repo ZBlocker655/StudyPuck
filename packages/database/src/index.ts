@@ -5,6 +5,9 @@ import * as schema from './schema.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type DatabaseConnection = any;
+export type TransactionCapableDatabaseConnection = DatabaseConnection & {
+  transaction: <T>(callback: (tx: DatabaseConnection) => Promise<T>) => Promise<T>;
+};
 type PostgresFactory = (
   databaseUrl: string,
   options?: {
@@ -105,13 +108,13 @@ export function getDb(databaseUrl?: string) {
  */
 export async function withTransactionDb<T>(
   databaseUrl: string,
-  callback: (db: DatabaseConnection) => Promise<T>
+  callback: (db: TransactionCapableDatabaseConnection) => Promise<T>
 ): Promise<T> {
   if (isNodeRuntime()) {
-    return callback(createNodeDatabaseConnection(databaseUrl));
+    return callback(createNodeDatabaseConnection(databaseUrl) as TransactionCapableDatabaseConnection);
   }
 
-  const db = createWorkerTransactionDatabaseConnection(databaseUrl);
+  const db = createWorkerTransactionDatabaseConnection(databaseUrl) as TransactionCapableDatabaseConnection;
   const pool = db.$client as Pool;
 
   try {
