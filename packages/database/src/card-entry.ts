@@ -76,6 +76,13 @@ export type CreateDraftCardFromNoteInput = Omit<
   cardId?: string;
 };
 
+export type GeneratedDraftCardInput = Omit<
+  CreateDraftCardFromNoteInput,
+  'userId' | 'languageId' | 'noteId' | 'cardId'
+> & {
+  cardId?: string;
+};
+
 /** Returns the global lazily-initialised db, importing index only when needed */
 async function globalDb(): Promise<AnyDb> {
   return (await import('./index.js')).db as AnyDb;
@@ -294,6 +301,99 @@ export async function updateInboxNoteAiState(
     .returning();
 
   return result[0] || null;
+}
+
+export async function transitionInboxNoteAiState(
+  userId: string,
+  languageId: string,
+  noteId: string,
+  currentAiState: InboxNoteAiState | InboxNoteAiState[],
+  nextAiState: InboxNoteAiState,
+  db?: AnyDb
+): Promise<InboxNote | null> {
+  const conn = db ?? await globalDb();
+  const currentStates = Array.isArray(currentAiState) ? currentAiState : [currentAiState];
+  const result = await conn
+    .update(inboxNotes)
+    .set({ aiState: nextAiState })
+    .where(and(
+      eq(inboxNotes.userId, userId),
+      eq(inboxNotes.languageId, languageId),
+      eq(inboxNotes.noteId, noteId),
+      currentStates.length === 1
+        ? eq(inboxNotes.aiState, currentStates[0])
+        : inArray(inboxNotes.aiState, currentStates)
+    ))
+    .returning();
+
+  return result[0] || null;
+}
+
+export async function finalizeInboxNoteAiProcessing(
+  input: {
+    userId: string;
+    languageId: string;
+    noteId: string;
+    draftCards: GeneratedDraftCardInput[];
+  },
+  db?: AnyDb
+): Promise<NoteWithDraftCards | null> {
+  return withTransaction(db, async (tx) => {
+    const workspace = await getNoteWithDraftCards(input.userId, input.languageId, input.noteId, tx);
+
+    if (!workspace) {
+      return null;
+    }
+
+    if (workspace.note.aiState !== 'processing') {
+      return workspace;
+    }
+
+    if (workspace.draftCards.length === 0) {
+      const now = new Date();
+
+      for (const draftCard of input.draftCards) {
+        const cardId = draftCard.cardId ?? createId('card');
+        const [createdCard] = await tx
+          .insert(cards)
+          .values({
+            ...draftCard,
+            userId: input.userId,
+            languageId: input.languageId,
+            cardId,
+            status: 'draft',
+            createdAt: now,
+            updatedAt: now,
+          })
+          .returning();
+
+        await tx.insert(noteCardLinks).values({
+          userId: input.userId,
+          languageId: input.languageId,
+          noteId: input.noteId,
+          cardId: createdCard!.cardId,
+          createdAt: now,
+        });
+      }
+
+      if (input.draftCards.length > 0) {
+        await incrementCardEntryDailyStats(input.userId, input.languageId, {
+          draftCardsCreated: input.draftCards.length,
+        }, tx);
+      }
+    }
+
+    await tx
+      .update(inboxNotes)
+      .set({ aiState: 'complete' })
+      .where(and(
+        eq(inboxNotes.userId, input.userId),
+        eq(inboxNotes.languageId, input.languageId),
+        eq(inboxNotes.noteId, input.noteId)
+      ));
+
+    return getNoteWithDraftCards(input.userId, input.languageId, input.noteId, tx);
+  });
 }
 
 export async function deferInboxNote(

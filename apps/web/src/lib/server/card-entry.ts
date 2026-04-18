@@ -6,7 +6,10 @@ import {
   getCardEntryCounts,
   getDb,
   getInboxNote,
+  getNoteWithDraftCards,
   listInboxNotes,
+  type InboxNoteAiState,
+  type InboxNoteState,
   type InboxSortOrder,
 } from '@studypuck/database';
 import type { Cookies } from '@sveltejs/kit';
@@ -51,9 +54,22 @@ export type CardEntryInboxData = {
 export type CardEntryNoteShellData = {
   noteId: string;
   content: string;
+  state: InboxNoteState;
+  aiState: InboxNoteAiState;
   createdAtIso: string;
   createdAtLabel: string;
   sourceLabel: string;
+  draftCards: CardEntryNoteDraftCardData[];
+};
+
+export type CardEntryNoteDraftCardData = {
+  cardId: string;
+  content: string;
+  meaning: string | null;
+  examples: string[];
+  mnemonics: string[];
+  llmInstructions: string | null;
+  linkedAtIso: string | null;
 };
 
 export function getCardEntrySortCookieName(languageId: string): string {
@@ -163,6 +179,28 @@ function mapInboxItem(
   };
 }
 
+function normalizeStringList(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+}
+
+function mapDraftCard(
+  draftCard: NonNullable<Awaited<ReturnType<typeof getNoteWithDraftCards>>>['draftCards'][number]
+): CardEntryNoteDraftCardData {
+  return {
+    cardId: draftCard.cardId,
+    content: draftCard.content,
+    meaning: draftCard.meaning ?? null,
+    examples: normalizeStringList(draftCard.examples),
+    mnemonics: normalizeStringList(draftCard.mnemonics),
+    llmInstructions: draftCard.llmInstructions ?? null,
+    linkedAtIso: draftCard.linkedAt?.toISOString() ?? null,
+  };
+}
+
 async function assertUserHasLanguage(
   userId: string,
   languageId: string,
@@ -240,11 +278,13 @@ export async function loadCardEntryNoteShellData(
   noteId: string,
   database: DatabaseClient
 ): Promise<CardEntryNoteShellData> {
-  const note = await getInboxNote(userId, languageId, parseNoteId(noteId), database as never);
+  const workspace = await getNoteWithDraftCards(userId, languageId, parseNoteId(noteId), database as never);
 
-  if (!note) {
+  if (!workspace) {
     throw new CardEntryRequestError(404, 'Card Entry note not found.');
   }
+
+  const note = workspace.note;
 
   if (!note.createdAt) {
     throw new Error(`Inbox note ${note.noteId} is missing createdAt.`);
@@ -253,9 +293,12 @@ export async function loadCardEntryNoteShellData(
   return {
     noteId: note.noteId,
     content: note.content,
+    state: note.state as InboxNoteState,
+    aiState: note.aiState as InboxNoteAiState,
     createdAtIso: note.createdAt.toISOString(),
     createdAtLabel: formatCardEntryRelativeTime(note.createdAt),
     sourceLabel: formatCardEntrySourceLabel(note.sourceType),
+    draftCards: workspace.draftCards.map((draftCard) => mapDraftCard(draftCard)),
   };
 }
 

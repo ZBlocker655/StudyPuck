@@ -80,6 +80,7 @@ test('supports command-bar quick-add flow and process handoff route', async ({ p
   await drawerRow.getByRole('link', { name: 'Process →' }).click();
 
   await page.waitForURL(/\/es\/card-entry\/notes\//);
-  await expect(page.getByRole('heading', { name: 'Processing workspace is next' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Note Processing' })).toBeVisible();
   await expect(page.getByText('hola desde drawer')).toBeVisible();
+  await expect(page.getByText(/AI is preparing your cards…|AI processing failed/)).toBeVisible();
 });
