@@ -12,22 +12,30 @@
   let note: CardEntryNoteShellData = data.note;
   let isRefreshing = false;
   let pollingError: string | null = null;
+  let semanticError: string | null = null;
   let workspaceError: string | null = null;
   let addCardPending = false;
   let pollTimer: ReturnType<typeof setTimeout> | null = null;
   let showDuplicateDialog = false;
   let signOffForm: HTMLFormElement | null = null;
+  let semanticRefreshPending = false;
+  let semanticRefreshQueued = false;
 
   $: currentLang = $page.params.lang ?? '';
   $: actionError = (form as { errorMessage?: string } | null | undefined)?.errorMessage ?? null;
   $: unresolvedDuplicateWarnings = getUnresolvedDuplicateWarnings(note);
   $: signOffDisabled =
-    note.draftCards.length === 0 || note.aiState === 'queued' || note.aiState === 'processing';
+    note.draftCards.length === 0 ||
+    note.aiState === 'queued' ||
+    note.aiState === 'processing' ||
+    semanticRefreshPending;
   $: signOffLabel =
     note.draftCards.length === 0
       ? 'Sign off unavailable — add at least one draft card'
-      : note.aiState === 'queued' || note.aiState === 'processing'
+    : note.aiState === 'queued' || note.aiState === 'processing'
         ? 'Sign off unavailable while AI is still processing'
+        : semanticRefreshPending
+          ? 'Checking suggestions and duplicates before sign off...'
         : `Sign off — Promote all to active (${note.draftCards.length} ${
             note.draftCards.length === 1 ? 'card' : 'cards'
           }) →`;
@@ -61,6 +69,10 @@
 
       note = await response.json();
       pollingError = null;
+
+      if (!shouldPollAiState(note)) {
+        void refreshSemanticAssistance();
+      }
     } catch (error) {
       console.error('Failed to refresh Card Entry note processing state:', error);
       pollingError = 'The latest AI processing status could not be loaded right now.';
@@ -71,6 +83,42 @@
         pollTimer = setTimeout(() => {
           void refreshProcessingState();
         }, 2_000);
+      }
+    }
+  }
+
+  async function refreshSemanticAssistance() {
+    if (semanticRefreshPending) {
+      semanticRefreshQueued = true;
+      return;
+    }
+
+    if (shouldPollAiState(note) || note.draftCards.length === 0) {
+      return;
+    }
+
+    semanticRefreshPending = true;
+
+    try {
+      const response = await fetch(`/${currentLang}/card-entry/notes/${note.noteId}/semantic-assistance`, {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        throw new Error(`Unexpected semantic assistance response: ${response.status}`);
+      }
+
+      note = await response.json();
+      semanticError = null;
+    } catch (error) {
+      console.error('Failed to refresh Card Entry semantic assistance:', error);
+      semanticError = 'Suggestions and duplicate checks could not be refreshed right now.';
+    } finally {
+      semanticRefreshPending = false;
+
+      if (semanticRefreshQueued) {
+        semanticRefreshQueued = false;
+        void refreshSemanticAssistance();
       }
     }
   }
@@ -97,6 +145,7 @@
       }
 
       note = updatedNote;
+      void refreshSemanticAssistance();
     } catch (error) {
       workspaceError = error instanceof Error ? error.message : 'A draft card could not be created right now.';
     } finally {
@@ -107,11 +156,19 @@
   function handleDraftCardUpdated(event: CustomEvent<{ card: CardEntryNoteShellData['draftCards'][number]; availableGroups: CardEntryNoteShellData['availableGroups'] }>) {
     note = replaceDraftCardInNote(note, event.detail.card, event.detail.availableGroups);
     workspaceError = null;
+    void refreshSemanticAssistance();
+  }
+
+  function handleDraftCardNoteUpdated(event: CustomEvent<{ note: CardEntryNoteShellData }>) {
+    note = event.detail.note;
+    workspaceError = null;
+    semanticError = null;
   }
 
   function handleDraftCardRemoved(event: CustomEvent<{ note: CardEntryNoteShellData }>) {
     note = event.detail.note;
     workspaceError = null;
+    void refreshSemanticAssistance();
   }
 
   function handleSignOffClick(event: MouseEvent) {
@@ -141,6 +198,8 @@
   onMount(() => {
     if (shouldPollAiState(note)) {
       void refreshProcessingState();
+    } else {
+      void refreshSemanticAssistance();
     }
 
     return () => {
@@ -215,6 +274,11 @@
       <p class="note-workspace__supporting">
         Edit each linked draft inline. Fields save automatically when focus leaves them.
       </p>
+      {#if semanticRefreshPending}
+        <p class="note-workspace__supporting">Refreshing suggestions and duplicate checks…</p>
+      {:else if semanticError}
+        <p class="note-workspace__supporting note-workspace__supporting--error">{semanticError}</p>
+      {/if}
     </div>
 
     {#if note.draftCards.length === 0}
@@ -234,6 +298,7 @@
           card={draftCard}
           availableGroups={note.availableGroups}
           on:updated={handleDraftCardUpdated}
+          on:noteUpdated={handleDraftCardNoteUpdated}
           on:removed={handleDraftCardRemoved}
         />
       {/each}
@@ -304,6 +369,7 @@
   .note-workspace__meta,
   .note-workspace__content,
   .note-workspace__supporting,
+  .note-workspace__supporting--error,
   .note-workspace__empty h3,
   .note-workspace__empty p,
   .note-workspace__status h2,
@@ -359,6 +425,10 @@
     max-inline-size: var(--measure-body);
     font-size: var(--font-size-h4);
     line-height: var(--leading-body);
+  }
+
+  .note-workspace__supporting--error {
+    color: var(--color-error-text);
   }
 
   .note-workspace__supporting,

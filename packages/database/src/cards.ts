@@ -35,8 +35,13 @@ export async function getActiveCards(userId: string, languageId: string): Promis
 /**
  * Get cards by status for a user+language
  */
-export async function getCardsByStatus(userId: string, languageId: string, status: string): Promise<Card[]> {
-  return await db
+export async function getCardsByStatus(
+  userId: string,
+  languageId: string,
+  status: string,
+  database?: AnyDb
+): Promise<Card[]> {
+  return await getConn(database)
     .select()
     .from(cards)
     .where(and(
@@ -154,9 +159,10 @@ export async function findSimilarCards(
   languageId: string,
   queryEmbedding: number[], 
   limit: number = 10,
-  threshold: number = 0.7
+  threshold: number = 0.7,
+  database?: AnyDb
 ): Promise<Array<Card & { similarity: number }>> {
-  const result = await db
+  const result = await getConn(database)
     .select({
       userId: cards.userId,
       languageId: cards.languageId,
@@ -271,9 +277,10 @@ export async function findSimilarGroups(
   languageId: string,
   queryEmbedding: number[], 
   limit: number = 5,
-  threshold: number = 0.6
+  threshold: number = 0.6,
+  database?: AnyDb
 ): Promise<Array<Group & { similarity: number }>> {
-  const result = await db
+  const result = await getConn(database)
     .select({
       userId: groups.userId,
       languageId: groups.languageId,

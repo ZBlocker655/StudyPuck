@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import postgres from 'postgres';
 import { eq, and } from 'drizzle-orm';
 import { setupTestDatabase, cleanupTestDatabase, resetTestTables, type TestDb } from '../test-utils.js';
-import { users, studyLanguages, cards, inboxNotes, noteCardLinks, cardEntryDailyStats } from '../schema.js';
+import { users, studyLanguages, cards, groups, inboxNotes, noteCardLinks, cardEntryDailyStats } from '../schema.js';
 import {
   createDraftCardFromNote,
   createInboxNote,
@@ -17,10 +17,17 @@ import {
   transitionInboxNoteAiState,
   updateInboxNoteAiState,
 } from '../card-entry.js';
-import { addCardToGroup, createGroup } from '../cards.js';
+import { addCardToGroup, createGroup, findSimilarCards, findSimilarGroups } from '../cards.js';
 
 const TEST_USER = { userId: 'auth0|card-entry-user', email: 'card-entry@example.com' };
 const TEST_LANG = { userId: TEST_USER.userId, languageId: 'es', languageName: 'Spanish' };
+
+function createEmbedding(primary: number, secondary = 0): number[] {
+  const embedding = new Array<number>(768).fill(0);
+  embedding[0] = primary;
+  embedding[1] = secondary;
+  return embedding;
+}
 
 describe('Card Entry database operations', () => {
   let db: TestDb;
@@ -335,5 +342,113 @@ describe('Card Entry database operations', () => {
 
     const counts = await getCardEntryCounts(TEST_USER.userId, TEST_LANG.languageId, db);
     expect(counts.draftCardCount).toBe(1);
+  });
+
+  it('limits similar-card detection to the same user, language, and active cards', async () => {
+    await db.insert(users).values({ userId: 'auth0|other-user', email: 'other@example.com' });
+    await db.insert(studyLanguages).values({ userId: 'auth0|other-user', languageId: 'es', languageName: 'Spanish' });
+    await db.insert(studyLanguages).values({ userId: TEST_USER.userId, languageId: 'fr', languageName: 'French' });
+
+    await db.insert(cards).values([
+      {
+        userId: TEST_USER.userId,
+        languageId: TEST_LANG.languageId,
+        cardId: 'active-similar-card',
+        content: 'por si acaso',
+        meaning: 'just in case',
+        status: 'active',
+        embedding: createEmbedding(1, 0),
+        embeddingModel: 'test-model',
+        embeddingGeneratedAt: new Date('2026-04-01T00:00:00.000Z'),
+      },
+      {
+        userId: TEST_USER.userId,
+        languageId: TEST_LANG.languageId,
+        cardId: 'draft-similar-card',
+        content: 'draft should be excluded',
+        status: 'draft',
+        embedding: createEmbedding(1, 0),
+        embeddingModel: 'test-model',
+        embeddingGeneratedAt: new Date('2026-04-01T00:00:00.000Z'),
+      },
+      {
+        userId: TEST_USER.userId,
+        languageId: 'fr',
+        cardId: 'other-language-card',
+        content: 'autre langue',
+        status: 'active',
+        embedding: createEmbedding(1, 0),
+        embeddingModel: 'test-model',
+        embeddingGeneratedAt: new Date('2026-04-01T00:00:00.000Z'),
+      },
+      {
+        userId: 'auth0|other-user',
+        languageId: TEST_LANG.languageId,
+        cardId: 'other-user-card',
+        content: 'other user',
+        status: 'active',
+        embedding: createEmbedding(1, 0),
+        embeddingModel: 'test-model',
+        embeddingGeneratedAt: new Date('2026-04-01T00:00:00.000Z'),
+      },
+    ]);
+
+    const similarCards = await findSimilarCards(
+      TEST_USER.userId,
+      TEST_LANG.languageId,
+      createEmbedding(1, 0),
+      5,
+      0.8,
+      db
+    );
+
+    expect(similarCards.map((card) => card.cardId)).toEqual(['active-similar-card']);
+  });
+
+  it('limits similar-group detection to the same user and language', async () => {
+    await db.insert(users).values({ userId: 'auth0|group-user', email: 'group-user@example.com' });
+    await db.insert(studyLanguages).values({ userId: 'auth0|group-user', languageId: 'es', languageName: 'Spanish' });
+    await db.insert(studyLanguages).values({ userId: TEST_USER.userId, languageId: 'de', languageName: 'German' });
+
+    await db.insert(groups).values([
+      {
+        userId: TEST_USER.userId,
+        languageId: TEST_LANG.languageId,
+        groupId: 'group-similar',
+        groupName: 'Time expressions',
+        embedding: createEmbedding(1, 0),
+        embeddingModel: 'test-model',
+        embeddingGeneratedAt: new Date('2026-04-01T00:00:00.000Z'),
+      },
+      {
+        userId: TEST_USER.userId,
+        languageId: 'de',
+        groupId: 'group-other-language',
+        groupName: 'Zeit',
+        embedding: createEmbedding(1, 0),
+        embeddingModel: 'test-model',
+        embeddingGeneratedAt: new Date('2026-04-01T00:00:00.000Z'),
+      },
+      {
+        userId: 'auth0|group-user',
+        languageId: TEST_LANG.languageId,
+        groupId: 'group-other-user',
+        groupName: 'Other user group',
+        embedding: createEmbedding(1, 0),
+        embeddingModel: 'test-model',
+        embeddingGeneratedAt: new Date('2026-04-01T00:00:00.000Z'),
+      },
+    ]);
+
+    const similarGroups = await findSimilarGroups(
+      TEST_USER.userId,
+      TEST_LANG.languageId,
+      createEmbedding(1, 0),
+      5,
+      0.8,
+      db
+    );
+
+    expect(similarGroups.map((group) => group.groupId)).toEqual(['group-similar']);
   });
 });
