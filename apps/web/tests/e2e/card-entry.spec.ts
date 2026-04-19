@@ -123,8 +123,11 @@ test('supports manual processing into a draft, sign-off promotion, and statistic
   await expect(page.getByText('AI processing failed')).toBeVisible();
 
   await page.getByRole('button', { name: '+ Add another card' }).click();
-  await page.getByRole('textbox', { name: 'Content' }).fill('para que + subjuntivo');
-  await page.getByRole('textbox', { name: 'Meaning' }).fill('so that');
+  const contentField = page.getByPlaceholder('Card content...');
+  const meaningField = page.getByPlaceholder('Meaning...');
+  await expect(contentField).toBeVisible();
+  await contentField.fill('para que + subjuntivo');
+  await meaningField.fill('so that');
 
   await page.getByRole('button', { name: '+ Add group' }).click();
   await page.getByPlaceholder('Search groups...').fill('Grammar');
