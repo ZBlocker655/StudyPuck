@@ -7,26 +7,26 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: "studypuck (Production)"  # Use existing environment
-    
+    environment: "studypuck (Production)" # Use existing environment
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Setup PNPM
         uses: pnpm/action-setup@v2
         with:
           version: 8
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
-          cache: 'pnpm'
-      
+          node-version: "22"
+          cache: "pnpm"
+
       - name: Install dependencies
         run: pnpm install
-      
+
       - name: Validate migration safety
         run: |
           cd packages/database
@@ -38,7 +38,7 @@ jobs:
             exit 1
           fi
           echo "✅ Migration safety validated"
-      
+
       - name: Create rollback point
         env:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
@@ -58,7 +58,7 @@ jobs:
           else
             echo "✅ No old backup branches to clean up"
           fi
-      
+
       # Phase 1: Database Migration (BEFORE code deployment)
       - name: Apply migrations to production database
         env:
@@ -67,28 +67,28 @@ jobs:
           cd packages/database
           pnpm migrate:apply
           echo "✅ Production database migrations applied"
-      
+
       # Phase 2: Code deployment happens automatically via Cloudflare
       - name: Wait for Cloudflare deployment
         run: |
           echo "Waiting for Cloudflare Pages auto-deployment to complete..."
           sleep 45
-      
+
       # Phase 3: Health verification
       - name: Verify production deployment
         run: |
           echo "🏥 Testing production health endpoints..."
-          
+
           # Test main site
           curl -f https://studypuck.app/ || exit 1
           echo "✅ Main site responding"
-          
+
           # Test health endpoint
           curl -f https://studypuck.app/api/health || exit 1
           echo "✅ Health endpoint responding"
-          
+
           echo "🎉 Production deployment verified"
-      
+
       # Phase 4: Delete feature Neon branch (must run before development sync)
       - name: Delete merged feature Neon branch
         env:
@@ -120,7 +120,7 @@ jobs:
 
           echo "🧹 Cleaning up old preserved development branches..."
           OLD_PRESERVED_BRANCHES=$(npx neonctl branches list --output json | \
-            jq -r '[.[] | select(.name | startswith("development-preserved-"))] | sort_by(.created_at // "") | reverse | .[1:] | .[].name')
+            jq -r '[.[] | select(.name | startswith("development-preserved-"))] | sort_by(.name) | reverse | .[1:] | .[].name')
           if printf '%s\n' "$OLD_PRESERVED_BRANCHES" | grep -q '[^[:space:]]'; then
             echo "$OLD_PRESERVED_BRANCHES" | while read -r branch; do
               echo "🗑️ Deleting old preserved branch: $branch"
@@ -131,7 +131,7 @@ jobs:
           fi
 
           echo "✅ Development branch synced to production state"
-      
+
       # Rollback on failure
       - name: Rollback on failure
         if: failure()
