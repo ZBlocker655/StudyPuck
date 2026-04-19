@@ -97,6 +97,14 @@
     moreSheetOpen = false;
   }
 
+  function getNavAriaLabel(item: NavItem) {
+    if (item.id !== 'card-entry' || liveCardEntryUnprocessedCount <= 0) {
+      return item.label;
+    }
+
+    return `${item.label}, ${liveCardEntryUnprocessedCount} unprocessed notes`;
+  }
+
   function handleKeydown(event: KeyboardEvent) {
     if (event.key === 'Escape') {
       closeMoreSheet();
@@ -126,6 +134,7 @@
         href={item.href}
         class:nav-link--active={isActive(item)}
         class="nav-link cluster"
+        aria-label={getNavAriaLabel(item)}
         aria-current={isActive(item) ? 'page' : undefined}
         >
           <span aria-hidden="true">{item.icon}</span>
@@ -172,6 +181,7 @@
       href={item.href}
       class:mobile-tab--active={isActive(item)}
       class="mobile-tab stack text-center"
+      aria-label={getNavAriaLabel(item)}
       aria-current={isActive(item) ? 'page' : undefined}
       style="--stack-space: var(--space-1)"
     >

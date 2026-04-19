@@ -17,7 +17,7 @@ import {
   transitionInboxNoteAiState,
   updateInboxNoteAiState,
 } from '../card-entry.js';
-import { addCardToGroup, createGroup, findSimilarCards, findSimilarGroups } from '../cards.js';
+import { addCardToGroup, createGroup, findSimilarCards, findSimilarGroups, getCardsByStatus } from '../cards.js';
 
 const TEST_USER = { userId: 'auth0|card-entry-user', email: 'card-entry@example.com' };
 const TEST_LANG = { userId: TEST_USER.userId, languageId: 'es', languageName: 'Spanish' };
@@ -190,6 +190,9 @@ describe('Card Entry database operations', () => {
     const [stats] = await db.select().from(cardEntryDailyStats);
     expect(stats.notesProcessed).toBe(1);
     expect(stats.cardsPromotedToActive).toBe(1);
+
+    const activeCards = await getCardsByStatus(TEST_USER.userId, TEST_LANG.languageId, 'active', db);
+    expect(activeCards.map((card) => card.cardId)).toContain(draft.cardId);
   });
 
   it('deletes a note by soft-deleting linked draft cards while preserving active cards', async () => {

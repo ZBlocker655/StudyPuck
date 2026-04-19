@@ -11,6 +11,7 @@ export const load: PageServerLoad = async (event) => {
       dashboard: {
         reviewDueCount: 0,
         inboxNoteCount: 0,
+        draftCardCount: 0,
         streakDays: 0,
       },
     };

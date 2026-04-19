@@ -6,6 +6,9 @@
   export let data: PageData;
 
   $: currentLanguage = getLanguageByCode($page.params.lang);
+  $: draftLinkLabel = `View ${data.dashboard.draftCardCount} draft ${
+    data.dashboard.draftCardCount === 1 ? 'card' : 'cards'
+  } →`;
 </script>
 
 <svelte:head>
@@ -32,7 +35,19 @@
 
       {#if data.dashboard.inboxNoteCount > 0}
         <p class="action-card__count">{data.dashboard.inboxNoteCount}</p>
-        <a class="action-card__cta" href={`/${$page.params.lang}/card-entry`}>Enter Cards →</a>
+        <div class="action-card__actions stack" style="--stack-space: var(--space-3)">
+          <a class="action-card__cta" href={`/${$page.params.lang}/card-entry`}>Enter Cards →</a>
+
+          {#if data.dashboard.draftCardCount > 0}
+            <a class="action-card__secondary" href={`/${$page.params.lang}/card-entry/drafts`}>
+              {draftLinkLabel}
+            </a>
+          {/if}
+        </div>
+      {:else if data.dashboard.draftCardCount > 0}
+        <p class="action-card__empty">✓ Inbox is clear.</p>
+        <p class="action-card__supporting">{data.dashboard.draftCardCount} draft cards are ready for review.</p>
+        <a class="action-card__cta" href={`/${$page.params.lang}/card-entry/drafts`}>{draftLinkLabel}</a>
       {:else}
         <p class="action-card__empty">✓ Inbox is clear.</p>
       {/if}
@@ -89,6 +104,7 @@
   .action-card__label,
   .action-card__count,
   .action-card__empty,
+  .action-card__supporting,
   .dashboard-streak {
     margin: 0;
   }
@@ -121,6 +137,20 @@
     text-decoration: none;
     font-family: var(--font-ui);
     font-weight: 600;
+  }
+
+  .action-card__actions {
+    align-items: start;
+  }
+
+  .action-card__secondary,
+  .action-card__supporting {
+    color: var(--color-text-secondary);
+    font-family: var(--font-ui);
+  }
+
+  .action-card__secondary {
+    text-decoration: none;
   }
 
   .action-card__empty {
@@ -159,6 +189,7 @@
   }
 
   .action-card__cta:focus-visible,
+  .action-card__secondary:focus-visible,
   .quick-access__link:focus-visible {
     outline: 2px solid var(--color-primary);
     outline-offset: 2px;
