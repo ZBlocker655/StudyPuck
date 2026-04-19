@@ -78,11 +78,11 @@ export async function ensureCardEntryNoteProcessingState(input: {
         noteId: input.noteId,
         draftCards: response.draftCards.map((draftCard) => ({
           content: draftCard.content,
+          cardType: draftCard.cardType,
           meaning: draftCard.meaning,
           examples: draftCard.examples,
           mnemonics: draftCard.mnemonics,
           llmInstructions: draftCard.llmInstructions,
-          cardType: 'word',
         })),
       },
       input.transactionDatabase as never
