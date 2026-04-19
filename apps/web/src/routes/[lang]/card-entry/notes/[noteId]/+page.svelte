@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { ActionData, PageData } from './$types.js';
   import { page } from '$app/stores';
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import DraftCardEditor from '$lib/components/card-entry/DraftCardEditor.svelte';
   import { getUnresolvedDuplicateWarnings, replaceDraftCardInNote } from '$lib/card-entry/workspace.js';
   import type { CardEntryNoteShellData } from '$lib/server/card-entry.js';
@@ -17,6 +17,9 @@
   let addCardPending = false;
   let pollTimer: ReturnType<typeof setTimeout> | null = null;
   let showDuplicateDialog = false;
+  let duplicateDialogElement: HTMLElement | null = null;
+  let duplicateDialogPrimaryButton: HTMLButtonElement | null = null;
+  let lastDuplicateDialogTrigger: HTMLElement | null = null;
   let signOffForm: HTMLFormElement | null = null;
   let semanticRefreshPending = false;
   let semanticRefreshQueued = false;
@@ -177,11 +180,14 @@
     }
 
     event.preventDefault();
+    lastDuplicateDialogTrigger = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
     showDuplicateDialog = true;
+    void tick().then(() => duplicateDialogPrimaryButton?.focus());
   }
 
   function closeDuplicateDialog() {
     showDuplicateDialog = false;
+    void tick().then(() => lastDuplicateDialogTrigger?.focus());
   }
 
   function submitSignOffAnyway() {
@@ -189,9 +195,37 @@
     signOffForm?.requestSubmit();
   }
 
-  function handleKeydown(event: KeyboardEvent) {
-    if (event.key === 'Escape' && showDuplicateDialog) {
+  function handleDuplicateDialogKeydown(event: KeyboardEvent) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
       closeDuplicateDialog();
+      return;
+    }
+
+    if (event.key !== 'Tab' || !duplicateDialogElement) {
+      return;
+    }
+
+    const focusableElements = Array.from(
+      duplicateDialogElement.querySelectorAll<HTMLElement>('button:not([disabled]), [href], input:not([disabled])')
+    );
+
+    if (focusableElements.length === 0) {
+      return;
+    }
+
+    const firstElement = focusableElements[0];
+    const lastElement = focusableElements[focusableElements.length - 1];
+
+    if (event.shiftKey && document.activeElement === firstElement) {
+      event.preventDefault();
+      lastElement?.focus();
+      return;
+    }
+
+    if (!event.shiftKey && document.activeElement === lastElement) {
+      event.preventDefault();
+      firstElement?.focus();
     }
   }
 
@@ -207,8 +241,6 @@
     };
   });
 </script>
-
-<svelte:window on:keydown={handleKeydown} />
 
 <svelte:head>
   <title>Note Processing – StudyPuck</title>
@@ -330,11 +362,20 @@
 
   {#if showDuplicateDialog}
     <div class="note-workspace__dialog-backdrop">
-      <div class="note-workspace__dialog" role="alertdialog" aria-modal="true" aria-labelledby="duplicate-dialog-title">
+      <div
+        bind:this={duplicateDialogElement}
+        class="note-workspace__dialog"
+        role="alertdialog"
+        tabindex="-1"
+        aria-modal="true"
+        aria-labelledby="duplicate-dialog-title"
+        aria-describedby="duplicate-dialog-description"
+        on:keydown={handleDuplicateDialogKeydown}
+      >
         <div class="stack" style="--stack-space: var(--space-3)">
           <div class="stack" style="--stack-space: var(--space-1)">
             <h2 id="duplicate-dialog-title">Duplicate warnings</h2>
-            <p>These draft cards still have possible duplicates.</p>
+            <p id="duplicate-dialog-description">These draft cards still have possible duplicates.</p>
           </div>
 
           <div class="stack" style="--stack-space: var(--space-2)">
@@ -347,7 +388,12 @@
           </div>
 
           <div class="note-workspace__dialog-actions cluster">
-            <button type="button" class="note-workspace__dialog-button note-workspace__dialog-button--primary" on:click={submitSignOffAnyway}>
+            <button
+              bind:this={duplicateDialogPrimaryButton}
+              type="button"
+              class="note-workspace__dialog-button note-workspace__dialog-button--primary"
+              on:click={submitSignOffAnyway}
+            >
               Promote anyway
             </button>
             <button type="button" class="note-workspace__dialog-button" on:click={closeDuplicateDialog}>

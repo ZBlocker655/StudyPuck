@@ -15,6 +15,7 @@ type DatabaseClient = ReturnType<typeof getDb>;
 export type DashboardStats = {
   reviewDueCount: number;
   inboxNoteCount: number;
+  draftCardCount: number;
   streakDays: number;
 };
 
@@ -110,6 +111,7 @@ export async function loadDashboardStats(
   return {
     reviewDueCount: Number(reviewDueResult[0]?.count ?? 0),
     inboxNoteCount: cardEntryCounts.unprocessedNoteCount,
+    draftCardCount: cardEntryCounts.draftCardCount,
     streakDays,
   };
 }
