@@ -92,14 +92,17 @@
       <p class="card-entry-header__copy">Capture rough notes quickly, then come back for a calmer pass through the backlog.</p>
     </div>
 
-    <a
-      class="card-entry-sort"
-      href={`/${$page.params.lang}/card-entry?sort=${nextSort}`}
-      aria-label={`Switch sort order. Currently ${sortLabel}.`}
-    >
-      {sortLabel}
-      <span aria-hidden="true">▾</span>
-    </a>
+    <div class="card-entry-header__actions cluster">
+      <a class="card-entry-link" href={`/${$page.params.lang}/card-entry/drafts`}>View drafts</a>
+      <a
+        class="card-entry-sort"
+        href={`/${$page.params.lang}/card-entry?sort=${nextSort}`}
+        aria-label={`Switch sort order. Currently ${sortLabel}.`}
+      >
+        {sortLabel}
+        <span aria-hidden="true">▾</span>
+      </a>
+    </div>
   </header>
 
   <form
@@ -219,6 +222,7 @@
 
   .card-entry-header,
   .card-entry-header__title,
+  .card-entry-header__actions,
   .card-entry-sort,
   .note-row__meta {
     align-items: center;
@@ -227,6 +231,10 @@
 
   .card-entry-header {
     justify-content: space-between;
+  }
+
+  .card-entry-header__actions {
+    justify-content: flex-end;
   }
 
   .card-entry-header__eyebrow {
@@ -257,6 +265,7 @@
   }
 
   .card-entry-count,
+  .card-entry-link,
   .card-entry-sort {
     border-radius: 999px;
     font-family: var(--font-ui);
@@ -274,8 +283,10 @@
     font-weight: 700;
   }
 
+  .card-entry-link,
   .card-entry-sort {
     display: inline-flex;
+    align-items: center;
     justify-content: center;
     min-block-size: 2.75rem;
     padding-inline: var(--space-4);
@@ -439,6 +450,7 @@
   }
 
   .card-entry-sort:focus-visible,
+  .card-entry-link:focus-visible,
   .quick-capture__input:focus-visible,
   .quick-capture__submit:focus-visible,
   .note-row:focus-visible,
@@ -488,6 +500,10 @@
     .card-entry-header {
       align-items: stretch;
       flex-direction: column;
+    }
+
+    .card-entry-header__actions {
+      justify-content: flex-start;
     }
 
     .quick-capture__controls {

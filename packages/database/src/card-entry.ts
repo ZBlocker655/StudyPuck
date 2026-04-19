@@ -2,6 +2,7 @@ import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import {
   cardEntryDailyStats,
+  cardGroups,
   cards,
   inboxNotes,
   noteCardLinks,
@@ -49,6 +50,16 @@ export type DeleteInboxNoteResult = {
 export type SignOffNoteResult = {
   note: InboxNote;
   promotedCardIds: string[];
+};
+
+export type PromoteDraftCardsResult = {
+  promotedCardIds: string[];
+  processedNoteIds: string[];
+};
+
+export type DeleteDraftCardsResult = {
+  deletedCardIds: string[];
+  deletedNoteIds: string[];
 };
 
 type CardEntryStatsIncrements = Partial<{
@@ -197,6 +208,34 @@ async function getNoteCardIds(
     .orderBy(asc(noteCardLinks.createdAt));
 
   return links.map((link) => link.cardId);
+}
+
+async function getRemainingDraftNoteIds(
+  userId: string,
+  languageId: string,
+  noteIds: string[],
+  db: AnyDb
+): Promise<string[]> {
+  if (noteIds.length === 0) {
+    return [];
+  }
+
+  const rows = await db
+    .select({ noteId: noteCardLinks.noteId })
+    .from(noteCardLinks)
+    .innerJoin(cards, and(
+      eq(cards.userId, noteCardLinks.userId),
+      eq(cards.languageId, noteCardLinks.languageId),
+      eq(cards.cardId, noteCardLinks.cardId)
+    ))
+    .where(and(
+      eq(noteCardLinks.userId, userId),
+      eq(noteCardLinks.languageId, languageId),
+      inArray(noteCardLinks.noteId, noteIds),
+      eq(cards.status, 'draft')
+    ));
+
+  return [...new Set(rows.map((row) => row.noteId))];
 }
 
 export async function createInboxNote(
@@ -661,7 +700,86 @@ export async function signOffNote(
       throw new Error(`Cannot sign off note ${noteId} because it has no linked draft cards`);
     }
 
+    await promoteDraftCards(userId, languageId, draftCardIds, tx);
+    const noteResult = await tx
+      .select()
+      .from(inboxNotes)
+      .where(and(
+        eq(inboxNotes.userId, userId),
+        eq(inboxNotes.languageId, languageId),
+        eq(inboxNotes.noteId, noteId)
+      ))
+      .limit(1);
+
+    return {
+      note: noteResult[0]!,
+      promotedCardIds: draftCardIds,
+    };
+  });
+}
+
+export async function promoteDraftCards(
+  userId: string,
+  languageId: string,
+  cardIds: string[],
+  db?: AnyDb
+): Promise<PromoteDraftCardsResult> {
+  return withTransaction(db, async (tx) => {
+    const uniqueCardIds = [...new Set(cardIds)];
+
+    if (uniqueCardIds.length === 0) {
+      return {
+        promotedCardIds: [],
+        processedNoteIds: [],
+      };
+    }
+
+    const draftCards = await tx
+      .select({ cardId: cards.cardId })
+      .from(cards)
+      .where(and(
+        eq(cards.userId, userId),
+        eq(cards.languageId, languageId),
+        eq(cards.status, 'draft'),
+        inArray(cards.cardId, uniqueCardIds)
+      ));
+
+    const foundCardIds = draftCards.map((card) => card.cardId);
+
+    if (foundCardIds.length !== uniqueCardIds.length) {
+      const foundCardIdSet = new Set(foundCardIds);
+      const missingCardId = uniqueCardIds.find((cardId) => !foundCardIdSet.has(cardId));
+      throw new Error(`Draft card not found: ${missingCardId}`);
+    }
+
+    const groupedCardRows = await tx
+      .select({ cardId: cardGroups.cardId })
+      .from(cardGroups)
+      .where(and(
+        eq(cardGroups.userId, userId),
+        eq(cardGroups.languageId, languageId),
+        inArray(cardGroups.cardId, uniqueCardIds)
+      ));
+
+    const groupedCardIds = new Set(groupedCardRows.map((row) => row.cardId));
+    const cardIdMissingGroup = uniqueCardIds.find((cardId) => !groupedCardIds.has(cardId));
+
+    if (cardIdMissingGroup) {
+      throw new Error(`Draft card requires at least one group before promotion: ${cardIdMissingGroup}`);
+    }
+
+    const linkedNoteRows = await tx
+      .select({ noteId: noteCardLinks.noteId })
+      .from(noteCardLinks)
+      .where(and(
+        eq(noteCardLinks.userId, userId),
+        eq(noteCardLinks.languageId, languageId),
+        inArray(noteCardLinks.cardId, uniqueCardIds)
+      ));
+
+    const affectedNoteIds = [...new Set(linkedNoteRows.map((row) => row.noteId))];
     const now = new Date();
+
     await tx
       .update(cards)
       .set({
@@ -671,27 +789,132 @@ export async function signOffNote(
       .where(and(
         eq(cards.userId, userId),
         eq(cards.languageId, languageId),
-        inArray(cards.cardId, draftCardIds)
+        inArray(cards.cardId, uniqueCardIds)
       ));
 
-    const noteResult = await tx
-      .update(inboxNotes)
-      .set({ state: 'processed' })
-      .where(and(
-        eq(inboxNotes.userId, userId),
-        eq(inboxNotes.languageId, languageId),
-        eq(inboxNotes.noteId, noteId)
-      ))
-      .returning();
+    const remainingDraftNoteIds = await getRemainingDraftNoteIds(userId, languageId, affectedNoteIds, tx);
+    const remainingDraftNoteIdSet = new Set(remainingDraftNoteIds);
+    const processedNoteIds = affectedNoteIds.filter((noteId) => !remainingDraftNoteIdSet.has(noteId));
+
+    if (processedNoteIds.length > 0) {
+      await tx
+        .update(inboxNotes)
+        .set({ state: 'processed' })
+        .where(and(
+          eq(inboxNotes.userId, userId),
+          eq(inboxNotes.languageId, languageId),
+          inArray(inboxNotes.noteId, processedNoteIds)
+        ));
+    }
 
     await incrementCardEntryDailyStats(userId, languageId, {
-      notesProcessed: 1,
-      cardsPromotedToActive: draftCardIds.length,
+      notesProcessed: processedNoteIds.length,
+      cardsPromotedToActive: uniqueCardIds.length,
     }, tx);
 
     return {
-      note: noteResult[0]!,
-      promotedCardIds: draftCardIds,
+      promotedCardIds: uniqueCardIds,
+      processedNoteIds,
+    };
+  });
+}
+
+export async function deleteDraftCards(
+  userId: string,
+  languageId: string,
+  cardIds: string[],
+  db?: AnyDb
+): Promise<DeleteDraftCardsResult> {
+  return withTransaction(db, async (tx) => {
+    const uniqueCardIds = [...new Set(cardIds)];
+
+    if (uniqueCardIds.length === 0) {
+      return {
+        deletedCardIds: [],
+        deletedNoteIds: [],
+      };
+    }
+
+    const draftCards = await tx
+      .select({ cardId: cards.cardId })
+      .from(cards)
+      .where(and(
+        eq(cards.userId, userId),
+        eq(cards.languageId, languageId),
+        eq(cards.status, 'draft'),
+        inArray(cards.cardId, uniqueCardIds)
+      ));
+
+    const foundCardIds = draftCards.map((card) => card.cardId);
+
+    if (foundCardIds.length !== uniqueCardIds.length) {
+      const foundCardIdSet = new Set(foundCardIds);
+      const missingCardId = uniqueCardIds.find((cardId) => !foundCardIdSet.has(cardId));
+      throw new Error(`Draft card not found: ${missingCardId}`);
+    }
+
+    const linkedNoteRows = await tx
+      .select({ noteId: noteCardLinks.noteId })
+      .from(noteCardLinks)
+      .where(and(
+        eq(noteCardLinks.userId, userId),
+        eq(noteCardLinks.languageId, languageId),
+        inArray(noteCardLinks.cardId, uniqueCardIds)
+      ));
+
+    const affectedNoteIds = [...new Set(linkedNoteRows.map((row) => row.noteId))];
+    const now = new Date();
+
+    await tx
+      .update(cards)
+      .set({
+        status: 'deleted',
+        deletedAt: now,
+        updatedAt: now,
+      })
+      .where(and(
+        eq(cards.userId, userId),
+        eq(cards.languageId, languageId),
+        inArray(cards.cardId, uniqueCardIds)
+      ));
+
+    await tx
+      .delete(noteCardLinks)
+      .where(and(
+        eq(noteCardLinks.userId, userId),
+        eq(noteCardLinks.languageId, languageId),
+        inArray(noteCardLinks.cardId, uniqueCardIds)
+      ));
+
+    const remainingDraftNoteIds = await getRemainingDraftNoteIds(userId, languageId, affectedNoteIds, tx);
+    const remainingDraftNoteIdSet = new Set(remainingDraftNoteIds);
+    const deletedNoteIds = affectedNoteIds.filter((noteId) => !remainingDraftNoteIdSet.has(noteId));
+
+    if (deletedNoteIds.length > 0) {
+      await tx
+        .delete(noteCardLinks)
+        .where(and(
+          eq(noteCardLinks.userId, userId),
+          eq(noteCardLinks.languageId, languageId),
+          inArray(noteCardLinks.noteId, deletedNoteIds)
+        ));
+
+      await tx
+        .delete(inboxNotes)
+        .where(and(
+          eq(inboxNotes.userId, userId),
+          eq(inboxNotes.languageId, languageId),
+          inArray(inboxNotes.noteId, deletedNoteIds)
+        ));
+    }
+
+    await incrementCardEntryDailyStats(userId, languageId, {
+      notesDeleted: deletedNoteIds.length,
+    }, tx);
+
+    return {
+      deletedCardIds: uniqueCardIds,
+      deletedNoteIds,
     };
   });
 }

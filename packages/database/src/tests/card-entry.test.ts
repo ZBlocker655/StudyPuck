@@ -17,6 +17,7 @@ import {
   transitionInboxNoteAiState,
   updateInboxNoteAiState,
 } from '../card-entry.js';
+import { addCardToGroup, createGroup } from '../cards.js';
 
 const TEST_USER = { userId: 'auth0|card-entry-user', email: 'card-entry@example.com' };
 const TEST_LANG = { userId: TEST_USER.userId, languageId: 'es', languageName: 'Spanish' };
@@ -146,6 +147,20 @@ describe('Card Entry database operations', () => {
       noteId: note.noteId,
       cardId: 'draft-signoff-card',
       content: 'para que + subjuntivo',
+    }, db);
+
+    const group = await createGroup({
+      userId: TEST_USER.userId,
+      languageId: TEST_LANG.languageId,
+      groupId: 'group-signoff',
+      groupName: 'Grammar',
+    }, db);
+
+    await addCardToGroup({
+      userId: TEST_USER.userId,
+      languageId: TEST_LANG.languageId,
+      cardId: draft.cardId,
+      groupId: group.groupId,
     }, db);
 
     const result = await signOffNote(TEST_USER.userId, TEST_LANG.languageId, note.noteId, db);
