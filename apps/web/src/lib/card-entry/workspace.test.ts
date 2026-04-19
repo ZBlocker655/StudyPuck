@@ -25,10 +25,12 @@ function createNoteFixture(): CardEntryNoteShellData {
         llmInstructions: null,
         linkedAtIso: null,
         groups: [{ groupId: 'group-a', groupName: 'Grammar' }],
+        groupSuggestions: [],
         duplicateWarnings: [
           {
             warningId: 'warning-1',
             title: 'Possible duplicate',
+            similarCardId: 'active-1',
             similarCardLabel: 'ocurrírsele a alguien',
             dismissed: false,
           },
@@ -43,10 +45,12 @@ function createNoteFixture(): CardEntryNoteShellData {
         llmInstructions: null,
         linkedAtIso: null,
         groups: [],
+        groupSuggestions: [],
         duplicateWarnings: [
           {
             warningId: 'warning-2',
             title: 'Possible duplicate',
+            similarCardId: 'active-2',
             similarCardLabel: 'tiempo transcurrido',
             dismissed: true,
           },

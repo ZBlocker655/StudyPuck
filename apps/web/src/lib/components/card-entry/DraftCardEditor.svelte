@@ -14,6 +14,9 @@
       card: CardEntryNoteDraftCardData;
       availableGroups: CardEntryGroupData[];
     };
+    noteUpdated: {
+      note: CardEntryNoteShellData;
+    };
     removed: {
       note: CardEntryNoteShellData;
     };
@@ -285,6 +288,47 @@
     }
   }
 
+  async function dismissDuplicateWarning(warningId: string) {
+    if (disabled) {
+      return;
+    }
+
+    saveState = 'saving';
+    saveError = null;
+
+    try {
+      const response = await fetch(
+        `/${lang}/card-entry/notes/${noteId}/draft-cards/${card.cardId}/duplicate-warnings`,
+        {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({ warningId }),
+        }
+      );
+      const data = (await response.json().catch(() => null)) as
+        | (CardEntryNoteShellData & {
+            message?: string;
+          })
+        | null;
+
+      if (!response.ok || !data?.noteId) {
+        throw new Error(data?.message ?? 'The duplicate warning could not be updated right now.');
+      }
+
+      dispatch('noteUpdated', {
+        note: data,
+      });
+      saveState = 'saved';
+      scheduleSavedIndicatorReset();
+    } catch (error) {
+      saveState = 'error';
+      saveError =
+        error instanceof Error ? error.message : 'The duplicate warning could not be updated right now.';
+    }
+  }
+
   onDestroy(() => {
     clearSavedIndicatorTimer();
   });
@@ -414,6 +458,24 @@
         </div>
       </div>
     {/if}
+
+    {#if draft.groupSuggestions.length > 0}
+      <div class="stack" style="--stack-space: var(--space-2)">
+        <p class="draft-card__suggestions-label">AI suggests</p>
+        <div class="draft-card__suggestions cluster">
+          {#each draft.groupSuggestions as suggestion}
+            <button
+              type="button"
+              class="draft-card__suggestion"
+              disabled={disabled}
+              on:click={() => void toggleGroup(suggestion)}
+            >
+              {suggestion.groupName}
+            </button>
+          {/each}
+        </div>
+      </div>
+    {/if}
   </div>
 
   <div class="draft-card__field stack" style="--stack-space: var(--space-2)">
@@ -513,12 +575,22 @@
     </label>
   </details>
 
-  {#if draft.duplicateWarnings.length > 0}
+  {#if draft.duplicateWarnings.some((warning) => !warning.dismissed)}
     <div class="stack" style="--stack-space: var(--space-2)">
-      {#each draft.duplicateWarnings as warning}
+      {#each draft.duplicateWarnings.filter((warning) => !warning.dismissed) as warning}
         <section class="draft-card__warning" role="alert">
-          <p class="draft-card__warning-title">Possible duplicate: {warning.title}</p>
+          <p class="draft-card__warning-title">{warning.title}</p>
           <p class="draft-card__warning-copy">Similar to: {warning.similarCardLabel}</p>
+          <div class="draft-card__warning-actions cluster">
+            <button
+              type="button"
+              class="draft-card__warning-dismiss"
+              disabled={disabled}
+              on:click={() => void dismissDuplicateWarning(warning.warningId)}
+            >
+              Dismiss
+            </button>
+          </div>
         </section>
       {/each}
     </div>
@@ -565,6 +637,7 @@
   .draft-card__error,
   .draft-card__warning-title,
   .draft-card__warning-copy,
+  .draft-card__suggestions-label,
   .draft-card__empty-inline {
     margin: 0;
   }
@@ -663,7 +736,7 @@
     gap: var(--space-2);
     align-items: center;
     border: 1px solid color-mix(in srgb, var(--color-primary) 35%, var(--color-border));
-    border-radius: var(--radius-pill, 999px);
+    border-radius: var(--radius-md);
     background: var(--color-primary-subtle);
     color: var(--color-primary-text);
     font-family: var(--font-ui);
@@ -674,6 +747,27 @@
   .draft-card__group-option:hover:not(:disabled) {
     border-color: color-mix(in srgb, var(--color-primary) 35%, var(--color-border));
     background: var(--color-primary-subtle);
+  }
+
+  .draft-card__suggestions-label {
+    color: var(--color-text-secondary);
+    font-family: var(--font-ui);
+    font-size: var(--font-size-small);
+  }
+
+  .draft-card__suggestions {
+    gap: var(--space-2);
+  }
+
+  .draft-card__suggestion,
+  .draft-card__warning-dismiss {
+    border: 1px solid color-mix(in srgb, var(--color-primary) 25%, var(--color-border));
+    border-radius: var(--radius-md);
+    background: var(--color-surface-subtle);
+    color: var(--color-text-primary);
+    font-family: var(--font-ui);
+    font-size: var(--font-size-small);
+    padding: var(--space-2) var(--space-3);
   }
 
   .draft-card__list-row {
@@ -738,6 +832,11 @@
     font-size: var(--font-size-small);
   }
 
+  .draft-card__warning-actions {
+    justify-content: flex-end;
+    margin-top: var(--space-2);
+  }
+
   .draft-card__footer {
     display: flex;
     justify-content: end;
@@ -756,6 +855,8 @@
   .draft-card__list-button:focus-visible,
   .draft-card__create-group:focus-visible,
   .draft-card__group-chip:focus-visible,
+  .draft-card__suggestion:focus-visible,
+  .draft-card__warning-dismiss:focus-visible,
   .draft-card__list-remove:focus-visible,
   .draft-card__remove:focus-visible {
     outline: 2px solid var(--color-primary);

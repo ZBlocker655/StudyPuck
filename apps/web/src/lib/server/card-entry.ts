@@ -79,8 +79,15 @@ export type CardEntryGroupData = {
 export type CardEntryDuplicateWarningData = {
   warningId: string;
   title: string;
+  similarCardId: string;
   similarCardLabel: string;
   dismissed: boolean;
+};
+
+export type CardEntryGroupSuggestionData = {
+  groupId: string;
+  groupName: string;
+  similarityScore: number;
 };
 
 export type CardEntryNoteDraftCardData = {
@@ -92,6 +99,7 @@ export type CardEntryNoteDraftCardData = {
   llmInstructions: string | null;
   linkedAtIso: string | null;
   groups: CardEntryGroupData[];
+  groupSuggestions: CardEntryGroupSuggestionData[];
   duplicateWarnings: CardEntryDuplicateWarningData[];
 };
 
@@ -276,6 +284,7 @@ function mapDraftCard(
     llmInstructions: parseOptionalText(draftCard.llmInstructions ?? ''),
     linkedAtIso: draftCard.linkedAt?.toISOString() ?? null,
     groups,
+    groupSuggestions: [],
     duplicateWarnings: [],
   };
 }
