@@ -1,7 +1,10 @@
 import { z } from 'zod';
 
+export const cardEntryCardTypeSchema = z.enum(['word', 'pattern', 'complex_prompt']).default('word');
+
 export const cardEntryDraftSuggestionSchema = z.object({
   content: z.string().trim().min(1).max(500),
+  cardType: cardEntryCardTypeSchema,
   meaning: z.string().trim().max(500).nullable().optional().default(null),
   examples: z.array(z.string().trim().min(1).max(500)).max(5).optional().default([]),
   mnemonics: z.array(z.string().trim().min(1).max(500)).max(5).optional().default([]),
@@ -29,11 +32,15 @@ export function buildCardEntryPreprocessPrompt(input: {
       'Preserve the user note intent instead of inventing unrelated material.',
       'Keep examples and mnemonics concise and useful for study.',
       'If the note is ambiguous, produce the safest likely draft cards instead of refusing.',
+      'Set cardType based on the content: use "word" for a single vocabulary word or very short vocabulary item (e.g. 经历, repasar, bonjour);',
+      'use "pattern" for a phrase, expression, grammar pattern, or multi-word construction (e.g. 这还有什么说的, sin embargo, au fur et à mesure);',
+      'use "complex_prompt" for a comparative, analytical, or multi-concept prompt (e.g. 东西 vs 事情, ser vs estar).',
+      'When in doubt between "word" and "pattern", prefer "pattern" for content containing more than one meaningful token or a full expression.',
     ].join(' '),
     userPrompt: [
       `Active language code: ${input.languageId}.`,
       'Return this JSON shape exactly:',
-      '{"draftCards":[{"content":"string","meaning":"string|null","examples":["string"],"mnemonics":["string"],"llmInstructions":"string|null"}]}',
+      '{"draftCards":[{"content":"string","cardType":"word|pattern|complex_prompt","meaning":"string|null","examples":["string"],"mnemonics":["string"],"llmInstructions":"string|null"}]}',
       'Source note:',
       input.noteContent,
     ].join('\n'),
