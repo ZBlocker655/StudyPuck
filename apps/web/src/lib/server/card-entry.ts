@@ -3,6 +3,7 @@ import {
   createDraftCardFromNote,
   createGroup,
   createInboxNote,
+  deleteDraftCards,
   deleteInboxNote,
   deferInboxNote,
   getActiveUserLanguages,
@@ -10,10 +11,12 @@ import {
   getCardGroups,
   getCardGroupsForCards,
   getDb,
+  getDraftCardsForLanguage,
   getGroups,
   getInboxNote,
   getNoteWithDraftCards,
   listInboxNotes,
+  promoteDraftCards,
   removeCardFromGroup,
   signOffNote,
   updateCard,
@@ -102,6 +105,30 @@ export type CardEntryNoteShellData = {
   sourceLabel: string;
   draftCards: CardEntryNoteDraftCardData[];
   availableGroups: CardEntryGroupData[];
+};
+
+export type CardEntryDraftSourceNoteData = {
+  noteId: string;
+  content: string;
+  state: InboxNoteState;
+  createdAtIso: string | null;
+  linkedAtIso: string | null;
+};
+
+export type CardEntryDraftListItemData = {
+  cardId: string;
+  content: string;
+  meaning: string | null;
+  updatedAtIso: string | null;
+  updatedAtLabel: string;
+  groups: CardEntryGroupData[];
+  sourceNotes: CardEntryDraftSourceNoteData[];
+};
+
+export type CardEntryDraftsData = {
+  items: CardEntryDraftListItemData[];
+  availableGroups: CardEntryGroupData[];
+  draftCardCount: number;
 };
 
 export function getCardEntrySortCookieName(languageId: string): string {
@@ -314,6 +341,10 @@ async function loadDraftCardGroupsMap(
   cardIds: string[],
   database: DatabaseClient
 ) {
+  if (cardIds.length === 0) {
+    return new Map();
+  }
+
   return getCardGroupsForCards(userId, languageId, cardIds, database as never);
 }
 
@@ -327,8 +358,37 @@ async function mapWorkspaceDraftCards(
   const draftCardGroups = await loadDraftCardGroupsMap(userId, languageId, cardIds, database);
 
   return workspace.draftCards.map((draftCard) =>
-    mapDraftCard(draftCard, (draftCardGroups.get(draftCard.cardId) ?? []).map((group) => mapGroup(group)))
+    mapDraftCard(
+      draftCard,
+      (draftCardGroups.get(draftCard.cardId) ?? []).map((group: Group) => mapGroup(group))
+    )
   );
+}
+
+async function mapDraftCardsWithSources(
+  userId: string,
+  languageId: string,
+  draftCards: Awaited<ReturnType<typeof getDraftCardsForLanguage>>,
+  database: DatabaseClient
+): Promise<CardEntryDraftListItemData[]> {
+  const cardIds = draftCards.map((draftCard) => draftCard.cardId);
+  const draftCardGroups = await loadDraftCardGroupsMap(userId, languageId, cardIds, database);
+
+  return draftCards.map((draftCard) => ({
+    cardId: draftCard.cardId,
+    content: draftCard.content,
+    meaning: parseOptionalText(draftCard.meaning ?? ''),
+    updatedAtIso: draftCard.updatedAt?.toISOString() ?? null,
+    updatedAtLabel: draftCard.updatedAt ? formatCardEntryRelativeTime(draftCard.updatedAt) : 'Just now',
+    groups: (draftCardGroups.get(draftCard.cardId) ?? []).map((group: Group) => mapGroup(group)),
+    sourceNotes: draftCard.sourceNotes.map((sourceNote) => ({
+      noteId: sourceNote.noteId,
+      content: sourceNote.content,
+      state: sourceNote.state as InboxNoteState,
+      createdAtIso: sourceNote.createdAt?.toISOString() ?? null,
+      linkedAtIso: sourceNote.linkedAt?.toISOString() ?? null,
+    })),
+  }));
 }
 
 async function loadWorkspace(
@@ -543,6 +603,23 @@ export async function loadCardEntryNoteShellData(
   };
 }
 
+export async function loadCardEntryDraftsData(
+  userId: string,
+  languageId: string,
+  database: DatabaseClient
+): Promise<CardEntryDraftsData> {
+  const [draftCards, availableGroups] = await Promise.all([
+    getDraftCardsForLanguage(userId, languageId, database as never),
+    getGroups(userId, languageId, database as never),
+  ]);
+
+  return {
+    items: await mapDraftCardsWithSources(userId, languageId, draftCards, database),
+    availableGroups: availableGroups.map((group) => mapGroup(group)),
+    draftCardCount: draftCards.length,
+  };
+}
+
 export async function createCardEntryNoteForLanguage(
   userId: string,
   languageId: string,
@@ -604,6 +681,10 @@ export async function signOffCardEntryNoteForLanguage(
     if (error instanceof Error) {
       if (error.message.startsWith('Inbox note not found:')) {
         throw new CardEntryRequestError(404, 'Card Entry note not found.');
+      }
+
+      if (error.message.includes('requires at least one group before promotion')) {
+        throw new CardEntryRequestError(400, 'Every draft card needs at least one group before it can become active.');
       }
 
       if (error.message.includes('has no linked')) {
@@ -744,4 +825,58 @@ export async function removeCardEntryDraftCardForLanguage(
   }
 
   return loadCardEntryNoteShellData(userId, languageId, parsedNoteId, database);
+}
+
+function parseCardIds(cardIds: unknown): string[] {
+  if (!Array.isArray(cardIds)) {
+    throw new CardEntryRequestError(400, 'At least one draft card must be selected.');
+  }
+
+  const parsedCardIds = [...new Set(cardIds.map((cardId) => parseCardId(cardId)))];
+
+  if (parsedCardIds.length === 0) {
+    throw new CardEntryRequestError(400, 'At least one draft card must be selected.');
+  }
+
+  return parsedCardIds;
+}
+
+export async function promoteCardEntryDraftsForLanguage(
+  userId: string,
+  languageId: string,
+  cardIds: unknown,
+  database: DatabaseClient
+) {
+  try {
+    return await promoteDraftCards(userId, languageId, parseCardIds(cardIds), database as never);
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message.startsWith('Draft card not found:')) {
+        throw new CardEntryRequestError(404, 'One of the selected draft cards no longer exists.');
+      }
+
+      if (error.message.includes('requires at least one group before promotion')) {
+        throw new CardEntryRequestError(400, 'Every promoted draft needs at least one group before it can become active.');
+      }
+    }
+
+    throw error;
+  }
+}
+
+export async function deleteCardEntryDraftsForLanguage(
+  userId: string,
+  languageId: string,
+  cardIds: unknown,
+  database: DatabaseClient
+) {
+  try {
+    return await deleteDraftCards(userId, languageId, parseCardIds(cardIds), database as never);
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Draft card not found:')) {
+      throw new CardEntryRequestError(404, 'One of the selected draft cards no longer exists.');
+    }
+
+    throw error;
+  }
 }
