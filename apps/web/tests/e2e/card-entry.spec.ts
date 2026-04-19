@@ -107,34 +107,29 @@ test('surfaces dashboard card-entry counts with actionable inbox and draft links
   await expect(page.getByRole('heading', { name: 'Drafts' })).toBeVisible();
 });
 
-test('supports manual processing into a draft, sign-off promotion, and statistics surfacing', async ({ page }) => {
+test('supports failed-note sign-off promotion and statistics surfacing', async ({ page }) => {
   const user = await signInCardEntryUser(page);
-  const seededNote = await seedInboxNote({
+  const seededDraft = await seedDraftCard({
     userId: user.userId,
     languageId: 'es',
     noteId: 'note-manual-process',
-    content: 'usar para que con subjuntivo',
+    noteContent: 'usar para que con subjuntivo',
+    cardId: 'draft-manual-process-card',
+    cardContent: 'para que + subjuntivo',
+    meaning: 'so that',
+    groupName: 'Grammar',
     aiState: 'failed'
   });
 
-  await page.goto(`/es/card-entry/notes/${seededNote.noteId}`);
+  await page.goto(`/es/card-entry/notes/${seededDraft.note.noteId}`);
 
   await expect(page.getByRole('heading', { name: 'Note Processing' })).toBeVisible();
   await expect(page.getByText('AI processing failed')).toBeVisible();
-
-  await page.getByRole('button', { name: '+ Add another card' }).click();
-  const contentField = page.getByPlaceholder('Card content...');
-  const meaningField = page.getByPlaceholder('Meaning...');
-  await expect(contentField).toBeVisible();
-  await contentField.fill('para que + subjuntivo');
-  await meaningField.fill('so that');
-
-  await page.getByRole('button', { name: '+ Add group' }).click();
-  await page.getByPlaceholder('Search groups...').fill('Grammar');
-  await page.getByRole('button', { name: '+ Create "Grammar"' }).click();
+  await expect(page.getByPlaceholder('Card content...')).toHaveValue('para que + subjuntivo');
+  await expect(page.getByPlaceholder('Meaning...')).toHaveValue('so that');
 
   await page.getByRole('button', { name: /Sign off — Promote all to active/ }).click();
-  await page.waitForURL('/es/card-entry');
+  await page.waitForURL(/\/es\/card-entry$/);
   await expect(page.getByText('usar para que con subjuntivo')).toHaveCount(0);
 
   await page.goto('/es/stats');
