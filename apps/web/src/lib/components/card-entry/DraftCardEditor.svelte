@@ -193,6 +193,10 @@
   }
 
   function addListValue(field: EditableListField) {
+    // Invalidate any in-flight persistDraft call (e.g. triggered by blur when the
+    // user clicked "+").  Without this, a stale save response can overwrite the
+    // newly-added empty item before the user has a chance to type into it.
+    saveToken++;
     draft = {
       ...draft,
       [field]: [...draft[field], ''],
