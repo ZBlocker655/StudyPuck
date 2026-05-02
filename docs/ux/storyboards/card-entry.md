@@ -1,7 +1,7 @@
 # Card Entry Storyboard
 
 > **Status**: Authoritative  
-> **Depends on**: [card-entry.md requirements](../../requirements/functionality/card-entry.md), [information-architecture.md](../information-architecture.md), [global-navigation.md](./global-navigation.md), [llm-command-interface.md](./llm-command-interface.md), [card-library-and-groups.md](./card-library-and-groups.md)
+> **Depends on**: [card-entry.md requirements](../../requirements/functionality/card-entry.md), [information-architecture.md](../information-architecture.md), [global-navigation.md](./global-navigation.md), [llm-command-interface.md](./llm-command-interface.md), [card-library-and-groups.md](./card-library-and-groups.md), [structured-chat-architecture.md](../../specs/structured-chat-architecture.md)
 
 This document specifies every screen and interaction in the Card Entry feature — its layouts, interactive states, AI assistance behavior, and edge cases — across desktop and mobile breakpoints. Card Entry is the capture-and-review pipeline through which raw notes are transformed into draft cards and ultimately promoted to the active card library.
 
@@ -28,6 +28,7 @@ The following decisions were made during the UX design process. Each is captured
 | 13 | **AI suggestion interaction: one-click accept, ✕ dismiss, click-to-edit** — each suggestion is a chip/row; single click adds it to the field; ✕ button dismisses it; clicking the suggestion text opens it in an inline edit before accepting | Fast accept; escape hatch for modification |
 | 14 | **Card status: always draft → sign-off → active** — no per-card "start as active" toggle; all cards created during processing start as draft and are only promoted at sign-off | Simpler; enforces the approval gate |
 | 15 | **Inline group creation: `+ Create "[typed text]"` at bottom of dropdown** — same pattern as Card Library storyboard | Consistent; no context switch |
+| 16 | **Chat-driven draft editing uses structured typed actions** — natural language is the primary UX, slash commands stay optional shortcuts, and assistant suggestions may only mutate the active draft card through typed actions | Keeps the command bar consistent while making chat assistance deterministic, safe, and reversible |
 
 ---
 
@@ -332,6 +333,22 @@ Groups
 
 Group suggestions: top 3–5 group chips below the group picker.
 Example sentence suggestions: 2–3 sentence chips below the example sentences list.
+
+### Conversation Pane - Chat-Driven Editing Actions
+
+Issue #151 defines the note-processing workspace as the first card-editing context where chat may return executable editing suggestions.
+
+In this workspace:
+
+- the command bar remains the single input for both normal chat and optional slash commands
+- the frontend sends only a small context hint; the backend derives the authoritative draft-card context used in prompting
+- the active conversation context is the currently open draft card
+- assistant responses may include typed suggestions in addition to normal text
+- the first concrete actionable suggestion type is appending a new example sentence to the current draft card
+- suggestions are rendered as clickable chips/buttons in the conversation pane from typed payloads, not by parsing plain assistant prose
+- changing language, note, or draft card clears the conversation state for this workspace
+
+The detailed response envelope, context contract, and typed action schema are specified in [structured-chat-architecture.md](../../specs/structured-chat-architecture.md).
 
 **Duplicate warning banner (Decision 8):**
 

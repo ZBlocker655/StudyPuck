@@ -1,7 +1,7 @@
 # LLM Command Interface
 
 > **Status**: Authoritative  
-> **Depends on**: [global-navigation.md](./global-navigation.md), [information-architecture.md](../information-architecture.md)
+> **Depends on**: [global-navigation.md](./global-navigation.md), [information-architecture.md](../information-architecture.md), [structured-chat-architecture.md](../../specs/structured-chat-architecture.md)
 
 This document specifies the omnipresent LLM command bar — its placement, visual states, interaction model, and command set — across all screens and breakpoints.
 
@@ -15,6 +15,21 @@ The command bar is the **single, unified input** for everything conversational a
 - **Context-aware**: its behavior, scope, and LLM system prompt adapt to the current mini-app and the specific item in focus
 - **The only command input**: there is no secondary "chat box" or separate input for Translation Drills — the command bar IS the translation drill input when you are in that context
 - **Not redundant with navigation**: the command bar does not duplicate the mini-app switcher or language switcher; those live in the nav shell (see `global-navigation.md`)
+
+### Routing and Response Contract
+
+The command bar uses a split execution model:
+
+- **Direct app commands** such as `/add` route straight to application handlers and do not require the LLM.
+- **Free text** goes through the LLM pipeline for the current context.
+- **Future LLM-backed slash commands** are allowed, but must use the same structured-response pipeline as free text rather than inventing a parallel path.
+
+When the LLM is used, the response is normalized to a structured envelope with:
+
+- `message`
+- `suggestions[]`
+
+Suggestions contain typed payloads only. The application, not the model, derives button labels and owns all execution behavior.
 
 ### Principle #1 — Short, Bounded Conversations
 
@@ -386,6 +401,10 @@ Commands from the current context appear first. Global commands appear below, in
 |---|---|
 | `/process` | Open the Note Processing workspace for the next unprocessed inbox item. |
 | `/defer` | Defer the current inbox item (moves it to the deferred queue). |
+
+For card-editing chat assistance, natural language remains the primary input. If editor-specific slash commands are added later, they must resolve to the same typed structured-action system described in [structured-chat-architecture.md](../../specs/structured-chat-architecture.md), rather than introducing a separate execution path.
+
+Settings surfaces are currently outside the product-help scope for LLM usage. In those contexts, the app may return a direct placeholder response instead of calling the model.
 
 ### Card Review Commands
 
