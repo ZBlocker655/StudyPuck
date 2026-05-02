@@ -3,11 +3,12 @@ import { z } from 'zod';
 export type AiProviderName = 'gemini' | 'openai';
 
 export type AiRequestMetadata = {
-  feature: 'card-entry';
-  operation: 'preprocess-note' | 'semantic-embedding';
+  feature: 'card-entry' | 'chat';
+  operation: 'preprocess-note' | 'semantic-embedding' | 'conversation';
   userId: string;
   languageId: string;
-  noteId: string;
+  noteId?: string;
+  routeContextType?: string;
 };
 
 export type AiRequestHooks = {

@@ -88,6 +88,42 @@ describe('createAiService', () => {
     expect(openAiGenerator).toHaveBeenCalledTimes(1);
   });
 
+  it('falls back to the secondary provider when the primary one returns invalid structured output', async () => {
+    const geminiGenerator = vi.fn(async () => '{"draftCards":"invalid"}');
+    const openAiGenerator = vi.fn(async () => '{"draftCards":[{"content":"fallback"}]}');
+    const service = createAiService({
+      privateEnv: {
+        GEMINI_API_KEY: 'test-gemini-key',
+        OPENAI_API_KEY: 'test-openai-key',
+      },
+      hooks: silentHooks,
+      providerGenerators: {
+        gemini: geminiGenerator,
+        openai: openAiGenerator,
+      },
+    });
+
+    const response = await service.generateStructured({
+      metadata: {
+        feature: 'card-entry',
+        operation: 'preprocess-note',
+        userId: 'user-1',
+        languageId: 'es',
+        noteId: 'note-1',
+      },
+      systemPrompt: 'system',
+      userPrompt: 'user',
+      responseSchema,
+    });
+
+    expect(response).toEqual({
+      draftCards: [{ content: 'fallback' }],
+    });
+    expect(geminiGenerator).toHaveBeenCalledTimes(1);
+    expect(openAiGenerator).toHaveBeenCalledTimes(1);
+    expect(silentHooks.onRequestFailure).toHaveBeenCalledTimes(1);
+  });
+
   it('throws a configuration error when no providers are configured', async () => {
     const service = createAiService({
       privateEnv: {},

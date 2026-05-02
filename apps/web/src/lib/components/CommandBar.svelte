@@ -4,6 +4,7 @@
   import { page } from '$app/stores';
   import { onMount, tick } from 'svelte';
   import { createInboxNoteRequest } from '$lib/card-entry/client.js';
+  import { requestStructuredChatResponse } from '$lib/chat/client.js';
   import { resolveCardEntryCommandResponse } from '$lib/command-bar/card-entry.js';
   import { cardEntryShellCounts } from '$lib/stores/cardEntryShell.js';
   import { cardEntryUi } from '$lib/stores/cardEntryUi.js';
@@ -171,20 +172,40 @@
       commandBar.setInput(inputElement.value);
     }
 
-    commandBar.submit((input) =>
-      resolveCardEntryCommandResponse({
+    commandBar.submit(async (input) => {
+      const trimmedInput = input.trim();
+
+      if (trimmedInput === '/add') {
+        // Keep the existing quick-add shortcut local until the structured chat contract includes
+        // a typed suggestion for opening the drawer without auto-executing a server response.
+        return resolveCardEntryCommandResponse({
+          input,
+          activeLanguageCode,
+          createNote: async (payload) => {
+            await createInboxNoteRequest(payload);
+          },
+          openQuickAdd: (request) => cardEntryUi.openQuickAdd(request),
+          onNoteCreated: async () => {
+            cardEntryShellCounts.adjustCount(activeLanguageCode, 1);
+            await invalidateAll();
+          },
+        });
+      }
+
+      const response = await requestStructuredChatResponse({
         input,
-        activeLanguageCode,
-        createNote: async (payload) => {
-          await createInboxNoteRequest(payload);
-        },
-        openQuickAdd: (request) => cardEntryUi.openQuickAdd(request),
-        onNoteCreated: async () => {
-          cardEntryShellCounts.adjustCount(activeLanguageCode, 1);
-          await invalidateAll();
-        },
-      })
-    );
+        pathname: $page.url.pathname,
+        languageId: activeLanguageCode,
+        noteId: $page.params.noteId,
+      });
+
+      if (trimmedInput.startsWith('/add ')) {
+        cardEntryShellCounts.adjustCount(activeLanguageCode, 1);
+        await invalidateAll();
+      }
+
+      return response.message;
+    });
   }
 
   function handleKeydown(event: KeyboardEvent) {

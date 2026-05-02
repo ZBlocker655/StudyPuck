@@ -1,21 +1,15 @@
 import { browser } from '$app/environment';
 import { writable } from 'svelte/store';
-
-export type CommandContext = 'global' | 'card-entry' | 'card-review' | 'translation-drills';
+import {
+  defaultRouteContext,
+  findRecognizedCommand,
+  getFilteredCommandGroups,
+  resolveRouteContext,
+  type CommandContext,
+  type CommandDefinition,
+  type RouteContext,
+} from '$lib/command-bar/shared.js';
 export type MessageRole = 'assistant' | 'system' | 'user';
-
-export type RouteContext = {
-  commandContext: CommandContext;
-  label: string;
-  pathname: string;
-};
-
-export type CommandDefinition = {
-  command: string;
-  description: string;
-  commandContext: CommandContext | 'global';
-  insertText: string;
-};
 
 export type ConversationMessage = {
   id: string;
@@ -43,75 +37,6 @@ export type CommandResponder = (
   routeContext: RouteContext
 ) => string | null | Promise<string | null>;
 
-const COMMANDS: CommandDefinition[] = [
-  {
-    command: '/add',
-    description: 'Add a note to the inbox for the current language.',
-    commandContext: 'global',
-    insertText: '/add ',
-  },
-  {
-    command: '/lang',
-    description: 'Switch to the specified language.',
-    commandContext: 'global',
-    insertText: '/lang ',
-  },
-  {
-    command: '/help',
-    description: 'Display all commands available in the current context.',
-    commandContext: 'global',
-    insertText: '/help',
-  },
-  {
-    command: '/process',
-    description: 'Open the processing workspace for the next inbox item.',
-    commandContext: 'card-entry',
-    insertText: '/process',
-  },
-  {
-    command: '/defer',
-    description: 'Defer the current inbox item.',
-    commandContext: 'card-entry',
-    insertText: '/defer',
-  },
-  {
-    command: '/pin',
-    description: 'Pin the current card to Translation Drills context.',
-    commandContext: 'card-review',
-    insertText: '/pin',
-  },
-  {
-    command: '/snooze',
-    description: 'Snooze the current card.',
-    commandContext: 'card-review',
-    insertText: '/snooze',
-  },
-  {
-    command: '/next',
-    description: 'Move to the next card in the current review session.',
-    commandContext: 'card-review',
-    insertText: '/next',
-  },
-  {
-    command: '/next',
-    description: 'Request the next translation challenge.',
-    commandContext: 'translation-drills',
-    insertText: '/next',
-  },
-  {
-    command: '/dismiss',
-    description: 'Dismiss the current card from the translation context.',
-    commandContext: 'translation-drills',
-    insertText: '/dismiss',
-  },
-  {
-    command: '/draw',
-    description: 'Draw more cards from a group into the translation context.',
-    commandContext: 'translation-drills',
-    insertText: '/draw ',
-  },
-];
-
 const DEFAULT_CONTEXT_WIDTH: Record<CommandContext, number> = {
   global: 62,
   'card-entry': 62,
@@ -128,14 +53,6 @@ function createMessage(role: MessageRole, content: string): ConversationMessage 
     id: `command-message-${messageCounter}`,
     role,
     content,
-  };
-}
-
-function defaultRouteContext(): RouteContext {
-  return {
-    commandContext: 'global',
-    label: 'Workspace',
-    pathname: '',
   };
 }
 
@@ -160,54 +77,8 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
-export function resolveRouteContext(pathname: string): RouteContext {
-  const segments = pathname.split('/').filter(Boolean);
-  const section = segments[1];
-
-  if (!section) {
-    return {
-      commandContext: 'global',
-      label: segments[0] ? 'Dashboard' : 'Workspace',
-      pathname,
-    };
-  }
-
-  switch (section) {
-    case 'card-entry':
-      return { commandContext: 'card-entry', label: 'Card Entry', pathname };
-    case 'card-review':
-      return { commandContext: 'card-review', label: 'Card Review', pathname };
-    case 'translation-drills':
-      return { commandContext: 'translation-drills', label: 'Translation Drills', pathname };
-    case 'cards':
-      return { commandContext: 'global', label: 'Cards', pathname };
-    case 'settings':
-      return { commandContext: 'global', label: 'Settings', pathname };
-    case 'stats':
-      return { commandContext: 'global', label: 'Statistics', pathname };
-    default:
-      return { commandContext: 'global', label: 'Workspace', pathname };
-  }
-}
-
 function isAutocompleteInput(input: string) {
   return input.startsWith('/');
-}
-
-function getCommandQuery(input: string) {
-  return input.slice(1).trim().toLowerCase();
-}
-
-function getCommandsForContext(commandContext: CommandContext) {
-  return COMMANDS.filter(
-    (command) => command.commandContext === commandContext || command.commandContext === 'global',
-  );
-}
-
-function findRecognizedCommand(input: string, commandContext: CommandContext) {
-  const [typedCommand] = input.trim().split(/\s+/, 1);
-
-  return getCommandsForContext(commandContext).find((command) => command.command === typedCommand) ?? null;
 }
 
 function buildAssistantResponse(input: string, routeContext: RouteContext) {
@@ -484,22 +355,6 @@ function createCommandBarStore() {
   };
 }
 
-export function getFilteredCommandGroups(commandContext: CommandContext, input: string) {
-  const query = getCommandQuery(input);
-  const contextCommands =
-    commandContext === 'global'
-      ? []
-      : COMMANDS.filter((command) => command.commandContext === commandContext).filter((command) =>
-          command.command.slice(1).startsWith(query),
-        );
-  const globalCommands = COMMANDS.filter((command) => command.commandContext === 'global').filter((command) =>
-    command.command.slice(1).startsWith(query),
-  );
-
-  return [
-    { label: 'Current context', commands: contextCommands },
-    { label: 'Global', commands: globalCommands },
-  ].filter((group) => group.commands.length > 0);
-}
-
 export const commandBar = createCommandBarStore();
+export type { CommandContext, CommandDefinition, RouteContext } from '$lib/command-bar/shared.js';
+export { getFilteredCommandGroups, resolveRouteContext };
