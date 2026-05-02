@@ -1,7 +1,6 @@
 import { getActiveUserLanguages, getNoteWithDraftCards } from '@studypuck/database';
 import {
   buildCardEntryExampleSentenceFormatInstruction,
-  DEFAULT_CARD_ENTRY_EXAMPLE_SENTENCE_FORMAT,
   readCardEntryExampleSentenceFormat,
   type CardEntryExampleSentenceFormat,
 } from '$lib/card-entry/example-sentence-format.js';
@@ -171,12 +170,4 @@ export function getAllowedSuggestionTypes(
   context: CanonicalChatContext,
 ): readonly ChatSuggestionType[] {
   return context.allowedSuggestionTypes as readonly ChatSuggestionType[];
-}
-
-/**
- * Returns a human-readable example sentence format label for the given format.
- * Exported for use in prompt assembly.
- */
-export function getDefaultExampleSentenceFormat(): CardEntryExampleSentenceFormat {
-  return DEFAULT_CARD_ENTRY_EXAMPLE_SENTENCE_FORMAT;
 }

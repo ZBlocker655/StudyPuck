@@ -65,10 +65,9 @@ describe('commandBar entity context and conversation reset', () => {
   }
 
   it('resets messages when the active note changes', () => {
-    // Set up initial state with a message
+    // Set the context to note-1 then immediately switch to note-2;
+    // the messages array should be empty after the switch.
     commandBar.setEntityContext('es', 'note-1', null);
-    // Simulate a message being in the store by submitting (we test the reset, not submission)
-    // Instead, we directly verify that a context change clears messages.
     commandBar.setEntityContext('es', 'note-2', null);
 
     const state = getState();
