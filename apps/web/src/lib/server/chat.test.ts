@@ -2,6 +2,12 @@ import { describe, expect, it, vi } from 'vitest';
 import { resolveRouteContext } from '$lib/command-bar/shared.js';
 import { handleStudyPuckChatRequest } from './chat.js';
 
+// Minimal type for a mock generateStructured that captures the user prompt
+type MockGenerateStructured = (request: {
+  userPrompt: string;
+  responseSchema: { parse: (value: unknown) => unknown };
+}) => Promise<unknown>;
+
 describe('handleStudyPuckChatRequest', () => {
   it('routes inline /add commands through the direct application handler without calling the LLM', async () => {
     const createNote = vi.fn().mockResolvedValue(undefined);
@@ -157,7 +163,7 @@ describe('handleStudyPuckChatRequest', () => {
 
   it('includes conversation history in the prompt when provided', async () => {
     let capturedUserPrompt = '';
-    const generateStructured = vi.fn(async (request: { userPrompt: string; responseSchema: { parse: (value: unknown) => unknown } }) => {
+    const generateStructured = vi.fn<MockGenerateStructured>(async (request) => {
       capturedUserPrompt = request.userPrompt;
       return request.responseSchema.parse({ message: 'Got it.' });
     });

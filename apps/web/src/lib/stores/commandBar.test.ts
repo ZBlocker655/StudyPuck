@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { commandBar, getFilteredCommandGroups, resolveRouteContext } from './commandBar.js';
+import { commandBar, getFilteredCommandGroups, resolveRouteContext, type CommandBarState } from './commandBar.js';
 
 describe('commandBar route context', () => {
   it('maps language-prefixed mini-app routes to the correct command context', () => {
@@ -58,7 +58,7 @@ describe('commandBar command filtering', () => {
 
 describe('commandBar entity context and conversation reset', () => {
   function getState() {
-    let state: Parameters<Parameters<typeof commandBar.subscribe>[0]>[0] | undefined;
+    let state: CommandBarState | undefined;
     const unsub = commandBar.subscribe((s) => { state = s; });
     unsub();
     return state!;

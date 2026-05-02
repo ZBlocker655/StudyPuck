@@ -194,11 +194,14 @@
 
       const promptHistory = commandBar.getPromptHistory(currentState);
 
+      // URL param takes priority; fall back to the store's active note, then omit.
+      const effectiveNoteId = $page.params.noteId || currentState.activeNoteId || undefined;
+
       const response = await requestStructuredChatResponse({
         input,
         pathname: $page.url.pathname,
         languageId: activeLanguageCode,
-        noteId: $page.params.noteId ?? currentState.activeNoteId ?? undefined,
+        noteId: effectiveNoteId,
         cardId: currentState.activeCardId ?? undefined,
         conversationHistory: promptHistory.length > 0 ? promptHistory : undefined,
       });
