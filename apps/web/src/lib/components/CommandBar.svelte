@@ -172,7 +172,7 @@
       commandBar.setInput(inputElement.value);
     }
 
-    commandBar.submit(async (input, _routeContext /* preserved for CommandResponder interface */, currentState) => {
+    commandBar.submit(async (input, _routeContext, currentState) => {
       const trimmedInput = input.trim();
 
       if (trimmedInput === '/add') {

@@ -142,22 +142,18 @@ export async function resolveCanonicalChatContext(
   hint: ChatContextHint,
   database: DatabaseClient | null,
 ): Promise<CanonicalChatContext> {
-  const isDraftCardEditor =
-    hint.routeContext.routeContextType === 'card-entry' &&
-    hint.languageId &&
-    hint.noteId &&
-    hint.cardId &&
-    database !== null;
+  const { languageId, noteId, cardId, focusedField } = hint;
 
-  if (isDraftCardEditor) {
+  if (
+    hint.routeContext.routeContextType === 'card-entry' &&
+    languageId &&
+    noteId &&
+    cardId &&
+    database !== null
+  ) {
     return resolveDraftCardEditorContext(
       userId,
-      {
-        languageId: hint.languageId!,
-        noteId: hint.noteId!,
-        cardId: hint.cardId!,
-        focusedField: hint.focusedField,
-      },
+      { languageId, noteId, cardId, focusedField },
       database,
     );
   }
