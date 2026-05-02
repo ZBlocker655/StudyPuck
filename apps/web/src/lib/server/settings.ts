@@ -9,6 +9,7 @@ import {
   type StudyLanguage,
   type User,
 } from '@studypuck/database';
+import { readCardEntryExampleSentenceFormat, type CardEntryExampleSentenceFormat } from '$lib/card-entry/example-sentence-format.js';
 
 type DatabaseClient = NonNullable<Parameters<typeof getUserByAuth0Id>[1]>;
 
@@ -18,6 +19,7 @@ export type SettingsLanguageSummary = {
   isActive: boolean;
   cardCount: number;
   lastStudiedLabel: string;
+  exampleSentenceFormat: CardEntryExampleSentenceFormat;
 };
 
 export type SettingsData = {
@@ -119,6 +121,7 @@ async function loadLanguageSummary(
     isActive: language.languageId === currentLanguageId,
     cardCount: Number(cardCountResult[0]?.count ?? 0),
     lastStudiedLabel: formatRelativeStudyLabel(latestStudyDate),
+    exampleSentenceFormat: readCardEntryExampleSentenceFormat(language.settings),
   };
 }
 

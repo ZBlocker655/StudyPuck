@@ -1,4 +1,9 @@
 import { z } from 'zod';
+import {
+  buildCardEntryExampleSentenceFormatInstruction,
+  getCardEntryExampleSentenceFormatLabel,
+  type CardEntryExampleSentenceFormat,
+} from '$lib/card-entry/example-sentence-format.js';
 
 export const cardEntryCardTypeSchema = z.enum(['word', 'pattern', 'complex_prompt']).default('word');
 
@@ -20,6 +25,7 @@ export type CardEntryPreprocessResponse = z.infer<typeof cardEntryPreprocessResp
 export function buildCardEntryPreprocessPrompt(input: {
   languageId: string;
   noteContent: string;
+  exampleSentenceFormat: CardEntryExampleSentenceFormat;
 }): {
   systemPrompt: string;
   userPrompt: string;
@@ -31,6 +37,7 @@ export function buildCardEntryPreprocessPrompt(input: {
       'Create 1 to 5 draft cards from the note.',
       'Preserve the user note intent instead of inventing unrelated material.',
       'Keep examples and mnemonics concise and useful for study.',
+      'Use the configured example sentence format consistently across every example string and do not mix formats within one response.',
       'If the note is ambiguous, produce the safest likely draft cards instead of refusing.',
       'Set cardType based on the content: use "word" for a single vocabulary word or very short vocabulary item (e.g. 经历, repasar, bonjour);',
       'use "pattern" for a phrase, expression, grammar pattern, or multi-word construction (e.g. 这还有什么说的, sin embargo, au fur et à mesure);',
@@ -39,6 +46,8 @@ export function buildCardEntryPreprocessPrompt(input: {
     ].join(' '),
     userPrompt: [
       `Active language code: ${input.languageId}.`,
+      `Example sentence format: ${getCardEntryExampleSentenceFormatLabel(input.exampleSentenceFormat)}.`,
+      buildCardEntryExampleSentenceFormatInstruction(input),
       'Return this JSON shape exactly:',
       '{"draftCards":[{"content":"string","cardType":"word|pattern|complex_prompt","meaning":"string|null","examples":["string"],"mnemonics":["string"],"llmInstructions":"string|null"}]}',
       'Source note:',

@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { ActionData, PageData } from './$types.js';
   import { page } from '$app/stores';
+  import { CARD_ENTRY_EXAMPLE_SENTENCE_FORMAT_OPTIONS } from '$lib/card-entry/example-sentence-format.js';
   import { SUPPORTED_LANGUAGES } from '$lib/config/languages.js';
 
   let { data, form } = $props<{ data: PageData; form?: ActionData }>();
@@ -77,6 +78,14 @@
     removeNotice = 'Language removal will be connected in a future milestone.';
     closeRemoveDialog();
   }
+
+  function getSelectedExampleSentenceFormat(language: LanguageSummary) {
+    if (form?.exampleSentenceFormatLanguageId === language.languageId && form?.submittedExampleSentenceFormat) {
+      return form.submittedExampleSentenceFormat;
+    }
+
+    return language.exampleSentenceFormat;
+  }
 </script>
 
 <svelte:window on:keydown={handleKeydown} />
@@ -127,6 +136,56 @@
         <p class="language-card__meta">
           {language.cardCount} {language.cardCount === 1 ? 'card' : 'cards'} • Last studied: {language.lastStudiedLabel}
         </p>
+
+        <section class="language-card__section stack">
+          <div class="stack language-card__section-copy">
+            <h4>Card Entry</h4>
+            <p class="text-muted">Standardize how AI-generated example sentences are formatted for this language.</p>
+          </div>
+
+          {#if form?.exampleSentenceFormatError && form?.exampleSentenceFormatLanguageId === language.languageId}
+            <p class="status-message status-message--error" role="alert">{form.exampleSentenceFormatError}</p>
+          {/if}
+
+          {#if form?.exampleSentenceFormatSuccess && form?.exampleSentenceFormatLanguageId === language.languageId}
+            <p class="status-message" role="status">{form.exampleSentenceFormatSuccess}</p>
+          {/if}
+
+          <form method="POST" action="?/saveExampleSentenceFormat" class="stack language-card__preference-form">
+            <input type="hidden" name="languageId" value={language.languageId} />
+
+            <fieldset class="preference-group stack">
+              <legend>Example sentence format</legend>
+
+              {#each CARD_ENTRY_EXAMPLE_SENTENCE_FORMAT_OPTIONS as option}
+                <label class="preference-option">
+                  <input
+                    checked={getSelectedExampleSentenceFormat(language) === option.value}
+                    class="preference-option__input"
+                    type="radio"
+                    name="exampleSentenceFormat"
+                    value={option.value}
+                  />
+
+                  <span class="preference-option__surface stack">
+                    <span class="preference-option__label">{option.label}</span>
+                    <span class="preference-option__description">{option.description}</span>
+                  </span>
+                </label>
+              {/each}
+            </fieldset>
+
+            {#if language.languageId === 'zh'}
+              <p class="language-card__hint text-muted">
+                Choose <strong>Sentence + transliteration + translation</strong> for Hanzi | pinyin | English examples.
+              </p>
+            {/if}
+
+            <div class="language-card__preference-actions">
+              <button type="submit" class="primary-button">Save Example Format</button>
+            </div>
+          </form>
+        </section>
 
         <div class="cluster language-card__actions">
           {#if !language.isActive}
@@ -242,7 +301,12 @@
   .language-card,
   .dialog,
   .dialog__copy,
-  .dialog__field {
+  .dialog__field,
+  .language-card__section,
+  .language-card__section-copy,
+  .language-card__preference-form,
+  .preference-group,
+  .preference-option__surface {
     --stack-space: var(--space-4);
   }
 
@@ -282,6 +346,23 @@
 
   .language-card__copy {
     --stack-space: var(--space-1);
+  }
+
+  .language-card__section {
+    padding: var(--space-4);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--color-surface) 88%, var(--color-primary-subtle));
+  }
+
+  .language-card__section-copy h4,
+  .language-card__section-copy p,
+  .language-card__hint {
+    margin: 0;
+  }
+
+  .language-card__section-copy h4 {
+    font-size: var(--font-size-h4);
   }
 
   .language-card__mark,
@@ -369,6 +450,12 @@
     color: var(--color-warning-text);
   }
 
+  .status-message--error {
+    border-color: var(--color-error-border);
+    background: var(--color-error-bg);
+    color: var(--color-error-text);
+  }
+
   .dialog-backdrop {
     position: fixed;
     inset: 0;
@@ -429,6 +516,67 @@
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
     gap: var(--space-3);
+  }
+
+  .preference-group {
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .preference-group legend {
+    padding: 0;
+    font-family: var(--font-ui);
+    font-size: var(--font-size-ui);
+    color: var(--color-text-secondary);
+  }
+
+  .preference-option {
+    display: block;
+  }
+
+  .preference-option__input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .preference-option__surface {
+    padding: var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+  }
+
+  .preference-option__input:checked + .preference-option__surface {
+    border-color: var(--color-primary);
+    background: var(--color-primary-subtle);
+  }
+
+  .preference-option__input:focus-visible + .preference-option__surface {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  .preference-option__label,
+  .preference-option__description {
+    display: block;
+  }
+
+  .preference-option__label {
+    font-family: var(--font-ui);
+    font-size: var(--font-size-ui);
+    font-weight: 600;
+  }
+
+  .preference-option__description {
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-small);
+  }
+
+  .language-card__preference-actions {
+    display: flex;
+    justify-content: flex-start;
   }
 
   .language-picker__surface {
