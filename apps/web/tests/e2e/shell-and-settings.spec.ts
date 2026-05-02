@@ -85,9 +85,9 @@ test('saves a language-specific Card Entry example sentence format', async ({ pa
 	const chineseCard = page.locator('.language-card', {
 		has: page.getByRole('heading', { name: 'Chinese (Mandarin)' })
 	});
-	await chineseCard
-		.getByLabel('Sentence + transliteration + translation')
-		.check();
+	await chineseCard.locator('label.preference-option', {
+		hasText: 'Sentence + transliteration + translation'
+	}).click();
 	await chineseCard.getByRole('button', { name: 'Save Example Format', exact: true }).click();
 
 	await expect(
@@ -99,6 +99,6 @@ test('saves a language-specific Card Entry example sentence format', async ({ pa
 	await page.reload();
 
 	await expect(
-		chineseCard.getByLabel('Sentence + transliteration + translation')
+		chineseCard.locator('input[name="exampleSentenceFormat"][value="sentence_transliteration_translation"]')
 	).toBeChecked();
 });
