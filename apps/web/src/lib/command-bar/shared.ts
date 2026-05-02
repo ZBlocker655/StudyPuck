@@ -1,6 +1,6 @@
 export type CommandContext = 'global' | 'card-entry' | 'card-review' | 'translation-drills';
 
-export type ChatContextType =
+export type RouteContextType =
   | 'workspace'
   | 'card-entry'
   | 'card-review'
@@ -11,7 +11,7 @@ export type ChatContextType =
 
 export type RouteContext = {
   commandContext: CommandContext;
-  contextType: ChatContextType;
+  routeContextType: RouteContextType;
   label: string;
   pathname: string;
 };
@@ -95,7 +95,7 @@ export const COMMANDS: CommandDefinition[] = [
 export function defaultRouteContext(): RouteContext {
   return {
     commandContext: 'global',
-    contextType: 'workspace',
+    routeContextType: 'workspace',
     label: 'Workspace',
     pathname: '',
   };
@@ -108,7 +108,7 @@ export function resolveRouteContext(pathname: string): RouteContext {
   if (!section) {
     return {
       commandContext: 'global',
-      contextType: 'workspace',
+      routeContextType: 'workspace',
       label: segments[0] ? 'Dashboard' : 'Workspace',
       pathname,
     };
@@ -116,24 +116,24 @@ export function resolveRouteContext(pathname: string): RouteContext {
 
   switch (section) {
     case 'card-entry':
-      return { commandContext: 'card-entry', contextType: 'card-entry', label: 'Card Entry', pathname };
+      return { commandContext: 'card-entry', routeContextType: 'card-entry', label: 'Card Entry', pathname };
     case 'card-review':
-      return { commandContext: 'card-review', contextType: 'card-review', label: 'Card Review', pathname };
+      return { commandContext: 'card-review', routeContextType: 'card-review', label: 'Card Review', pathname };
     case 'translation-drills':
       return {
         commandContext: 'translation-drills',
-        contextType: 'translation-drills',
+        routeContextType: 'translation-drills',
         label: 'Translation Drills',
         pathname,
       };
     case 'cards':
-      return { commandContext: 'global', contextType: 'cards', label: 'Cards', pathname };
+      return { commandContext: 'global', routeContextType: 'cards', label: 'Cards', pathname };
     case 'settings':
-      return { commandContext: 'global', contextType: 'settings', label: 'Settings', pathname };
+      return { commandContext: 'global', routeContextType: 'settings', label: 'Settings', pathname };
     case 'stats':
-      return { commandContext: 'global', contextType: 'stats', label: 'Statistics', pathname };
+      return { commandContext: 'global', routeContextType: 'stats', label: 'Statistics', pathname };
     default:
-      return { commandContext: 'global', contextType: 'workspace', label: 'Workspace', pathname };
+      return { commandContext: 'global', routeContextType: 'workspace', label: 'Workspace', pathname };
   }
 }
 

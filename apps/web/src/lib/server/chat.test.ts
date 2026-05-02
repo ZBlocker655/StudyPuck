@@ -75,7 +75,7 @@ describe('handleStudyPuckChatRequest', () => {
         metadata: expect.objectContaining({
           feature: 'chat',
           operation: 'conversation',
-          contextType: 'card-review',
+          routeContextType: 'card-review',
           languageId: 'es',
         }),
       }),
@@ -95,7 +95,7 @@ describe('handleStudyPuckChatRequest', () => {
         generateStructured,
       }),
     ).resolves.toEqual({
-      message: 'Available commands in Translation Drills: /add, /lang, /help, /next, /dismiss, /draw.',
+      message: 'Available commands in Translation Drills: /add, /lang, /help, /next, /dismiss, and /draw.',
       suggestions: [],
     });
 

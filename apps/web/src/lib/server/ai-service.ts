@@ -8,7 +8,7 @@ export type AiRequestMetadata = {
   userId: string;
   languageId: string;
   noteId?: string;
-  contextType?: string;
+  routeContextType?: string;
 };
 
 export type AiRequestHooks = {

@@ -16,7 +16,7 @@ type StructuredResponseGenerator = (request: {
     userId: string;
     languageId: string;
     noteId?: string;
-    contextType: RouteContext['contextType'];
+    routeContextType: RouteContext['routeContextType'];
   };
   systemPrompt: string;
   userPrompt: string;
@@ -60,6 +60,18 @@ function getAllowedSuggestionTypes(_routeContext: RouteContext, _noteId?: string
   return [];
 }
 
+function formatCommandList(commands: string[]) {
+  if (commands.length <= 1) {
+    return commands.join('');
+  }
+
+  if (commands.length === 2) {
+    return `${commands[0]} and ${commands[1]}`;
+  }
+
+  return `${commands.slice(0, -1).join(', ')}, and ${commands.at(-1)}`;
+}
+
 async function handleDirectCommand(
   input: HandleStudyPuckChatRequestInput,
   command: NonNullable<ReturnType<typeof parseSlashCommand>>,
@@ -76,7 +88,9 @@ async function handleDirectCommand(
   }
 
   if (recognizedCommand.command === '/help') {
-    const availableCommands = getCommandsForContext(input.routeContext.commandContext).map((item) => item.command).join(', ');
+    const availableCommands = formatCommandList(
+      getCommandsForContext(input.routeContext.commandContext).map((item) => item.command),
+    );
 
     return normalizeChatResponse(
       {
@@ -141,7 +155,7 @@ export async function handleStudyPuckChatRequest(
     return handleDirectCommand(input, slashCommand);
   }
 
-  if (input.routeContext.contextType === 'settings') {
+  if (input.routeContext.routeContextType === 'settings') {
     return normalizeChatResponse(
       {
         message: "Sorry, I can't explain anything about StudyPuck yet.",
@@ -170,7 +184,7 @@ export async function handleStudyPuckChatRequest(
       userId: input.userId,
       languageId: input.languageId ?? 'unknown',
       noteId: input.noteId,
-      contextType: input.routeContext.contextType,
+      routeContextType: input.routeContext.routeContextType,
     },
     systemPrompt: prompt.systemPrompt,
     userPrompt: prompt.userPrompt,

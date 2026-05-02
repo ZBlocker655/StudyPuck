@@ -35,7 +35,7 @@ export function buildStructuredChatPrompt(input: {
       'Machine context:',
       JSON.stringify(
         {
-          contextType: input.routeContext.contextType,
+          routeContextType: input.routeContext.routeContextType,
           routeLabel: input.routeContext.label,
           pathname: input.routeContext.pathname,
           languageId: input.languageId ?? null,
