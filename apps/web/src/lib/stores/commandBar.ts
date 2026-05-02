@@ -40,7 +40,8 @@ export type CommandBarState = {
 export type CommandResponder = (
   input: string,
   routeContext: RouteContext,
-  state: CommandBarState,
+  /** The captured store state at the moment the user's message was submitted. */
+  submissionState: CommandBarState,
 ) => string | null | Promise<string | null>;
 
 const DEFAULT_CONTEXT_WIDTH: Record<CommandContext, number> = {
@@ -121,14 +122,14 @@ function createCommandBarStore() {
   async function finishPendingResponse(
     input: string,
     routeContext: RouteContext,
-    currentState: CommandBarState,
+    submissionState: CommandBarState,
     responder?: CommandResponder
   ) {
     clearPendingTimer();
     let responseText: string;
 
     try {
-      responseText = (await responder?.(input, routeContext, currentState)) ?? buildAssistantResponse(input, routeContext);
+      responseText = (await responder?.(input, routeContext, submissionState)) ?? buildAssistantResponse(input, routeContext);
     } catch (error) {
       responseText = error instanceof Error ? error.message : 'Something went wrong while handling that command.';
     }
@@ -409,8 +410,8 @@ function createCommandBarStore() {
      * history window suitable for inclusion in the backend chat request.
      * Only user and assistant turns are included; system messages are excluded.
      */
-    getPromptHistory(state: CommandBarState): ConversationHistoryTurn[] {
-      return state.messages
+    getPromptHistory(submissionState: CommandBarState): ConversationHistoryTurn[] {
+      return submissionState.messages
         .filter((message): message is ConversationMessage & { role: 'user' | 'assistant' } =>
           message.role === 'user' || message.role === 'assistant',
         )

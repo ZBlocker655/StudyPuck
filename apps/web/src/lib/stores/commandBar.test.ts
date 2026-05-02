@@ -115,7 +115,7 @@ describe('commandBar entity context and conversation reset', () => {
         { id: '3', role: 'assistant' as const, content: 'Assistant turn 1' },
         { id: '4', role: 'user' as const, content: 'User turn 2' },
       ],
-    } as Parameters<typeof commandBar.getPromptHistory>[0];
+    } as CommandBarState;
 
     const history = commandBar.getPromptHistory(mockState);
 
@@ -136,7 +136,7 @@ describe('commandBar entity context and conversation reset', () => {
       content: `Turn ${i}`,
     }));
 
-    const mockState = { messages } as Parameters<typeof commandBar.getPromptHistory>[0];
+    const mockState = { messages } as CommandBarState;
     const history = commandBar.getPromptHistory(mockState);
 
     expect(history.length).toBeLessThanOrEqual(10);

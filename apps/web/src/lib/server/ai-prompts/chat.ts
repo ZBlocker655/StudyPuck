@@ -75,7 +75,9 @@ function buildConversationHistoryBlock(history: ConversationHistoryTurn[]): stri
     return '';
   }
 
-  const lines = history.map((turn) => `${turn.role === 'user' ? 'User' : 'Assistant'}: ${turn.content}`);
+  const roleLabel: Record<'user' | 'assistant', string> = { user: 'User', assistant: 'Assistant' };
+
+  const lines = history.map((turn) => `${roleLabel[turn.role]}: ${turn.content}`);
 
   return ['Conversation history (most recent turns):', ...lines].join('\n');
 }

@@ -27,7 +27,7 @@ export type DraftCardEditorContext = {
   noteContent: string;
   cardId: string;
   focusedField: string | null;
-  allowedSuggestionTypes: readonly ['append_example_sentence'];
+  allowedSuggestionTypes: readonly ChatSuggestionType[];
   exampleSentenceFormat: CardEntryExampleSentenceFormat;
   exampleSentenceFormatInstruction: string;
   cardSnapshot: DraftCardSnapshot;
