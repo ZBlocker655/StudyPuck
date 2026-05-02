@@ -57,6 +57,8 @@ function normalizeChatResponse(
 }
 
 function getAllowedSuggestionTypes(_routeContext: RouteContext, _noteId?: string): readonly ChatSuggestionType[] {
+  // The current command-bar integration only sends route-level context, so no actionable suggestion types are
+  // enabled yet. This keeps the server contract reusable while reserving typed suggestions for richer contexts.
   return [];
 }
 

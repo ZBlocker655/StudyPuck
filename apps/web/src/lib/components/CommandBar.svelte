@@ -173,7 +173,9 @@
     }
 
     commandBar.submit(async (input) => {
-      if (input.trim() === '/add') {
+      const trimmedInput = input.trim();
+
+      if (trimmedInput === '/add') {
         return resolveCardEntryCommandResponse({
           input,
           activeLanguageCode,
@@ -195,7 +197,7 @@
         noteId: $page.params.noteId,
       });
 
-      if (input.trim().startsWith('/add ')) {
+      if (trimmedInput.startsWith('/add ')) {
         cardEntryShellCounts.adjustCount(activeLanguageCode, 1);
         await invalidateAll();
       }
