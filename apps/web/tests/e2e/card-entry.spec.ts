@@ -143,6 +143,45 @@ test('supports failed-note sign-off promotion and statistics surfacing', async (
   expect(todayStats?.cardsPromotedToActive).toBe(1);
 });
 
+test('keeps first-added example sentence and mnemonic field visible on single click', async ({ page }) => {
+  // Regression test for: clicking "+" while a field has focus caused a concurrent
+  // persistDraft response to overwrite the newly-added empty item before the user
+  // could type into it.
+  const user = await signInCardEntryUser(page);
+  const seededDraft = await seedDraftCard({
+    userId: user.userId,
+    languageId: 'es',
+    noteId: 'note-list-add-persist',
+    noteContent: 'añadir ejemplos',
+    cardId: 'draft-list-add-persist',
+    cardContent: 'añadir',
+    meaning: 'to add',
+    aiState: 'failed',
+  });
+
+  await page.goto(`/es/card-entry/notes/${seededDraft.note.noteId}`);
+  await expect(page.getByRole('heading', { name: 'Note Processing' })).toBeVisible();
+
+  // Focus the content field, then click "+ Add" for examples.  The blur fires a
+  // persistDraft fetch; the stale response must not clobber the new empty textarea.
+  const contentField = page.getByPlaceholder('Card content...');
+  await contentField.click();
+  await page.getByRole('button', { name: '+ Add', exact: true }).first().click();
+
+  const exampleTextarea = page.getByPlaceholder('Example sentence...');
+  await expect(exampleTextarea).toHaveCount(1);
+  await expect(exampleTextarea).toBeVisible();
+
+  // Focus the meaning field, then click "+ Add" for mnemonics.
+  const meaningField = page.getByPlaceholder('Meaning...');
+  await meaningField.click();
+  await page.getByRole('button', { name: '+ Add', exact: true }).last().click();
+
+  const mnemonicTextarea = page.getByPlaceholder('Mnemonic...');
+  await expect(mnemonicTextarea).toHaveCount(1);
+  await expect(mnemonicTextarea).toBeVisible();
+});
+
 test('supports workspace delete and draft review navigation', async ({ page }) => {
   const user = await signInCardEntryUser(page);
   const reviewDraft = await seedDraftCard({
