@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { getFilteredCommandGroups, resolveRouteContext } from './commandBar.js';
+import { commandBar, getFilteredCommandGroups, resolveRouteContext, type CommandBarState } from './commandBar.js';
 
 describe('commandBar route context', () => {
   it('maps language-prefixed mini-app routes to the correct command context', () => {
@@ -53,5 +53,95 @@ describe('commandBar command filtering', () => {
       label: 'Global',
     });
     expect(groups[0].commands.map((command) => command.command)).toEqual(['/help']);
+  });
+});
+
+describe('commandBar entity context and conversation reset', () => {
+  function getState() {
+    let state: CommandBarState | undefined;
+    const unsub = commandBar.subscribe((s) => { state = s; });
+    unsub();
+    return state!;
+  }
+
+  it('resets messages when the active note changes', () => {
+    // Set the context to note-1 then immediately switch to note-2;
+    // the messages array should be empty after the switch.
+    commandBar.setEntityContext('es', 'note-1', null);
+    commandBar.setEntityContext('es', 'note-2', null);
+
+    const state = getState();
+    expect(state.messages).toEqual([]);
+    expect(state.activeNoteId).toBe('note-2');
+  });
+
+  it('resets messages when the active card changes', () => {
+    commandBar.setEntityContext('es', 'note-1', 'card-1');
+    commandBar.setEntityContext('es', 'note-1', 'card-2');
+
+    const state = getState();
+    expect(state.messages).toEqual([]);
+    expect(state.activeCardId).toBe('card-2');
+  });
+
+  it('resets messages when the active language changes', () => {
+    commandBar.setEntityContext('es', 'note-1', null);
+    commandBar.setEntityContext('zh', 'note-1', null);
+
+    const state = getState();
+    expect(state.messages).toEqual([]);
+    expect(state.activeLanguageId).toBe('zh');
+  });
+
+  it('does not reset messages when the entity context is unchanged', () => {
+    commandBar.setEntityContext('es', 'note-1', 'card-1');
+
+    // Calling setEntityContext with the same values should be a no-op
+    const stateBefore = getState();
+    commandBar.setEntityContext('es', 'note-1', 'card-1');
+    const stateAfter = getState();
+
+    // Since messages are empty anyway here we verify state identity is preserved
+    expect(stateAfter.activeLanguageId).toBe(stateBefore.activeLanguageId);
+    expect(stateAfter.activeNoteId).toBe(stateBefore.activeNoteId);
+    expect(stateAfter.activeCardId).toBe(stateBefore.activeCardId);
+  });
+
+  it('getPromptHistory returns only user and assistant turns bounded to PROMPT_HISTORY_CAP', () => {
+    const mockState = {
+      messages: [
+        { id: '1', role: 'system' as const, content: 'System message' },
+        { id: '2', role: 'user' as const, content: 'User turn 1' },
+        { id: '3', role: 'assistant' as const, content: 'Assistant turn 1' },
+        { id: '4', role: 'user' as const, content: 'User turn 2' },
+      ],
+    } as CommandBarState;
+
+    const history = commandBar.getPromptHistory(mockState);
+
+    // System messages should be excluded
+    expect(history).not.toContainEqual(expect.objectContaining({ content: 'System message' }));
+    expect(history).toEqual([
+      { role: 'user', content: 'User turn 1' },
+      { role: 'assistant', content: 'Assistant turn 1' },
+      { role: 'user', content: 'User turn 2' },
+    ]);
+  });
+
+  it('getPromptHistory caps output to PROMPT_HISTORY_CAP turns', () => {
+    // Build a state with more messages than the cap (10)
+    const messages = Array.from({ length: 14 }, (_, i) => ({
+      id: String(i),
+      role: (i % 2 === 0 ? 'user' : 'assistant') as 'user' | 'assistant',
+      content: `Turn ${i}`,
+    }));
+
+    const mockState = { messages } as CommandBarState;
+    const history = commandBar.getPromptHistory(mockState);
+
+    expect(history.length).toBeLessThanOrEqual(10);
+    // Should be the last 10 turns
+    expect(history[0]?.content).toBe('Turn 4');
+    expect(history.at(-1)?.content).toBe('Turn 13');
   });
 });

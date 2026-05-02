@@ -5,6 +5,7 @@
     CardEntryNoteDraftCardData,
     CardEntryNoteShellData,
   } from '$lib/server/card-entry.js';
+  import { commandBar } from '$lib/stores/commandBar.js';
 
   type EditableListField = 'examples' | 'mnemonics';
   type SaveState = 'idle' | 'saving' | 'saved' | 'error';
@@ -45,6 +46,18 @@
     draft = structuredClone(card);
     previousCard = card;
     llmInstructionsOpen = Boolean(card.llmInstructions);
+  }
+
+  /**
+   * When any editable field in this draft card gains focus, make this the
+   * active card context for the command bar.  This allows the chat to
+   * include the card snapshot in its prompt and to unlock card-editing
+   * suggestions (e.g. append_example_sentence).
+   */
+  function handleFieldFocus() {
+    if (!disabled) {
+      commandBar.setEntityContext(lang, noteId, card.cardId);
+    }
   }
 
   $: normalizedGroupQuery = groupQuery.trim().toLocaleLowerCase();
@@ -362,6 +375,7 @@
       bind:value={draft.content}
       placeholder="Card content..."
       disabled={disabled}
+      on:focus={handleFieldFocus}
       on:blur={() => void persistDraft()}
     ></textarea>
   </label>
@@ -380,6 +394,7 @@
           meaning: event.currentTarget.value,
         };
       }}
+      on:focus={handleFieldFocus}
       on:blur={() => void persistDraft()}
     ></textarea>
   </label>
@@ -504,6 +519,7 @@
             placeholder="Example sentence..."
             disabled={disabled}
             on:input={(event) => updateListValue('examples', index, event.currentTarget.value)}
+            on:focus={handleFieldFocus}
             on:blur={() => void persistDraft()}
           ></textarea>
           <button
@@ -542,6 +558,7 @@
             placeholder="Mnemonic..."
             disabled={disabled}
             on:input={(event) => updateListValue('mnemonics', index, event.currentTarget.value)}
+            on:focus={handleFieldFocus}
             on:blur={() => void persistDraft()}
           ></textarea>
           <button
@@ -574,6 +591,7 @@
             llmInstructions: event.currentTarget.value,
           };
         }}
+        on:focus={handleFieldFocus}
         on:blur={() => void persistDraft()}
       ></textarea>
     </label>

@@ -2,11 +2,23 @@ import { z } from 'zod';
 
 export const CHAT_SUGGESTION_TYPES = ['append_example_sentence'] as const;
 
+export const PROMPT_HISTORY_CAP = 10;
+
+export const conversationHistoryTurnSchema = z.object({
+  role: z.enum(['user', 'assistant']),
+  content: z.string().trim().min(1).max(2_000),
+});
+
+export type ConversationHistoryTurn = z.infer<typeof conversationHistoryTurnSchema>;
+
 export const chatRequestSchema = z.object({
   input: z.string().trim().min(1, 'A chat message is required.').max(2_000),
   pathname: z.string().trim().min(1, 'A route pathname is required.').max(500),
   languageId: z.string().trim().min(1).max(64).optional(),
   noteId: z.string().trim().min(1).max(128).optional(),
+  cardId: z.string().trim().min(1).max(128).optional(),
+  focusedField: z.string().trim().min(1).max(64).optional(),
+  conversationHistory: z.array(conversationHistoryTurnSchema).max(PROMPT_HISTORY_CAP).optional(),
 });
 
 export const appendExampleSentenceSuggestionSchema = z.object({

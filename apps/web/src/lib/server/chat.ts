@@ -1,13 +1,16 @@
 import { getLanguageByCode } from '$lib/config/languages.js';
-import { createChatResponseSchema, type ChatResponse, type ChatSuggestionType } from '$lib/chat.js';
+import { createChatResponseSchema, type ChatResponse, type ChatSuggestionType, type ConversationHistoryTurn } from '$lib/chat.js';
 import {
   findRecognizedCommand,
   getCommandsForContext,
   type RouteContext,
 } from '$lib/command-bar/shared.js';
 import { buildStructuredChatPrompt } from '$lib/server/ai-prompts/chat.js';
+import { resolveCanonicalChatContext, getAllowedSuggestionTypes, type CanonicalChatContext } from '$lib/server/chat-context.js';
 import { createAiService } from '$lib/server/ai-service.js';
 import { z } from 'zod';
+
+type DatabaseClient = Parameters<typeof resolveCanonicalChatContext>[2];
 
 type StructuredResponseGenerator = (request: {
   metadata: {
@@ -29,6 +32,10 @@ type HandleStudyPuckChatRequestInput = {
   routeContext: RouteContext;
   languageId?: string;
   noteId?: string;
+  cardId?: string;
+  focusedField?: string;
+  conversationHistory?: ConversationHistoryTurn[];
+  database?: DatabaseClient;
   privateEnv: Record<string, string | undefined>;
   createNote?: (payload: { languageId: string; content: string }) => Promise<void>;
   generateStructured?: StructuredResponseGenerator;
@@ -54,25 +61,6 @@ function normalizeChatResponse(
   allowedSuggestionTypes: readonly ChatSuggestionType[],
 ) {
   return createChatResponseSchema(allowedSuggestionTypes).parse(response);
-}
-
-function getAllowedSuggestionTypesForRoute(
-  routeContext: RouteContext,
-  _noteId?: string,
-): readonly ChatSuggestionType[] {
-  // The current command-bar integration only sends route-level context, so no actionable suggestion types are
-  // enabled yet. This keeps the server contract reusable while reserving typed suggestions for richer contexts.
-  switch (routeContext.routeContextType) {
-    case 'card-entry':
-    case 'card-review':
-    case 'translation-drills':
-    case 'cards':
-    case 'settings':
-    case 'stats':
-    case 'workspace':
-    default:
-      return [];
-  }
 }
 
 function formatCommandList(commands: string[]) {
@@ -179,13 +167,27 @@ export async function handleStudyPuckChatRequest(
     );
   }
 
-  const allowedSuggestionTypes = getAllowedSuggestionTypesForRoute(input.routeContext, input.noteId);
+  // Derive the canonical context – this loads and verifies DB entities when the
+  // request includes enough entity hints to do so (e.g. draft-card editing).
+  const canonicalContext = await resolveCanonicalChatContext(
+    input.userId,
+    {
+      routeContext: input.routeContext,
+      languageId: input.languageId,
+      noteId: input.noteId,
+      cardId: input.cardId,
+      focusedField: input.focusedField,
+    },
+    input.database ?? null,
+  );
+
+  const allowedSuggestionTypes = getAllowedSuggestionTypes(canonicalContext);
   const responseSchema = createChatResponseSchema(allowedSuggestionTypes);
   const prompt = buildStructuredChatPrompt({
-    routeContext: input.routeContext,
-    languageId: input.languageId,
+    canonicalContext,
     userInput: input.input,
     allowedSuggestionTypes,
+    conversationHistory: input.conversationHistory,
   });
   const generateStructured =
     input.generateStructured ??

@@ -172,7 +172,7 @@
       commandBar.setInput(inputElement.value);
     }
 
-    commandBar.submit(async (input) => {
+    commandBar.submit(async (input, _routeContext, submissionState) => {
       const trimmedInput = input.trim();
 
       if (trimmedInput === '/add') {
@@ -192,11 +192,18 @@
         });
       }
 
+      const promptHistory = commandBar.getPromptHistory(submissionState);
+
+      // URL param takes priority; fall back to the store's active note, then omit.
+      const effectiveNoteId = $page.params.noteId ?? submissionState.activeNoteId ?? undefined;
+
       const response = await requestStructuredChatResponse({
         input,
         pathname: $page.url.pathname,
         languageId: activeLanguageCode,
-        noteId: $page.params.noteId,
+        noteId: effectiveNoteId,
+        cardId: submissionState.activeCardId ?? undefined,
+        conversationHistory: promptHistory.length > 0 ? promptHistory : undefined,
       });
 
       if (trimmedInput.startsWith('/add ')) {

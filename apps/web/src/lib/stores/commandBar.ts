@@ -9,6 +9,7 @@ import {
   type CommandDefinition,
   type RouteContext,
 } from '$lib/command-bar/shared.js';
+import { PROMPT_HISTORY_CAP, type ConversationHistoryTurn } from '$lib/chat.js';
 export type MessageRole = 'assistant' | 'system' | 'user';
 
 export type ConversationMessage = {
@@ -25,6 +26,10 @@ export type CommandBarState = {
   autocompleteOpen: boolean;
   highlightedIndex: number;
   routeContext: RouteContext;
+  /** Active entity context used to detect when the conversation must be reset. */
+  activeLanguageId: string | null;
+  activeNoteId: string | null;
+  activeCardId: string | null;
   messages: ConversationMessage[];
   desktopConversationCollapsed: boolean;
   desktopContextWidth: number;
@@ -34,7 +39,9 @@ export type CommandBarState = {
 
 export type CommandResponder = (
   input: string,
-  routeContext: RouteContext
+  routeContext: RouteContext,
+  /** The captured store state at the moment the user's message was submitted. */
+  submissionState: CommandBarState,
 ) => string | null | Promise<string | null>;
 
 const DEFAULT_CONTEXT_WIDTH: Record<CommandContext, number> = {
@@ -65,6 +72,9 @@ function initialState(): CommandBarState {
     autocompleteOpen: false,
     highlightedIndex: 0,
     routeContext: defaultRouteContext(),
+    activeLanguageId: null,
+    activeNoteId: null,
+    activeCardId: null,
     messages: [],
     desktopConversationCollapsed: false,
     desktopContextWidth: DEFAULT_CONTEXT_WIDTH.global,
@@ -112,13 +122,14 @@ function createCommandBarStore() {
   async function finishPendingResponse(
     input: string,
     routeContext: RouteContext,
+    submissionState: CommandBarState,
     responder?: CommandResponder
   ) {
     clearPendingTimer();
     let responseText: string;
 
     try {
-      responseText = (await responder?.(input, routeContext)) ?? buildAssistantResponse(input, routeContext);
+      responseText = (await responder?.(input, routeContext, submissionState)) ?? buildAssistantResponse(input, routeContext);
     } catch (error) {
       responseText = error instanceof Error ? error.message : 'Something went wrong while handling that command.';
     }
@@ -189,6 +200,42 @@ function createCommandBarStore() {
       }));
     },
 
+    /**
+     * Updates the active entity context (language, note, card) and resets the
+     * conversation whenever any of those identifiers change.  Call this from
+     * route components whenever the active language, note, or draft card changes.
+     */
+    setEntityContext(languageId: string | null, noteId: string | null, cardId: string | null) {
+      store.update((state) => {
+        const entityChanged =
+          state.activeLanguageId !== languageId ||
+          state.activeNoteId !== noteId ||
+          state.activeCardId !== cardId;
+
+        if (!entityChanged) {
+          return state;
+        }
+
+        clearPendingTimer();
+
+        return {
+          ...state,
+          activeLanguageId: languageId,
+          activeNoteId: noteId,
+          activeCardId: cardId,
+          input: '',
+          isWaiting: false,
+          lastSubmittedInput: null,
+          autocompleteOpen: false,
+          highlightedIndex: 0,
+          messages: [],
+          desktopConversationCollapsed: false,
+          mobileSheetOpen: false,
+          unreadCount: 0,
+        };
+      });
+    },
+
     setInput(input: string) {
       store.update((state) => ({
         ...state,
@@ -241,6 +288,7 @@ function createCommandBarStore() {
     submit(responder?: CommandResponder) {
       let submittedInput = '';
       let routeContext = defaultRouteContext();
+      let capturedState: CommandBarState = initialState();
       let shouldScheduleResponse = false;
 
       store.update((state) => {
@@ -253,7 +301,7 @@ function createCommandBarStore() {
 
         shouldScheduleResponse = true;
 
-        return {
+        const nextState: CommandBarState = {
           ...state,
           input: '',
           isWaiting: true,
@@ -262,6 +310,10 @@ function createCommandBarStore() {
           highlightedIndex: 0,
           messages: [...state.messages, createMessage('user', submittedInput)],
         };
+
+        capturedState = nextState;
+
+        return nextState;
       });
 
       if (!shouldScheduleResponse) {
@@ -271,12 +323,12 @@ function createCommandBarStore() {
       clearPendingTimer();
 
       if (!browser) {
-        void finishPendingResponse(submittedInput, routeContext, responder);
+        void finishPendingResponse(submittedInput, routeContext, capturedState, responder);
         return;
       }
 
       pendingResponseTimer = setTimeout(() => {
-        void finishPendingResponse(submittedInput, routeContext, responder);
+        void finishPendingResponse(submittedInput, routeContext, capturedState, responder);
       }, 650);
     },
 
@@ -351,6 +403,20 @@ function createCommandBarStore() {
         desktopContextWidth: clamp(width, 28, 72),
         unreadCount: 0,
       }));
+    },
+
+    /**
+     * Returns the recent visible messages formatted as a bounded conversation
+     * history window suitable for inclusion in the backend chat request.
+     * Only user and assistant turns are included; system messages are excluded.
+     */
+    getPromptHistory(submissionState: CommandBarState): ConversationHistoryTurn[] {
+      return submissionState.messages
+        .filter((message): message is ConversationMessage & { role: 'user' | 'assistant' } =>
+          message.role === 'user' || message.role === 'assistant',
+        )
+        .slice(-PROMPT_HISTORY_CAP)
+        .map((message) => ({ role: message.role, content: message.content }));
     },
   };
 }
