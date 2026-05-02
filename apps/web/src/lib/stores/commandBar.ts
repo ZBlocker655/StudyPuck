@@ -204,10 +204,10 @@ function createCommandBarStore() {
      * conversation whenever any of those identifiers change.  Call this from
      * route components whenever the active language, note, or draft card changes.
      */
-    setEntityContext(languageId?: string | null, noteId?: string | null, cardId?: string | null) {
-      const nextLanguageId = languageId ?? null;
-      const nextNoteId = noteId ?? null;
-      const nextCardId = cardId ?? null;
+    setEntityContext(languageId: string | null, noteId: string | null, cardId: string | null) {
+      const nextLanguageId = languageId;
+      const nextNoteId = noteId;
+      const nextCardId = cardId;
 
       store.update((state) => {
         const entityChanged =

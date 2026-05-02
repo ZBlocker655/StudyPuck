@@ -53,7 +53,13 @@ export type ChatContextHint = {
   focusedField?: string;
 };
 
-// ── Resolver: draft card editor ──────────────────────────────────────────────
+function toStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((item): item is string => typeof item === 'string');
+}
 
 async function resolveDraftCardEditorContext(
   userId: string,
@@ -95,8 +101,8 @@ async function resolveDraftCardEditorContext(
     cardSnapshot: {
       content: draftCard.content,
       meaning: draftCard.meaning,
-      examples: Array.isArray(draftCard.examples) ? (draftCard.examples as string[]) : [],
-      mnemonics: Array.isArray(draftCard.mnemonics) ? (draftCard.mnemonics as string[]) : [],
+      examples: toStringArray(draftCard.examples),
+      mnemonics: toStringArray(draftCard.mnemonics),
       llmInstructions: draftCard.llmInstructions,
     },
   };
