@@ -65,3 +65,40 @@ test('navigates settings tabs and supports the real add-language flow', async ({
 	await expect(page.getByRole('heading', { name: 'Appearance' })).toBeVisible();
 	await expect(page.getByText('Daily study reminder')).toBeVisible();
 });
+
+test('saves a language-specific Card Entry example sentence format', async ({ page }) => {
+	await resetDatabase();
+
+	const user = await seedUser({
+		userId: 'auth0|e2e-language-settings',
+		email: 'language-settings@example.com',
+		name: 'Language Settings User',
+		languages: [
+			{ code: 'es', label: 'Spanish' },
+			{ code: 'zh', label: 'Chinese (Mandarin)' }
+		]
+	});
+
+	await signInAs(page, user);
+	await page.goto('/es/settings/languages');
+
+	const chineseCard = page.locator('.language-card', {
+		has: page.getByRole('heading', { name: 'Chinese (Mandarin)' })
+	});
+	await chineseCard
+		.getByLabel('Sentence + transliteration + translation')
+		.check();
+	await chineseCard.getByRole('button', { name: 'Save Example Format', exact: true }).click();
+
+	await expect(
+		chineseCard.getByText(
+			'Chinese (Mandarin) Card Entry examples will now use sentence + transliteration + translation.'
+		)
+	).toBeVisible();
+
+	await page.reload();
+
+	await expect(
+		chineseCard.getByLabel('Sentence + transliteration + translation')
+	).toBeChecked();
+});

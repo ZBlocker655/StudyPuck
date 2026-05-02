@@ -1,10 +1,12 @@
 import {
   finalizeInboxNoteAiProcessing,
+  getActiveUserLanguages,
   getNoteWithDraftCards,
   transitionInboxNoteAiState,
   type InboxNoteAiState,
   type TransactionCapableDatabaseConnection,
 } from '@studypuck/database';
+import { readCardEntryExampleSentenceFormat } from '$lib/card-entry/example-sentence-format.js';
 import { buildCardEntryPreprocessPrompt, cardEntryPreprocessResponseSchema } from '$lib/server/ai-prompts/card-entry.js';
 import { createAiService } from '$lib/server/ai-service.js';
 
@@ -53,9 +55,12 @@ export async function ensureCardEntryNoteProcessingState(input: {
     const aiService = createAiService({
       privateEnv: input.privateEnv,
     });
+    const activeLanguages = await getActiveUserLanguages(input.userId, input.transactionDatabase as never);
+    const activeLanguage = activeLanguages.find((language) => language.languageId === input.languageId);
     const prompt = buildCardEntryPreprocessPrompt({
       languageId: input.languageId,
       noteContent: workspace.note.content,
+      exampleSentenceFormat: readCardEntryExampleSentenceFormat(activeLanguage?.settings),
     });
     const response = await aiService.generateStructured({
       metadata: {

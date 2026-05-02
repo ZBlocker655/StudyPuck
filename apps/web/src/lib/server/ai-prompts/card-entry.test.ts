@@ -29,26 +29,64 @@ describe('cardEntryDraftSuggestionSchema', () => {
 
 describe('buildCardEntryPreprocessPrompt', () => {
   it('includes cardType in the JSON shape example', () => {
-    const { userPrompt } = buildCardEntryPreprocessPrompt({ languageId: 'zh', noteContent: 'test' });
+    const { userPrompt } = buildCardEntryPreprocessPrompt({
+      languageId: 'zh',
+      noteContent: 'test',
+      exampleSentenceFormat: 'sentence_translation',
+    });
     expect(userPrompt).toContain('cardType');
   });
 
   it('includes card type classification guidance in the system prompt', () => {
-    const { systemPrompt } = buildCardEntryPreprocessPrompt({ languageId: 'zh', noteContent: 'test' });
+    const { systemPrompt } = buildCardEntryPreprocessPrompt({
+      languageId: 'zh',
+      noteContent: 'test',
+      exampleSentenceFormat: 'sentence_translation',
+    });
     expect(systemPrompt).toContain('"word"');
     expect(systemPrompt).toContain('"pattern"');
     expect(systemPrompt).toContain('"complex_prompt"');
   });
 
   it('provides multi-word / phrase guidance that covers CJK expressions', () => {
-    const { systemPrompt } = buildCardEntryPreprocessPrompt({ languageId: 'zh', noteContent: 'test' });
+    const { systemPrompt } = buildCardEntryPreprocessPrompt({
+      languageId: 'zh',
+      noteContent: 'test',
+      exampleSentenceFormat: 'sentence_translation',
+    });
     // The prompt should explicitly mention phrase/expression/multi-word criteria so
     // the LLM does not classify Chinese phrases like 这还有什么说的 as "word".
     expect(systemPrompt).toMatch(/phrase|expression|multi-word/i);
   });
 
   it('embeds the active language code in the user prompt', () => {
-    const { userPrompt } = buildCardEntryPreprocessPrompt({ languageId: 'es', noteContent: 'repasar' });
+    const { userPrompt } = buildCardEntryPreprocessPrompt({
+      languageId: 'es',
+      noteContent: 'repasar',
+      exampleSentenceFormat: 'sentence_translation',
+    });
     expect(userPrompt).toContain('es');
+  });
+
+  it('includes deterministic translation formatting guidance in the user prompt', () => {
+    const { userPrompt } = buildCardEntryPreprocessPrompt({
+      languageId: 'es',
+      noteContent: 'repasar',
+      exampleSentenceFormat: 'sentence_translation',
+    });
+
+    expect(userPrompt).toContain('<sentence> | <translation>');
+  });
+
+  it('includes Chinese-specific Hanzi and pinyin guidance when transliteration is selected', () => {
+    const { userPrompt } = buildCardEntryPreprocessPrompt({
+      languageId: 'zh',
+      noteContent: '经历',
+      exampleSentenceFormat: 'sentence_transliteration_translation',
+    });
+
+    expect(userPrompt).toContain('Hanzi');
+    expect(userPrompt).toContain('pinyin');
+    expect(userPrompt).toContain('English');
   });
 });
