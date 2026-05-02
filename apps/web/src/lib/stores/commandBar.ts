@@ -205,15 +205,11 @@ function createCommandBarStore() {
      * route components whenever the active language, note, or draft card changes.
      */
     setEntityContext(languageId: string | null, noteId: string | null, cardId: string | null) {
-      const nextLanguageId = languageId;
-      const nextNoteId = noteId;
-      const nextCardId = cardId;
-
       store.update((state) => {
         const entityChanged =
-          state.activeLanguageId !== nextLanguageId ||
-          state.activeNoteId !== nextNoteId ||
-          state.activeCardId !== nextCardId;
+          state.activeLanguageId !== languageId ||
+          state.activeNoteId !== noteId ||
+          state.activeCardId !== cardId;
 
         if (!entityChanged) {
           return state;
@@ -223,9 +219,9 @@ function createCommandBarStore() {
 
         return {
           ...state,
-          activeLanguageId: nextLanguageId,
-          activeNoteId: nextNoteId,
-          activeCardId: nextCardId,
+          activeLanguageId: languageId,
+          activeNoteId: noteId,
+          activeCardId: cardId,
           input: '',
           isWaiting: false,
           lastSubmittedInput: null,

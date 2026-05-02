@@ -53,6 +53,9 @@ export type ChatContextHint = {
   focusedField?: string;
 };
 
+// jsonb columns in the database schema are typed as `unknown` by Drizzle because
+// they can contain any JSON value. This helper safely extracts a string array from
+// a jsonb field, filtering out non-string elements to guarantee the return type.
 function toStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) {
     return [];
