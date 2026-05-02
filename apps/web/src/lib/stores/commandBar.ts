@@ -355,6 +355,21 @@ function createCommandBarStore() {
       }));
     },
 
+    /**
+     * Appends a standalone assistant message to the conversation without
+     * going through the submit/respond cycle.  Useful for surfacing async
+     * operation results (e.g. suggestion execution feedback).
+     */
+    pushAssistantMessage(content: string) {
+      store.update((state) => ({
+        ...state,
+        messages: [...state.messages, createMessage('assistant', content)],
+        desktopConversationCollapsed: false,
+        mobileSheetOpen: true,
+        unreadCount: 0,
+      }));
+    },
+
     openConversation() {
       store.update((state) => ({
         ...state,

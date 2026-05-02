@@ -895,7 +895,8 @@ export async function deleteCardEntryDraftsForLanguage(
  *
  * Validates ownership, appends the trimmed text to the current examples, and
  * returns the updated card and the full list of available groups so the caller
- * can update its local state.
+ * can update its local state.  Text validation is expected to happen at the
+ * API boundary before this function is called.
  */
 export async function appendExampleSentenceToDraftCard(
   userId: string,
@@ -911,17 +912,7 @@ export async function appendExampleSentenceToDraftCard(
   const { draftCard } = await assertDraftCardInWorkspace(userId, languageId, parsedNoteId, parsedCardId, database);
 
   const currentExamples = normalizeStringList(draftCard.examples);
-  const trimmedText = text.trim();
-
-  if (!trimmedText) {
-    throw new CardEntryRequestError(400, 'Example sentence text cannot be empty.');
-  }
-
-  if (trimmedText.length > 1_000) {
-    throw new CardEntryRequestError(400, 'Example sentence must be 1,000 characters or fewer.');
-  }
-
-  const updatedExamples = [...currentExamples, trimmedText];
+  const updatedExamples = [...currentExamples, text.trim()];
 
   const updatedCard = await updateCard(
     userId,
