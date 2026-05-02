@@ -176,6 +176,8 @@
       const trimmedInput = input.trim();
 
       if (trimmedInput === '/add') {
+        // Keep the existing quick-add shortcut local until the structured chat contract includes
+        // a typed suggestion for opening the drawer without auto-executing a server response.
         return resolveCardEntryCommandResponse({
           input,
           activeLanguageCode,

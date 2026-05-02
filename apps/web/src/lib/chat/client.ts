@@ -13,7 +13,9 @@ export async function requestStructuredChatResponse(payload: ChatRequest): Promi
 
   if (!response.ok || !parsedBody.success) {
     throw new Error(
-      parsedBody.success ? parsedBody.data.message : 'The chat assistant could not respond right now.',
+      parsedBody.success
+        ? parsedBody.data.message
+        : `The chat assistant could not respond right now. (Status: ${response.status})`,
     );
   }
 

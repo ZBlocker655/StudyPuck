@@ -56,10 +56,23 @@ function normalizeChatResponse(
   return createChatResponseSchema(allowedSuggestionTypes).parse(response);
 }
 
-function getAllowedSuggestionTypes(_routeContext: RouteContext, _noteId?: string): readonly ChatSuggestionType[] {
+function getAllowedSuggestionTypesForRoute(
+  routeContext: RouteContext,
+  _noteId?: string,
+): readonly ChatSuggestionType[] {
   // The current command-bar integration only sends route-level context, so no actionable suggestion types are
   // enabled yet. This keeps the server contract reusable while reserving typed suggestions for richer contexts.
-  return [];
+  switch (routeContext.routeContextType) {
+    case 'card-entry':
+    case 'card-review':
+    case 'translation-drills':
+    case 'cards':
+    case 'settings':
+    case 'stats':
+    case 'workspace':
+    default:
+      return [];
+  }
 }
 
 function formatCommandList(commands: string[]) {
@@ -166,7 +179,7 @@ export async function handleStudyPuckChatRequest(
     );
   }
 
-  const allowedSuggestionTypes = getAllowedSuggestionTypes(input.routeContext, input.noteId);
+  const allowedSuggestionTypes = getAllowedSuggestionTypesForRoute(input.routeContext, input.noteId);
   const responseSchema = createChatResponseSchema(allowedSuggestionTypes);
   const prompt = buildStructuredChatPrompt({
     routeContext: input.routeContext,
