@@ -4,6 +4,7 @@
   import { page } from '$app/stores';
   import { onMount, tick } from 'svelte';
   import { createInboxNoteRequest } from '$lib/card-entry/client.js';
+  import { requestStructuredChatResponse } from '$lib/chat/client.js';
   import { resolveCardEntryCommandResponse } from '$lib/command-bar/card-entry.js';
   import { cardEntryShellCounts } from '$lib/stores/cardEntryShell.js';
   import { cardEntryUi } from '$lib/stores/cardEntryUi.js';
@@ -171,20 +172,36 @@
       commandBar.setInput(inputElement.value);
     }
 
-    commandBar.submit((input) =>
-      resolveCardEntryCommandResponse({
+    commandBar.submit(async (input) => {
+      if (input.trim() === '/add') {
+        return resolveCardEntryCommandResponse({
+          input,
+          activeLanguageCode,
+          createNote: async (payload) => {
+            await createInboxNoteRequest(payload);
+          },
+          openQuickAdd: (request) => cardEntryUi.openQuickAdd(request),
+          onNoteCreated: async () => {
+            cardEntryShellCounts.adjustCount(activeLanguageCode, 1);
+            await invalidateAll();
+          },
+        });
+      }
+
+      const response = await requestStructuredChatResponse({
         input,
-        activeLanguageCode,
-        createNote: async (payload) => {
-          await createInboxNoteRequest(payload);
-        },
-        openQuickAdd: (request) => cardEntryUi.openQuickAdd(request),
-        onNoteCreated: async () => {
-          cardEntryShellCounts.adjustCount(activeLanguageCode, 1);
-          await invalidateAll();
-        },
-      })
-    );
+        pathname: $page.url.pathname,
+        languageId: activeLanguageCode,
+        noteId: $page.params.noteId,
+      });
+
+      if (input.trim().startsWith('/add ')) {
+        cardEntryShellCounts.adjustCount(activeLanguageCode, 1);
+        await invalidateAll();
+      }
+
+      return response.message;
+    });
   }
 
   function handleKeydown(event: KeyboardEvent) {
