@@ -9,13 +9,14 @@ import {
   type CommandDefinition,
   type RouteContext,
 } from '$lib/command-bar/shared.js';
-import { PROMPT_HISTORY_CAP, type ConversationHistoryTurn } from '$lib/chat.js';
+import { PROMPT_HISTORY_CAP, type ChatResponse, type ChatSuggestion, type ConversationHistoryTurn } from '$lib/chat.js';
 export type MessageRole = 'assistant' | 'system' | 'user';
 
 export type ConversationMessage = {
   id: string;
   role: MessageRole;
   content: string;
+  suggestions?: ChatSuggestion[];
 };
 
 export type CommandBarState = {
@@ -42,7 +43,7 @@ export type CommandResponder = (
   routeContext: RouteContext,
   /** The captured store state at the moment the user's message was submitted. */
   submissionState: CommandBarState,
-) => string | null | Promise<string | null>;
+) => ChatResponse | string | null | Promise<ChatResponse | string | null>;
 
 const DEFAULT_CONTEXT_WIDTH: Record<CommandContext, number> = {
   global: 62,
@@ -53,13 +54,14 @@ const DEFAULT_CONTEXT_WIDTH: Record<CommandContext, number> = {
 
 let messageCounter = 0;
 
-function createMessage(role: MessageRole, content: string): ConversationMessage {
+function createMessage(role: MessageRole, content: string, suggestions: ChatSuggestion[] = []): ConversationMessage {
   messageCounter += 1;
 
   return {
     id: `command-message-${messageCounter}`,
     role,
     content,
+    suggestions,
   };
 }
 
@@ -126,12 +128,20 @@ function createCommandBarStore() {
     responder?: CommandResponder
   ) {
     clearPendingTimer();
-    let responseText: string;
+    let responseContent: string;
+    let responseSuggestions: ChatSuggestion[] = [];
 
     try {
-      responseText = (await responder?.(input, routeContext, submissionState)) ?? buildAssistantResponse(input, routeContext);
+      const result = (await responder?.(input, routeContext, submissionState)) ?? buildAssistantResponse(input, routeContext);
+
+      if (result !== null && typeof result === 'object' && 'message' in result) {
+        responseContent = result.message;
+        responseSuggestions = result.suggestions ?? [];
+      } else {
+        responseContent = result ?? buildAssistantResponse(input, routeContext);
+      }
     } catch (error) {
-      responseText = error instanceof Error ? error.message : 'Something went wrong while handling that command.';
+      responseContent = error instanceof Error ? error.message : 'Something went wrong while handling that command.';
     }
 
     store.update((state) => {
@@ -143,7 +153,7 @@ function createCommandBarStore() {
         ...state,
         isWaiting: false,
         lastSubmittedInput: null,
-        messages: [...state.messages, createMessage('assistant', responseText)],
+        messages: [...state.messages, createMessage('assistant', responseContent, responseSuggestions)],
         desktopConversationCollapsed: false,
         mobileSheetOpen: true,
         unreadCount: 0,

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { commandBar, getFilteredCommandGroups, resolveRouteContext, type CommandBarState } from './commandBar.js';
 
@@ -143,5 +143,84 @@ describe('commandBar entity context and conversation reset', () => {
     // Should be the last 10 turns
     expect(history[0]?.content).toBe('Turn 4');
     expect(history.at(-1)?.content).toBe('Turn 13');
+  });
+});
+
+describe('commandBar structured chat response handling', () => {
+  function getState() {
+    let state: CommandBarState | undefined;
+    const unsub = commandBar.subscribe((s) => { state = s; });
+    unsub();
+    return state!;
+  }
+
+  it('stores suggestions from a ChatResponse in the assistant message', async () => {
+    vi.useFakeTimers();
+
+    const suggestion = {
+      type: 'append_example_sentence' as const,
+      payload: { text: '我坐火车去上海。' },
+    };
+
+    const responder = async () => ({
+      message: 'Here is an example sentence.',
+      suggestions: [suggestion],
+    });
+
+    commandBar.setEntityContext('zh', 'note-1', 'card-1');
+    commandBar.setInput('Give me example sentences');
+    commandBar.submit(responder);
+
+    // Advance timers past the 650ms submit delay then flush async work
+    await vi.runAllTimersAsync();
+    vi.useRealTimers();
+
+    const state = getState();
+    const lastMessage = state.messages.at(-1);
+
+    expect(lastMessage?.role).toBe('assistant');
+    expect(lastMessage?.content).toBe('Here is an example sentence.');
+    expect(lastMessage?.suggestions).toEqual([suggestion]);
+  });
+
+  it('stores empty suggestions for plain-string responder responses', async () => {
+    vi.useFakeTimers();
+
+    const responder = async () => 'A plain text response.';
+
+    commandBar.setEntityContext('zh', 'note-2', 'card-2');
+    commandBar.setInput('How does this work?');
+    commandBar.submit(responder);
+
+    await vi.runAllTimersAsync();
+    vi.useRealTimers();
+
+    const state = getState();
+    const lastMessage = state.messages.at(-1);
+
+    expect(lastMessage?.role).toBe('assistant');
+    expect(lastMessage?.content).toBe('A plain text response.');
+    expect(lastMessage?.suggestions).toEqual([]);
+  });
+
+  it('getPromptHistory uses message content, not suggestions, for history turns', () => {
+    const mockState = {
+      messages: [
+        { id: '1', role: 'user' as const, content: 'Give me examples', suggestions: [] },
+        {
+          id: '2',
+          role: 'assistant' as const,
+          content: 'Here is an example.',
+          suggestions: [{ type: 'append_example_sentence' as const, payload: { text: '我坐火车去上海。' } }],
+        },
+      ],
+    } as CommandBarState;
+
+    const history = commandBar.getPromptHistory(mockState);
+
+    expect(history).toEqual([
+      { role: 'user', content: 'Give me examples' },
+      { role: 'assistant', content: 'Here is an example.' },
+    ]);
   });
 });
