@@ -1,5 +1,5 @@
 import { error, json, type RequestHandler } from '@sveltejs/kit';
-import { withTransactionDb } from '@studypuck/database';
+import { getDb, withTransactionDb } from '@studypuck/database';
 import { env } from '$env/dynamic/private';
 import { chatRequestSchema } from '$lib/chat.js';
 import { resolveRouteContext } from '$lib/command-bar/shared.js';
@@ -21,6 +21,7 @@ export const POST: RequestHandler = async (event) => {
   }
 
   const routeContext = resolveRouteContext(parsedBody.data.pathname);
+  const database = env.DATABASE_URL ? getDb(env.DATABASE_URL) : null;
 
   try {
     const response = await handleStudyPuckChatRequest({
@@ -29,6 +30,10 @@ export const POST: RequestHandler = async (event) => {
       routeContext,
       languageId: parsedBody.data.languageId,
       noteId: parsedBody.data.noteId,
+      cardId: parsedBody.data.cardId,
+      focusedField: parsedBody.data.focusedField,
+      conversationHistory: parsedBody.data.conversationHistory,
+      database: database as never,
       privateEnv: env,
       createNote: async (payload) => {
         if (!env.DATABASE_URL) {
@@ -37,8 +42,8 @@ export const POST: RequestHandler = async (event) => {
 
         await withTransactionDb(
           env.DATABASE_URL,
-          (database) =>
-            createCardEntryNoteForLanguage(userId, payload.languageId, payload.content, database as never),
+          (db) =>
+            createCardEntryNoteForLanguage(userId, payload.languageId, payload.content, db as never),
         );
       },
     });

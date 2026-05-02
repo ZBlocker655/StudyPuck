@@ -172,7 +172,7 @@
       commandBar.setInput(inputElement.value);
     }
 
-    commandBar.submit(async (input) => {
+    commandBar.submit(async (input, _routeContext, currentState) => {
       const trimmedInput = input.trim();
 
       if (trimmedInput === '/add') {
@@ -192,11 +192,15 @@
         });
       }
 
+      const promptHistory = commandBar.getPromptHistory(currentState);
+
       const response = await requestStructuredChatResponse({
         input,
         pathname: $page.url.pathname,
         languageId: activeLanguageCode,
-        noteId: $page.params.noteId,
+        noteId: $page.params.noteId ?? currentState.activeNoteId ?? undefined,
+        cardId: currentState.activeCardId ?? undefined,
+        conversationHistory: promptHistory.length > 0 ? promptHistory : undefined,
       });
 
       if (trimmedInput.startsWith('/add ')) {

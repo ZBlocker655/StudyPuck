@@ -5,6 +5,7 @@
   import DraftCardEditor from '$lib/components/card-entry/DraftCardEditor.svelte';
   import { getUnresolvedDuplicateWarnings, replaceDraftCardInNote } from '$lib/card-entry/workspace.js';
   import type { CardEntryNoteShellData } from '$lib/server/card-entry.js';
+  import { commandBar } from '$lib/stores/commandBar.js';
 
   export let data: PageData;
   export let form: ActionData;
@@ -27,6 +28,10 @@
   $: currentLang = $page.params.lang ?? '';
   $: actionError = (form as { errorMessage?: string } | null | undefined)?.errorMessage ?? null;
   $: unresolvedDuplicateWarnings = getUnresolvedDuplicateWarnings(note);
+
+  // Keep the command bar entity context in sync so the conversation resets
+  // whenever the language or note changes.
+  $: commandBar.setEntityContext(currentLang || null, note.noteId, null);
   $: signOffDisabled =
     note.draftCards.length === 0 ||
     note.aiState === 'queued' ||
