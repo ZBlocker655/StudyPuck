@@ -21,14 +21,13 @@ describe('resolveCanonicalChatContext', () => {
     expect(context.allowedSuggestionTypes).toEqual([]);
   });
 
-  it('returns a non-actionable context when card-entry has no cardId', async () => {
+  it('returns a non-actionable context when card-entry has no database', async () => {
     const context = await resolveCanonicalChatContext(
       'user-1',
       {
         routeContext: resolveRouteContext('/es/card-entry'),
         languageId: 'es',
         noteId: 'note-1',
-        // no cardId
       },
       null,
     );
@@ -71,14 +70,14 @@ describe('resolveCanonicalChatContext', () => {
   });
 });
 
-// ── Tests: draft card editor context (database path) ─────────────────────────
+// ── Tests: Card Entry note workspace context (database path) ─────────────────
 
-describe('resolveCanonicalChatContext — draft card editor', () => {
-  it('attempts a DB call when all entity hints + database are provided', async () => {
+describe('resolveCanonicalChatContext — Card Entry note workspace', () => {
+  it('attempts a DB call when note workspace hints + database are provided', async () => {
     // Pass an empty object as a fake database — the resolver will call
     // getNoteWithDraftCards which uses the db as a Drizzle query builder.
     // The empty object will cause a runtime error inside the DB query,
-    // confirming that the draft-card-editor code path was entered rather than
+    // confirming that the Card Entry note-workspace code path was entered rather than
     // the non-actionable fallback.
     const fakeDb = {} as Parameters<typeof resolveCanonicalChatContext>[2];
 
@@ -89,7 +88,6 @@ describe('resolveCanonicalChatContext — draft card editor', () => {
           routeContext: resolveRouteContext('/es/card-entry'),
           languageId: 'es',
           noteId: 'note-1',
-          cardId: 'card-1',
         },
         fakeDb,
       ),

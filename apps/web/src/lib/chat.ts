@@ -24,6 +24,7 @@ export const chatRequestSchema = z.object({
 export const appendExampleSentenceSuggestionSchema = z.object({
   type: z.literal('append_example_sentence'),
   payload: z.object({
+    cardId: z.string().trim().min(1).max(128),
     text: z.string().trim().min(1).max(500),
   }),
 });

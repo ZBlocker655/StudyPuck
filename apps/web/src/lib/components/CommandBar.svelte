@@ -331,15 +331,14 @@
   async function handleSuggestionClick(suggestion: ChatSuggestion) {
     if (suggestion.type === 'append_example_sentence') {
       const activeNoteId = $commandBar.activeNoteId;
-      const activeCardId = $commandBar.activeCardId;
 
-      if (!activeNoteId || !activeCardId) {
+      if (!activeNoteId) {
         return;
       }
 
       cardEntrySuggestionActions.applyAppendExampleSentence(
         activeNoteId,
-        activeCardId,
+        suggestion.payload.cardId,
         suggestion.payload.text,
       );
     }

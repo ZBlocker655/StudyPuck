@@ -29,9 +29,10 @@
   $: actionError = (form as { errorMessage?: string } | null | undefined)?.errorMessage ?? null;
   $: unresolvedDuplicateWarnings = getUnresolvedDuplicateWarnings(note);
 
-  // Keep the command bar entity context in sync so the conversation resets
-  // whenever the language or note changes.
-  $: commandBar.setEntityContext(currentLang || null, note.noteId, null);
+  // Keep the command bar workspace scope in sync so the conversation resets
+  // only when the language or note changes, not when focus moves between
+  // draft cards or into the command bar.
+  $: commandBar.setWorkspaceContext(currentLang || null, note.noteId);
   $: signOffDisabled =
     note.draftCards.length === 0 ||
     note.aiState === 'queued' ||
