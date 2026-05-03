@@ -1,7 +1,7 @@
 import { error, redirect } from '@sveltejs/kit';
 import { getDb } from '@studypuck/database';
 import { env } from '$env/dynamic/private';
-import { CardLibraryRequestError, loadGroupDetailData } from '$lib/server/cards.js';
+import { CardLibraryRequestError, loadActiveCardDetailData, loadGroupDetailData } from '$lib/server/cards.js';
 import type { PageServerLoad } from './$types.js';
 
 export const load: PageServerLoad = async (event) => {
@@ -14,10 +14,23 @@ export const load: PageServerLoad = async (event) => {
   }
 
   const database = getDb(env.DATABASE_URL);
+  const selectedCardId = event.url.searchParams.get('card');
 
   try {
+    const groupDetail = await loadGroupDetailData(session.user.id, languageCode, groupId, event.url, database);
+
+    if (selectedCardId && !groupDetail.cards.filteredCardIds.includes(selectedCardId)) {
+      throw error(404, 'Active card not found in the current group view.');
+    }
+
+    const selectedCard = selectedCardId
+      ? await loadActiveCardDetailData(session.user.id, languageCode, selectedCardId, database)
+      : null;
+
     return {
-      groupDetail: await loadGroupDetailData(session.user.id, languageCode, groupId, event.url, database),
+      groupDetail,
+      selectedCard: selectedCard?.card ?? null,
+      selectedCardAvailableGroups: selectedCard?.availableGroups ?? [],
     };
   } catch (requestError) {
     if (requestError instanceof CardLibraryRequestError) {
