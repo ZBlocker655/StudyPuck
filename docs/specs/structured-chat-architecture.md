@@ -4,7 +4,7 @@
 
 **Depends on**: [Card Entry Storyboard](../ux/storyboards/card-entry.md), [LLM Command Interface](../ux/storyboards/llm-command-interface.md)
 
-This document defines the real StudyPuck chat architecture for all supported application contexts, with Card Entry draft-card editing as the first concrete actionable example.
+This document defines the real StudyPuck chat architecture for all supported application contexts, with the Card Entry note workspace as the first concrete actionable example.
 
 The main decision is that StudyPuck chat should be built as a **structured pipeline**:
 
@@ -55,7 +55,7 @@ The model never performs actions directly. It may only return typed suggestions.
 **Chosen scope**
 
 - this architecture applies across StudyPuck contexts, not only card editing
-- first actionable context: **Card Entry draft-card editor**
+- first actionable context: **Card Entry note workspace**
 - first concrete typed suggestion: **append a new example sentence**
 - natural language is the primary UX
 - editor-specific slash commands are optional future shortcuts, not a Phase 1 requirement
@@ -112,8 +112,8 @@ The prompt should include explicit machine context, not prose guesses. It should
 - active language
 - current route/context type
 - allowed suggestion types for this context
-- the relevant note/card snapshot when an editing surface is active
-- focused field if relevant
+- the relevant workspace snapshot when an editing surface is active
+- likely target card/field hints if relevant
 - any settings-driven formatting guidance needed for generation
 
 The prompt should also explicitly state that any card or note content supplied in context is **data**, not instructions, and must not override system rules.
@@ -135,6 +135,7 @@ The model-authored response contract should be:
     {
       "type": "append_example_sentence",
       "payload": {
+        "cardId": "card_456",
         "text": "我坐火车去上海。 | I am taking the train to Shanghai."
       }
     }
@@ -189,19 +190,19 @@ The frontend knows ephemeral UI state that the backend cannot infer cleanly, suc
 - current route context
 - language code
 - active note ID
-- active card ID
-- focused field
+- last interacted card ID
+- last interacted field
 
 Example request:
 
 ```ts
 {
   userInput: 'Give me 3 more sample sentences',
-  routeContext: 'draft_card_editor',
+  routeContext: 'card-entry',
   languageId: 'zh-CN',
   noteId: 'note_123',
-  cardId: 'card_456',
-  focusedField: 'examples'
+  cardId: 'card_456', // optional likely-target hint
+  focusedField: 'examples' // optional likely-target hint
 }
 ```
 
@@ -211,7 +212,7 @@ The backend must:
 
 1. authenticate the user
 2. verify that the context hint is valid
-3. load the real note/card/settings data
+3. load the real workspace/settings data
 4. determine which suggestion types are allowed
 5. construct the canonical prompt context
 
@@ -219,24 +220,38 @@ Example canonical context:
 
 ```ts
 {
-  contextType: 'draft_card_editor',
+  contextType: 'card_entry_note_workspace',
   languageId: 'zh-CN',
   noteId: 'note_123',
-  cardId: 'card_456',
-  focusedField: 'examples',
+  likelyTargetCardId: 'card_456',
+  likelyTargetFocusedField: 'examples',
   allowedSuggestionTypes: ['append_example_sentence'],
-  exampleSentenceFormat: 'sentence_with_translation',
-  cardSnapshot: {
-    content: '...',
-    meaning: '...',
-    examples: ['...'],
-    mnemonics: ['...'],
-    llmInstructions: '...'
-  }
+  exampleSentenceFormat: 'sentence_translation',
+  noteSnapshot: {
+    content: '...'
+  },
+  draftCards: [
+    {
+      cardId: 'card_456',
+      content: '...',
+      meaning: '...',
+      examples: ['...'],
+      mnemonics: ['...'],
+      llmInstructions: '...'
+    },
+    {
+      cardId: 'card_789',
+      content: '...',
+      meaning: '...',
+      examples: ['...'],
+      mnemonics: ['...'],
+      llmInstructions: '...'
+    }
+  ]
 }
 ```
 
-The backend is therefore the source of truth for prompt assembly. Client-authored card content is never treated as authoritative prompt input on its own.
+The backend is therefore the source of truth for prompt assembly. Client-authored card content is never treated as authoritative prompt input on its own. In Card Entry, the workspace remains actionable when the note is known even if there is no current card hint; the card/field values are only likely-target hints inside that workspace.
 
 ---
 
@@ -254,9 +269,8 @@ The important reset triggers are:
 - language change
 - route / mini-app change
 - switching to a different note
-- switching to a different draft card
 
-This is the primary stale-suggestion defense for the first implementation.
+Within a single Card Entry note workspace, moving focus between draft cards or fields should update the likely target hint without resetting the conversation. This is the primary stale-suggestion defense for the first implementation.
 
 ### Prompt history cap
 
@@ -285,6 +299,7 @@ type ChatSuggestion =
   | {
       type: 'append_example_sentence';
       payload: {
+        cardId: string;
         text: string;
       };
     };
@@ -300,25 +315,26 @@ Future suggestion types may be added later, but they should follow the same patt
 
 ## Card Entry Phase 1
 
-This architecture uses the Card Entry draft-card editor as the first actionable context.
+This architecture uses the Card Entry note workspace as the first actionable context.
 
 ### Phase 1 behavior
 
-1. The user asks for help from the command bar while editing a draft card.
-2. The backend derives the authoritative draft-card context.
+1. The user asks for help from the command bar while working in a Card Entry note workspace that may contain one or more draft cards.
+2. The backend derives the authoritative note-workspace context and may include likely-target card/field hints.
 3. The model returns a structured response with text and optional suggestions.
 4. The conversation pane renders the text plus action buttons derived from the suggestions.
-5. Clicking a suggestion appends the sentence to the current draft card and persists through the existing draft-card save path.
+5. Clicking a suggestion appends the sentence to the targeted draft card identified by `payload.cardId` and persists through the existing draft-card save path.
 
 ### Phase 1 limits
 
-- one actionable context: draft-card editing
+- one actionable context: Card Entry note workspace
 - one concrete suggestion type: `append_example_sentence`
 - suggestion count should be capped to a small number such as 3
 - no expand/collapse suggestion UI yet
 - no arbitrary freeform tool execution
 - no active-card editing yet
 - no hard language-specific sentence-format validation yet
+- clarification questions are allowed when multiple draft cards exist and the intended target is ambiguous
 
 ### Persistence behavior
 

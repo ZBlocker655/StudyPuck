@@ -12,7 +12,7 @@ This document specifies the omnipresent LLM command bar — its placement, visua
 The command bar is the **single, unified input** for everything conversational and command-driven in StudyPuck. It is:
 
 - **Always present**: visible on every authenticated screen at all times
-- **Context-aware**: its behavior, scope, and LLM system prompt adapt to the current mini-app and the specific item in focus
+- **Context-aware**: its behavior, scope, and LLM system prompt adapt to the current mini-app and active workspace, with item-level hints where a mini-app exposes them
 - **The only command input**: there is no secondary "chat box" or separate input for Translation Drills — the command bar IS the translation drill input when you are in that context
 - **Not redundant with navigation**: the command bar does not duplicate the mini-app switcher or language switcher; those live in the nav shell (see `global-navigation.md`)
 
