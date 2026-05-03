@@ -889,3 +889,50 @@ export async function deleteCardEntryDraftsForLanguage(
     throw error;
   }
 }
+
+/**
+ * Appends a single example sentence to a draft card's examples list.
+ *
+ * Validates ownership, appends the trimmed text to the current examples, and
+ * returns the updated card and the full list of available groups so the caller
+ * can update its local state.  Text validation is expected to happen at the
+ * API boundary before this function is called.
+ */
+export async function appendExampleSentenceToDraftCard(
+  userId: string,
+  languageId: string,
+  noteId: unknown,
+  cardId: unknown,
+  text: string,
+  database: DatabaseClient
+) {
+  const parsedNoteId = parseNoteId(noteId);
+  const parsedCardId = parseCardId(cardId);
+
+  const { draftCard } = await assertDraftCardInWorkspace(userId, languageId, parsedNoteId, parsedCardId, database);
+
+  const currentExamples = normalizeStringList(draftCard.examples);
+  const updatedExamples = [...currentExamples, text.trim()];
+
+  const updatedCard = await updateCard(
+    userId,
+    languageId,
+    parsedCardId,
+    { examples: updatedExamples },
+    database as never
+  );
+
+  if (!updatedCard) {
+    throw new CardEntryRequestError(404, 'Draft card not found for this note.');
+  }
+
+  const [card, availableGroups] = await Promise.all([
+    loadDraftCardData(userId, languageId, parsedNoteId, parsedCardId, database),
+    getGroups(userId, languageId, database as never),
+  ]);
+
+  return {
+    card,
+    availableGroups: availableGroups.map((group) => mapGroup(group)),
+  };
+}

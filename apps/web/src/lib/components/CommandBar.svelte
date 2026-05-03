@@ -3,8 +3,9 @@
   import { invalidateAll } from '$app/navigation';
   import { page } from '$app/stores';
   import { onMount, tick } from 'svelte';
-  import { createInboxNoteRequest } from '$lib/card-entry/client.js';
+  import { appendExampleSentenceRequest, createInboxNoteRequest } from '$lib/card-entry/client.js';
   import { requestStructuredChatResponse } from '$lib/chat/client.js';
+  import type { ChatSuggestion } from '$lib/chat.js';
   import { resolveCardEntryCommandResponse } from '$lib/command-bar/card-entry.js';
   import { cardEntryShellCounts } from '$lib/stores/cardEntryShell.js';
   import { cardEntryUi } from '$lib/stores/cardEntryUi.js';
@@ -12,6 +13,7 @@
     commandBar,
     getFilteredCommandGroups,
     type CommandDefinition,
+    type ConversationMessage,
   } from '$lib/stores/commandBar.js';
 
   let { children } = $props<{ children: import('svelte').Snippet }>();
@@ -211,7 +213,7 @@
         await invalidateAll();
       }
 
-      return response.message;
+      return response;
     });
   }
 
@@ -296,6 +298,45 @@
 
   function handleAutocompleteMouseDown(event: MouseEvent) {
     event.preventDefault();
+  }
+
+  /**
+   * Returns a UI-owned, app-defined label for a suggestion action button.
+   * The model never authors these labels.
+   */
+  function getSuggestionLabel(suggestion: ChatSuggestion): string {
+    switch (suggestion.type) {
+      case 'append_example_sentence':
+        return 'Add to examples';
+      default:
+        return 'Apply';
+    }
+  }
+
+  /**
+   * Executes a suggestion action.  For `append_example_sentence`, appends the
+   * sentence to the active draft card via the dedicated API endpoint and then
+   * refreshes page data.
+   */
+  async function handleSuggestionClick(suggestion: ChatSuggestion) {
+    if (suggestion.type === 'append_example_sentence') {
+      const activeNoteId = $commandBar.activeNoteId;
+      const activeCardId = $commandBar.activeCardId;
+      const lang = $page.params.lang;
+
+      if (!lang || !activeNoteId || !activeCardId) {
+        return;
+      }
+
+      await appendExampleSentenceRequest({
+        lang,
+        noteId: activeNoteId,
+        cardId: activeCardId,
+        text: suggestion.payload.text,
+      });
+
+      await invalidateAll();
+    }
   }
 
   onMount(() => {
@@ -401,6 +442,19 @@
             >
               <p class="message__label">{message.role === 'user' ? 'You' : 'StudyPuck'}</p>
               <p>{message.content}</p>
+              {#if message.suggestions && message.suggestions.length > 0}
+                <div class="message__suggestions cluster" style="--cluster-space: var(--space-2)">
+                  {#each message.suggestions as suggestion}
+                    <button
+                      type="button"
+                      class="suggestion-button"
+                      onclick={() => void handleSuggestionClick(suggestion)}
+                    >
+                      {getSuggestionLabel(suggestion)}
+                    </button>
+                  {/each}
+                </div>
+              {/if}
             </article>
           {/each}
 
@@ -454,6 +508,19 @@
           >
             <p class="message__label">{message.role === 'user' ? 'You' : 'StudyPuck'}</p>
             <p>{message.content}</p>
+            {#if message.suggestions && message.suggestions.length > 0}
+              <div class="message__suggestions cluster" style="--cluster-space: var(--space-2)">
+                {#each message.suggestions as suggestion}
+                  <button
+                    type="button"
+                    class="suggestion-button"
+                    onclick={() => void handleSuggestionClick(suggestion)}
+                  >
+                    {getSuggestionLabel(suggestion)}
+                  </button>
+                {/each}
+              </div>
+            {/if}
           </article>
         {/each}
 
@@ -736,6 +803,28 @@
     display: inline-flex;
     gap: var(--space-2);
     align-items: center;
+  }
+
+  .message__suggestions {
+    flex-wrap: wrap;
+    margin-block-start: var(--space-2);
+  }
+
+  .suggestion-button {
+    min-block-size: 2rem;
+    padding-inline: var(--space-3);
+    border: 1px solid var(--color-primary);
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--color-primary);
+    font-family: var(--font-ui);
+    font-size: var(--font-size-caption);
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .suggestion-button:hover {
+    background: var(--color-primary-subtle);
   }
 
   .message__spinner {
