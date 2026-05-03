@@ -65,46 +65,51 @@ describe('commandBar entity context and conversation reset', () => {
   }
 
   it('resets messages when the active note changes', () => {
-    // Set the context to note-1 then immediately switch to note-2;
+    // Set the workspace to note-1 then immediately switch to note-2;
     // the messages array should be empty after the switch.
-    commandBar.setEntityContext('es', 'note-1', null);
-    commandBar.setEntityContext('es', 'note-2', null);
+    commandBar.setWorkspaceContext('es', 'note-1');
+    commandBar.setWorkspaceContext('es', 'note-2');
 
     const state = getState();
     expect(state.messages).toEqual([]);
     expect(state.activeNoteId).toBe('note-2');
   });
 
-  it('resets messages when the active card changes', () => {
-    commandBar.setEntityContext('es', 'note-1', 'card-1');
-    commandBar.setEntityContext('es', 'note-1', 'card-2');
+  it('does not reset messages when the target card hint changes within one note workspace', () => {
+    commandBar.setWorkspaceContext('es', 'note-1');
+    commandBar.pushAssistantMessage('Existing conversation');
+    commandBar.setTargetHint('card-1', 'examples');
+    commandBar.setTargetHint('card-2', 'meaning');
 
     const state = getState();
-    expect(state.messages).toEqual([]);
+    expect(state.messages).toHaveLength(1);
     expect(state.activeCardId).toBe('card-2');
+    expect(state.activeFocusedField).toBe('meaning');
   });
 
   it('resets messages when the active language changes', () => {
-    commandBar.setEntityContext('es', 'note-1', null);
-    commandBar.setEntityContext('zh', 'note-1', null);
+    commandBar.setWorkspaceContext('es', 'note-1');
+    commandBar.setWorkspaceContext('zh', 'note-1');
 
     const state = getState();
     expect(state.messages).toEqual([]);
     expect(state.activeLanguageId).toBe('zh');
   });
 
-  it('does not reset messages when the entity context is unchanged', () => {
-    commandBar.setEntityContext('es', 'note-1', 'card-1');
+  it('does not reset messages when the workspace context is unchanged', () => {
+    commandBar.setWorkspaceContext('es', 'note-1');
+    commandBar.setTargetHint('card-1', 'examples');
 
-    // Calling setEntityContext with the same values should be a no-op
+    // Calling setWorkspaceContext / setTargetHint with the same values should be a no-op
     const stateBefore = getState();
-    commandBar.setEntityContext('es', 'note-1', 'card-1');
+    commandBar.setWorkspaceContext('es', 'note-1');
+    commandBar.setTargetHint('card-1', 'examples');
     const stateAfter = getState();
 
-    // Since messages are empty anyway here we verify state identity is preserved
     expect(stateAfter.activeLanguageId).toBe(stateBefore.activeLanguageId);
     expect(stateAfter.activeNoteId).toBe(stateBefore.activeNoteId);
     expect(stateAfter.activeCardId).toBe(stateBefore.activeCardId);
+    expect(stateAfter.activeFocusedField).toBe(stateBefore.activeFocusedField);
   });
 
   it('getPromptHistory returns only user and assistant turns bounded to PROMPT_HISTORY_CAP', () => {
@@ -159,7 +164,7 @@ describe('commandBar structured chat response handling', () => {
 
     const suggestion = {
       type: 'append_example_sentence' as const,
-      payload: { text: '我坐火车去上海。' },
+      payload: { cardId: 'card-1', text: '我坐火车去上海。' },
     };
 
     const responder = async () => ({
@@ -167,7 +172,8 @@ describe('commandBar structured chat response handling', () => {
       suggestions: [suggestion],
     });
 
-    commandBar.setEntityContext('zh', 'note-1', 'card-1');
+    commandBar.setWorkspaceContext('zh', 'note-1');
+    commandBar.setTargetHint('card-1', 'examples');
     commandBar.setInput('Give me example sentences');
     commandBar.submit(responder);
 
@@ -188,7 +194,8 @@ describe('commandBar structured chat response handling', () => {
 
     const responder = async () => 'A plain text response.';
 
-    commandBar.setEntityContext('zh', 'note-2', 'card-2');
+    commandBar.setWorkspaceContext('zh', 'note-2');
+    commandBar.setTargetHint('card-2', 'examples');
     commandBar.setInput('How does this work?');
     commandBar.submit(responder);
 
@@ -211,7 +218,7 @@ describe('commandBar structured chat response handling', () => {
           id: '2',
           role: 'assistant' as const,
           content: 'Here is an example.',
-          suggestions: [{ type: 'append_example_sentence' as const, payload: { text: '我坐火车去上海。' } }],
+          suggestions: [{ type: 'append_example_sentence' as const, payload: { cardId: 'card-1', text: '我坐火车去上海。' } }],
         },
       ],
     } as CommandBarState;

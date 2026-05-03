@@ -108,7 +108,7 @@ describe('handleStudyPuckChatRequest', () => {
     expect(generateStructured).not.toHaveBeenCalled();
   });
 
-  it('passes no allowed suggestion types when there is no draft card context', async () => {
+  it('passes no allowed suggestion types for non-actionable card review context', async () => {
     const generateStructured = vi.fn(async (request: { responseSchema: { parse: (value: unknown) => unknown } }) =>
       request.responseSchema.parse({ message: 'Hello from card review.' }),
     );
@@ -122,7 +122,7 @@ describe('handleStudyPuckChatRequest', () => {
       generateStructured,
     });
 
-    // No cardId means we land in the non-actionable context – no suggestions
+    // Card Review is non-actionable in the current implementation – no suggestions
     expect(response.suggestions).toEqual([]);
     expect(generateStructured).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -131,7 +131,7 @@ describe('handleStudyPuckChatRequest', () => {
     );
   });
 
-  it('falls back to non-actionable context when no database is provided even with cardId hint', async () => {
+  it('falls back to non-actionable context when no database is provided even with note workspace hints', async () => {
     const generateStructured = vi.fn(async (request: { responseSchema: { parse: (value: unknown) => unknown } }) =>
       request.responseSchema.parse({
         message: 'I can help with general questions.',
@@ -145,13 +145,12 @@ describe('handleStudyPuckChatRequest', () => {
       routeContext: resolveRouteContext('/es/card-entry'),
       languageId: 'es',
       noteId: 'note-1',
-      cardId: 'card-1',
-      // No database provided — falls back to non-actionable context
-      privateEnv: {},
-      generateStructured,
-    });
+        cardId: 'card-1',
+        privateEnv: {},
+        generateStructured,
+      });
 
-    // Without a database the context resolver cannot load the card, so no
+    // Without a database the context resolver cannot load the note workspace, so no
     // actionable suggestion types are allowed.
     expect(response.suggestions).toEqual([]);
     expect(generateStructured).toHaveBeenCalledWith(

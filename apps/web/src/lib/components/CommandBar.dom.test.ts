@@ -54,7 +54,8 @@ describe('CommandBar component behavior', () => {
       url: new URL('https://studypuck.test/zh/card-review'),
     });
     commandBar.setPathname('/zh/card-review');
-    commandBar.setEntityContext(null, null, null, null);
+    commandBar.setWorkspaceContext(null, null);
+    commandBar.setTargetHint(null, null);
     requestStructuredChatResponse.mockReset();
   });
 
@@ -99,7 +100,7 @@ describe('CommandBar component behavior', () => {
       suggestions: [
         {
           type: 'append_example_sentence',
-          payload: { text: '我坐火车去上海。' },
+          payload: { cardId: 'card-1', text: '我坐火车去上海。' },
         },
       ],
     });
@@ -118,7 +119,8 @@ describe('CommandBar component behavior', () => {
     });
 
     commandBar.setPathname('/zh/card-entry/notes/note-1');
-    commandBar.setEntityContext('zh', 'note-1', 'card-1', 'examples');
+    commandBar.setWorkspaceContext('zh', 'note-1');
+    commandBar.setTargetHint('card-1', 'examples');
 
     const textbox = screen.getByLabelText('Command bar');
     await fireEvent.input(textbox, { target: { value: 'Give me another example sentence' } });

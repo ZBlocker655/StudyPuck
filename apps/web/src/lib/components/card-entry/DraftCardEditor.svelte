@@ -59,13 +59,13 @@
 
   /**
    * When any editable field in this draft card gains focus, make this the
-   * active card context for the command bar.  This allows the chat to
-   * include the card snapshot in its prompt and to unlock card-editing
-   * suggestions (e.g. append_example_sentence).
+   * remembered target-card hint for the command bar. This survives moving focus
+   * into the command bar and helps the backend treat this card as the likely
+   * target within the broader note workspace.
    */
   function handleFieldFocus(field: DraftCardFocusedField) {
     if (!disabled) {
-      commandBar.setEntityContext(lang, noteId, card.cardId, field);
+      commandBar.setTargetHint(card.cardId, field);
     }
   }
 
@@ -250,7 +250,7 @@
       ...draft,
       examples: [...draft.examples, trimmedText],
     };
-    commandBar.setEntityContext(lang, noteId, card.cardId, 'examples');
+    commandBar.setTargetHint(card.cardId, 'examples');
 
     await persistDraft();
   }

@@ -27,9 +27,10 @@ export type CommandBarState = {
   autocompleteOpen: boolean;
   highlightedIndex: number;
   routeContext: RouteContext;
-  /** Active entity context used to detect when the conversation must be reset. */
+  /** Workspace-level conversation scope. */
   activeLanguageId: string | null;
   activeNoteId: string | null;
+  /** Last interacted draft-card hint within the current workspace. */
   activeCardId: string | null;
   activeFocusedField: string | null;
   messages: ConversationMessage[];
@@ -213,31 +214,18 @@ function createCommandBarStore() {
     },
 
     /**
-     * Updates the active entity context (language, note, card) and resets the
-     * conversation whenever any of those identifiers change.  Call this from
-     * route components whenever the active language, note, or draft card changes.
+     * Updates the workspace-level conversation scope and resets the conversation
+     * whenever the language or note changes.
      */
-    setEntityContext(
+    setWorkspaceContext(
       languageId: string | null,
       noteId: string | null,
-      cardId: string | null,
-      focusedField: string | null = null,
     ) {
       store.update((state) => {
-        const entityChanged =
-          state.activeLanguageId !== languageId ||
-          state.activeNoteId !== noteId ||
-          state.activeCardId !== cardId;
+        const scopeChanged = state.activeLanguageId !== languageId || state.activeNoteId !== noteId;
 
-        if (!entityChanged) {
-          if (state.activeFocusedField === focusedField) {
-            return state;
-          }
-
-          return {
-            ...state,
-            activeFocusedField: focusedField,
-          };
+        if (!scopeChanged) {
+          return state;
         }
 
         clearPendingTimer();
@@ -246,8 +234,8 @@ function createCommandBarStore() {
           ...state,
           activeLanguageId: languageId,
           activeNoteId: noteId,
-          activeCardId: cardId,
-          activeFocusedField: focusedField,
+          activeCardId: null,
+          activeFocusedField: null,
           input: '',
           isWaiting: false,
           lastSubmittedInput: null,
@@ -257,6 +245,24 @@ function createCommandBarStore() {
           desktopConversationCollapsed: false,
           mobileSheetOpen: false,
           unreadCount: 0,
+        };
+      });
+    },
+
+    /**
+     * Updates the likely target card/field within the current workspace without
+     * resetting the conversation. Use this for last-interacted-card hints.
+     */
+    setTargetHint(cardId: string | null, focusedField: string | null = null) {
+      store.update((state) => {
+        if (state.activeCardId === cardId && state.activeFocusedField === focusedField) {
+          return state;
+        }
+
+        return {
+          ...state,
+          activeCardId: cardId,
+          activeFocusedField: focusedField,
         };
       });
     },

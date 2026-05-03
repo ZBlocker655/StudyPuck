@@ -12,7 +12,8 @@ type DatabaseClient = NonNullable<Parameters<typeof getNoteWithDraftCards>[3]>;
 
 // ── Canonical context types ──────────────────────────────────────────────────
 
-export type DraftCardSnapshot = {
+export type NoteWorkspaceDraftCardSummary = {
+  cardId: string;
   content: string;
   meaning: string | null;
   examples: string[];
@@ -20,17 +21,17 @@ export type DraftCardSnapshot = {
   llmInstructions: string | null;
 };
 
-export type DraftCardEditorContext = {
-  contextType: 'draft_card_editor';
+export type CardEntryNoteWorkspaceContext = {
+  contextType: 'card_entry_note_workspace';
   languageId: string;
   noteId: string;
   noteContent: string;
-  cardId: string;
-  focusedField: string | null;
+  likelyTargetCardId: string | null;
+  likelyTargetFocusedField: string | null;
   allowedSuggestionTypes: readonly ChatSuggestionType[];
   exampleSentenceFormat: CardEntryExampleSentenceFormat;
   exampleSentenceFormatInstruction: string;
-  cardSnapshot: DraftCardSnapshot;
+  draftCards: NoteWorkspaceDraftCardSummary[];
 };
 
 export type NonActionableContext = {
@@ -40,7 +41,7 @@ export type NonActionableContext = {
   allowedSuggestionTypes: readonly [];
 };
 
-export type CanonicalChatContext = DraftCardEditorContext | NonActionableContext;
+export type CanonicalChatContext = CardEntryNoteWorkspaceContext | NonActionableContext;
 
 // ── Context hint (derived from the client request) ───────────────────────────
 
@@ -63,50 +64,47 @@ function toStringArray(value: unknown): string[] {
   return value.filter((item): item is string => typeof item === 'string');
 }
 
-async function resolveDraftCardEditorContext(
+async function resolveCardEntryNoteWorkspaceContext(
   userId: string,
-  hint: Required<Pick<ChatContextHint, 'languageId' | 'noteId' | 'cardId'>> & Pick<ChatContextHint, 'focusedField'>,
+  hint: Required<Pick<ChatContextHint, 'languageId' | 'noteId'>> &
+    Pick<ChatContextHint, 'cardId' | 'focusedField'>,
   database: DatabaseClient,
-): Promise<DraftCardEditorContext> {
-  // Load the workspace – this verifies the user owns the note and that it
-  // belongs to the requested language.
+): Promise<CardEntryNoteWorkspaceContext> {
   const workspace = await getNoteWithDraftCards(userId, hint.languageId, hint.noteId, database);
 
   if (!workspace) {
     throw new CardEntryRequestError(404, 'Card Entry note not found.');
   }
 
-  const draftCard = workspace.draftCards.find((card) => card.cardId === hint.cardId) ?? null;
-
-  if (!draftCard) {
-    throw new CardEntryRequestError(404, 'Draft card not found for this note.');
-  }
-
-  // Load the language settings to get the configured example sentence format.
   const languages = await getActiveUserLanguages(userId, database);
   const language = languages.find((lang) => lang.languageId === hint.languageId) ?? null;
   const exampleSentenceFormat = readCardEntryExampleSentenceFormat(language?.settings);
+  const draftCards = workspace.draftCards.map((draftCard) => ({
+    cardId: draftCard.cardId,
+    content: draftCard.content,
+    meaning: draftCard.meaning,
+    examples: toStringArray(draftCard.examples),
+    mnemonics: toStringArray(draftCard.mnemonics),
+    llmInstructions: draftCard.llmInstructions,
+  }));
+  const likelyTargetCardId =
+    draftCards.find((draftCard) => draftCard.cardId === hint.cardId)?.cardId ??
+    (draftCards.length === 1 ? draftCards[0]?.cardId ?? null : null);
 
   return {
-    contextType: 'draft_card_editor',
+    contextType: 'card_entry_note_workspace',
     languageId: hint.languageId,
     noteId: hint.noteId,
     noteContent: workspace.note.content,
-    cardId: hint.cardId,
-    focusedField: hint.focusedField ?? null,
+    likelyTargetCardId,
+    likelyTargetFocusedField: likelyTargetCardId ? hint.focusedField ?? null : null,
     allowedSuggestionTypes: ['append_example_sentence'],
     exampleSentenceFormat,
     exampleSentenceFormatInstruction: buildCardEntryExampleSentenceFormatInstruction({
       exampleSentenceFormat,
       languageId: hint.languageId,
     }),
-    cardSnapshot: {
-      content: draftCard.content,
-      meaning: draftCard.meaning,
-      examples: toStringArray(draftCard.examples),
-      mnemonics: toStringArray(draftCard.mnemonics),
-      llmInstructions: draftCard.llmInstructions,
-    },
+    draftCards,
   };
 }
 
@@ -128,10 +126,10 @@ function resolveNonActionableContext(
 /**
  * Derives the canonical prompt context for a chat request.
  *
- * When the request comes from the draft-card editor (card-entry context with a
- * valid noteId + cardId), the backend loads the note and card from the database,
- * verifies ownership, and constructs a context that includes the card snapshot
- * and the settings-driven example-sentence-format instruction.
+ * When the request comes from the Card Entry note workspace (card-entry context
+ * with a valid noteId), the backend loads the note and draft cards from the
+ * database, verifies ownership, and constructs a context that includes the
+ * workspace plus an optional likely-target-card hint.
  *
  * For all other contexts the backend constructs a lightweight non-actionable
  * context with no DB lookups.
@@ -147,10 +145,9 @@ export async function resolveCanonicalChatContext(
     hint.routeContext.routeContextType === 'card-entry' &&
     languageId &&
     noteId &&
-    cardId &&
     database !== null
   ) {
-    return resolveDraftCardEditorContext(
+    return resolveCardEntryNoteWorkspaceContext(
       userId,
       { languageId, noteId, cardId, focusedField },
       database,
