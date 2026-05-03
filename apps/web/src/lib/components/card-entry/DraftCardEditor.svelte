@@ -6,8 +6,16 @@
     CardEntryNoteShellData,
   } from '$lib/server/card-entry.js';
   import { commandBar } from '$lib/stores/commandBar.js';
+  import { cardEntrySuggestionActions } from '$lib/stores/cardEntrySuggestionActions.js';
 
   type EditableListField = 'examples' | 'mnemonics';
+  type DraftCardFocusedField =
+    | 'content'
+    | 'meaning'
+    | 'groups'
+    | 'examples'
+    | 'mnemonics'
+    | 'llmInstructions';
   type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
   const dispatch = createEventDispatcher<{
@@ -41,6 +49,7 @@
   let groupSearchInput: HTMLInputElement | null = null;
   let llmInstructionsOpen = Boolean(card.llmInstructions);
   let removePending = false;
+  let lastHandledSuggestionActionId = 0;
 
   $: if (card !== previousCard) {
     draft = structuredClone(card);
@@ -54,9 +63,9 @@
    * include the card snapshot in its prompt and to unlock card-editing
    * suggestions (e.g. append_example_sentence).
    */
-  function handleFieldFocus() {
+  function handleFieldFocus(field: DraftCardFocusedField) {
     if (!disabled) {
-      commandBar.setEntityContext(lang, noteId, card.cardId);
+      commandBar.setEntityContext(lang, noteId, card.cardId, field);
     }
   }
 
@@ -225,6 +234,37 @@
     await persistDraft();
   }
 
+  async function applySuggestedExampleSentence(text: string) {
+    if (disabled) {
+      return;
+    }
+
+    const trimmedText = text.trim();
+
+    if (!trimmedText) {
+      return;
+    }
+
+    saveToken++;
+    draft = {
+      ...draft,
+      examples: [...draft.examples, trimmedText],
+    };
+    commandBar.setEntityContext(lang, noteId, card.cardId, 'examples');
+
+    await persistDraft();
+  }
+
+  $: if (
+    $cardEntrySuggestionActions &&
+    $cardEntrySuggestionActions.actionId !== lastHandledSuggestionActionId &&
+    $cardEntrySuggestionActions.noteId === noteId &&
+    $cardEntrySuggestionActions.cardId === card.cardId
+  ) {
+    lastHandledSuggestionActionId = $cardEntrySuggestionActions.actionId;
+    void applySuggestedExampleSentence($cardEntrySuggestionActions.text);
+  }
+
   async function toggleGroup(group: CardEntryGroupData) {
     if (disabled) {
       return;
@@ -375,7 +415,7 @@
       bind:value={draft.content}
       placeholder="Card content..."
       disabled={disabled}
-      on:focus={handleFieldFocus}
+      on:focus={() => handleFieldFocus('content')}
       on:blur={() => void persistDraft()}
     ></textarea>
   </label>
@@ -394,7 +434,7 @@
           meaning: event.currentTarget.value,
         };
       }}
-      on:focus={handleFieldFocus}
+      on:focus={() => handleFieldFocus('meaning')}
       on:blur={() => void persistDraft()}
     ></textarea>
   </label>
@@ -412,6 +452,7 @@
         class="draft-card__group-trigger"
         disabled={disabled}
         aria-expanded={groupMenuOpen}
+        on:focus={() => handleFieldFocus('groups')}
         on:click={() => void (groupMenuOpen ? closeGroupMenu() : openGroupMenu())}
       >
         + Add group
@@ -519,7 +560,7 @@
             placeholder="Example sentence..."
             disabled={disabled}
             on:input={(event) => updateListValue('examples', index, event.currentTarget.value)}
-            on:focus={handleFieldFocus}
+            on:focus={() => handleFieldFocus('examples')}
             on:blur={() => void persistDraft()}
           ></textarea>
           <button
@@ -558,7 +599,7 @@
             placeholder="Mnemonic..."
             disabled={disabled}
             on:input={(event) => updateListValue('mnemonics', index, event.currentTarget.value)}
-            on:focus={handleFieldFocus}
+            on:focus={() => handleFieldFocus('mnemonics')}
             on:blur={() => void persistDraft()}
           ></textarea>
           <button
@@ -591,7 +632,7 @@
             llmInstructions: event.currentTarget.value,
           };
         }}
-        on:focus={handleFieldFocus}
+        on:focus={() => handleFieldFocus('llmInstructions')}
         on:blur={() => void persistDraft()}
       ></textarea>
     </label>

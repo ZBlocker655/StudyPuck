@@ -31,6 +31,7 @@ export type CommandBarState = {
   activeLanguageId: string | null;
   activeNoteId: string | null;
   activeCardId: string | null;
+  activeFocusedField: string | null;
   messages: ConversationMessage[];
   desktopConversationCollapsed: boolean;
   desktopContextWidth: number;
@@ -77,6 +78,7 @@ function initialState(): CommandBarState {
     activeLanguageId: null,
     activeNoteId: null,
     activeCardId: null,
+    activeFocusedField: null,
     messages: [],
     desktopConversationCollapsed: false,
     desktopContextWidth: DEFAULT_CONTEXT_WIDTH.global,
@@ -215,7 +217,12 @@ function createCommandBarStore() {
      * conversation whenever any of those identifiers change.  Call this from
      * route components whenever the active language, note, or draft card changes.
      */
-    setEntityContext(languageId: string | null, noteId: string | null, cardId: string | null) {
+    setEntityContext(
+      languageId: string | null,
+      noteId: string | null,
+      cardId: string | null,
+      focusedField: string | null = null,
+    ) {
       store.update((state) => {
         const entityChanged =
           state.activeLanguageId !== languageId ||
@@ -223,7 +230,14 @@ function createCommandBarStore() {
           state.activeCardId !== cardId;
 
         if (!entityChanged) {
-          return state;
+          if (state.activeFocusedField === focusedField) {
+            return state;
+          }
+
+          return {
+            ...state,
+            activeFocusedField: focusedField,
+          };
         }
 
         clearPendingTimer();
@@ -233,6 +247,7 @@ function createCommandBarStore() {
           activeLanguageId: languageId,
           activeNoteId: noteId,
           activeCardId: cardId,
+          activeFocusedField: focusedField,
           input: '',
           isWaiting: false,
           lastSubmittedInput: null,
