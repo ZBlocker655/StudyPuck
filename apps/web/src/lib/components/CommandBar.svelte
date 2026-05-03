@@ -3,10 +3,11 @@
   import { invalidateAll } from '$app/navigation';
   import { page } from '$app/stores';
   import { onMount, tick } from 'svelte';
-  import { appendExampleSentenceRequest, createInboxNoteRequest } from '$lib/card-entry/client.js';
+  import { createInboxNoteRequest } from '$lib/card-entry/client.js';
   import { requestStructuredChatResponse } from '$lib/chat/client.js';
   import type { ChatSuggestion } from '$lib/chat.js';
   import { resolveCardEntryCommandResponse } from '$lib/command-bar/card-entry.js';
+  import { cardEntrySuggestionActions } from '$lib/stores/cardEntrySuggestionActions.js';
   import { cardEntryShellCounts } from '$lib/stores/cardEntryShell.js';
   import { cardEntryUi } from '$lib/stores/cardEntryUi.js';
   import {
@@ -205,6 +206,7 @@
         languageId: activeLanguageCode,
         noteId: effectiveNoteId,
         cardId: submissionState.activeCardId ?? undefined,
+        focusedField: submissionState.activeFocusedField ?? undefined,
         conversationHistory: promptHistory.length > 0 ? promptHistory : undefined,
       });
 
@@ -313,29 +315,33 @@
     }
   }
 
+  function getSuggestionText(suggestion: ChatSuggestion): string {
+    switch (suggestion.type) {
+      case 'append_example_sentence':
+        return suggestion.payload.text;
+      default:
+        return '';
+    }
+  }
+
   /**
-   * Executes a suggestion action.  For `append_example_sentence`, appends the
-   * sentence to the active draft card via the dedicated API endpoint and then
-   * refreshes page data.
+   * Executes a suggestion action. The application owns the mutation and routes
+   * it into the active draft-card editor's normal save path.
    */
   async function handleSuggestionClick(suggestion: ChatSuggestion) {
     if (suggestion.type === 'append_example_sentence') {
       const activeNoteId = $commandBar.activeNoteId;
       const activeCardId = $commandBar.activeCardId;
-      const lang = $page.params.lang;
 
-      if (!lang || !activeNoteId || !activeCardId) {
+      if (!activeNoteId || !activeCardId) {
         return;
       }
 
-      await appendExampleSentenceRequest({
-        lang,
-        noteId: activeNoteId,
-        cardId: activeCardId,
-        text: suggestion.payload.text,
-      });
-
-      await invalidateAll();
+      cardEntrySuggestionActions.applyAppendExampleSentence(
+        activeNoteId,
+        activeCardId,
+        suggestion.payload.text,
+      );
     }
   }
 
@@ -450,7 +456,8 @@
                       class="suggestion-button"
                       onclick={() => void handleSuggestionClick(suggestion)}
                     >
-                      {getSuggestionLabel(suggestion)}
+                      <span class="suggestion-button__text">{getSuggestionText(suggestion)}</span>
+                      <span class="suggestion-button__meta">{getSuggestionLabel(suggestion)}</span>
                     </button>
                   {/each}
                 </div>
@@ -516,7 +523,8 @@
                     class="suggestion-button"
                     onclick={() => void handleSuggestionClick(suggestion)}
                   >
-                    {getSuggestionLabel(suggestion)}
+                    <span class="suggestion-button__text">{getSuggestionText(suggestion)}</span>
+                    <span class="suggestion-button__meta">{getSuggestionLabel(suggestion)}</span>
                   </button>
                 {/each}
               </div>
@@ -811,20 +819,35 @@
   }
 
   .suggestion-button {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-1);
+    min-inline-size: 14rem;
     min-block-size: 2rem;
-    padding-inline: var(--space-3);
+    padding: var(--space-2) var(--space-3);
     border: 1px solid var(--color-primary);
     border-radius: var(--radius-md);
     background: transparent;
     color: var(--color-primary);
     font-family: var(--font-ui);
-    font-size: var(--font-size-caption);
-    font-weight: 600;
+    font-size: var(--font-size-body);
     cursor: pointer;
+    text-align: start;
   }
 
   .suggestion-button:hover {
     background: var(--color-primary-subtle);
+  }
+
+  .suggestion-button__text {
+    color: var(--color-text);
+    font-weight: 500;
+  }
+
+  .suggestion-button__meta {
+    font-size: var(--font-size-caption);
+    font-weight: 600;
   }
 
   .message__spinner {
