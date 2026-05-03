@@ -5,6 +5,7 @@ import {
 	createBranchName,
 	deleteBranch,
 	getExpirationTimestamp,
+	getConnectionOptions,
 	getNeonBranchEnv,
 	runCommandStreaming,
 	runNeon,

@@ -11,8 +11,104 @@ import { cards, groups, cardGroups, type Card, type NewCard, type Group, type Ne
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyDb = PgDatabase<any, any, any>;
 
+export type SupportedCardType = 'word' | 'pattern' | 'complex_prompt';
+
+export type ActiveCardGroupSummary = Pick<Group, 'groupId' | 'groupName'>;
+
+export type ActiveCardFilters = {
+  search?: string;
+  groupIds?: string[];
+  cardType?: SupportedCardType | null;
+  limit?: number;
+  offset?: number;
+};
+
+export type ActiveCardListItem = Pick<Card, 'cardId' | 'content' | 'meaning' | 'cardType' | 'updatedAt'> & {
+  groups: ActiveCardGroupSummary[];
+};
+
+export type ActiveCardDetail = Card & {
+  groups: ActiveCardGroupSummary[];
+};
+
+export type GroupWithActiveCardCount = Group & {
+  activeCardCount: number;
+};
+
 function getConn(database?: AnyDb) {
   return database ?? (db as AnyDb);
+}
+
+function normalizeSearchTerm(search?: string | null): string | null {
+  const trimmed = search?.trim() ?? '';
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizeGroupIds(groupIds?: string[] | null): string[] {
+  return [...new Set((groupIds ?? []).map((groupId) => groupId.trim()).filter(Boolean))];
+}
+
+function mapGroupSummary(group: Pick<Group, 'groupId' | 'groupName'>): ActiveCardGroupSummary {
+  return {
+    groupId: group.groupId,
+    groupName: group.groupName,
+  };
+}
+
+function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, '\\$&');
+}
+
+function buildSearchCondition(search: string) {
+  const likeQuery = `%${escapeLikePattern(search)}%`;
+
+  return sql`(
+    ${cards.content} ILIKE ${likeQuery} ESCAPE '\'
+    OR COALESCE(${cards.meaning}, '') ILIKE ${likeQuery} ESCAPE '\'
+    OR COALESCE(${cards.examples}::text, '') ILIKE ${likeQuery} ESCAPE '\'
+    OR COALESCE(${cards.mnemonics}::text, '') ILIKE ${likeQuery} ESCAPE '\'
+  )`;
+}
+
+async function findCardIdsInAnyGroup(
+  userId: string,
+  languageId: string,
+  groupIds: string[],
+  database?: AnyDb,
+): Promise<string[]> {
+  if (groupIds.length === 0) {
+    return [];
+  }
+
+  const rows = await getConn(database)
+    .select({ cardId: cardGroups.cardId })
+    .from(cardGroups)
+    .where(and(
+      eq(cardGroups.userId, userId),
+      eq(cardGroups.languageId, languageId),
+      inArray(cardGroups.groupId, groupIds),
+    ));
+
+  return [...new Set(rows.map((row) => row.cardId))];
+}
+
+async function attachGroupsToCards(
+  userId: string,
+  languageId: string,
+  rows: Array<Pick<Card, 'cardId' | 'content' | 'meaning' | 'cardType' | 'updatedAt'>>,
+  database?: AnyDb,
+): Promise<ActiveCardListItem[]> {
+  const groupsByCardId = await getCardGroupsForCards(
+    userId,
+    languageId,
+    rows.map((row) => row.cardId),
+    database,
+  );
+
+  return rows.map((row) => ({
+    ...row,
+    groups: (groupsByCardId.get(row.cardId) ?? []).map((group) => mapGroupSummary(group)),
+  }));
 }
 
 // === Card Operations ===
@@ -475,4 +571,284 @@ export async function getCardGroupsForCards(
   }
 
   return groupsByCardId;
+}
+
+export async function listActiveCards(
+  userId: string,
+  languageId: string,
+  filters: ActiveCardFilters = {},
+  database?: AnyDb,
+): Promise<ActiveCardListItem[]> {
+  const conn = getConn(database);
+  const search = normalizeSearchTerm(filters.search);
+  const groupIds = normalizeGroupIds(filters.groupIds);
+  const matchingCardIds = groupIds.length > 0
+    ? await findCardIdsInAnyGroup(userId, languageId, groupIds, database)
+    : null;
+
+  if (matchingCardIds !== null && matchingCardIds.length === 0) {
+    return [];
+  }
+
+  const conditions = [
+    eq(cards.userId, userId),
+    eq(cards.languageId, languageId),
+    eq(cards.status, 'active'),
+  ];
+
+  if (search) {
+    conditions.push(buildSearchCondition(search));
+  }
+
+  if (filters.cardType) {
+    conditions.push(eq(cards.cardType, filters.cardType));
+  }
+
+  if (matchingCardIds !== null) {
+    conditions.push(inArray(cards.cardId, matchingCardIds));
+  }
+
+  const baseQuery = conn
+    .select({
+      cardId: cards.cardId,
+      content: cards.content,
+      meaning: cards.meaning,
+      cardType: cards.cardType,
+      updatedAt: cards.updatedAt,
+    })
+    .from(cards)
+    .where(and(...conditions))
+    .orderBy(desc(cards.updatedAt));
+
+  let rows: Awaited<typeof baseQuery>;
+
+  if (typeof filters.offset === 'number' && typeof filters.limit === 'number') {
+    rows = await baseQuery.offset(filters.offset).limit(filters.limit);
+  } else if (typeof filters.offset === 'number') {
+    rows = await baseQuery.offset(filters.offset);
+  } else if (typeof filters.limit === 'number') {
+    rows = await baseQuery.limit(filters.limit);
+  } else {
+    rows = await baseQuery;
+  }
+
+  return attachGroupsToCards(userId, languageId, rows, database);
+}
+
+export async function listActiveCardsInGroup(
+  userId: string,
+  languageId: string,
+  groupId: string,
+  filters: Omit<ActiveCardFilters, 'groupIds'> = {},
+  database?: AnyDb,
+): Promise<ActiveCardListItem[]> {
+  return listActiveCards(
+    userId,
+    languageId,
+    {
+      ...filters,
+      groupIds: [groupId],
+    },
+    database,
+  );
+}
+
+export async function getActiveCardWithGroups(
+  userId: string,
+  languageId: string,
+  cardId: string,
+  database?: AnyDb,
+): Promise<ActiveCardDetail | null> {
+  const result = await getConn(database)
+    .select()
+    .from(cards)
+    .where(and(
+      eq(cards.userId, userId),
+      eq(cards.languageId, languageId),
+      eq(cards.cardId, cardId),
+      eq(cards.status, 'active'),
+    ))
+    .limit(1);
+
+  const card = result[0] ?? null;
+
+  if (!card) {
+    return null;
+  }
+
+  const groups = await getCardGroups(userId, languageId, cardId, database);
+
+  return {
+    ...card,
+    groups: groups.map((group) => mapGroupSummary(group)),
+  };
+}
+
+export async function updateActiveCard(
+  userId: string,
+  languageId: string,
+  cardId: string,
+  updates: Partial<Omit<NewCard, 'userId' | 'languageId' | 'cardId' | 'status'>>,
+  database?: AnyDb,
+): Promise<Card | null> {
+  const result = await getConn(database)
+    .update(cards)
+    .set({
+      ...updates,
+      updatedAt: new Date(),
+    })
+    .where(and(
+      eq(cards.userId, userId),
+      eq(cards.languageId, languageId),
+      eq(cards.cardId, cardId),
+      eq(cards.status, 'active'),
+    ))
+    .returning();
+
+  return result[0] ?? null;
+}
+
+export async function softDeleteActiveCards(
+  userId: string,
+  languageId: string,
+  cardIds: string[],
+  database?: AnyDb,
+): Promise<string[]> {
+  const normalizedCardIds = [...new Set(cardIds.map((cardId) => cardId.trim()).filter(Boolean))];
+
+  if (normalizedCardIds.length === 0) {
+    return [];
+  }
+
+  const now = new Date();
+  const deletedCards = await getConn(database)
+    .update(cards)
+    .set({
+      status: 'deleted',
+      deletedAt: now,
+      updatedAt: now,
+    })
+    .where(and(
+      eq(cards.userId, userId),
+      eq(cards.languageId, languageId),
+      eq(cards.status, 'active'),
+      inArray(cards.cardId, normalizedCardIds),
+    ))
+    .returning({ cardId: cards.cardId });
+
+  return deletedCards.map((card) => card.cardId);
+}
+
+export async function bulkAssignActiveCardsToGroup(
+  userId: string,
+  languageId: string,
+  cardIds: string[],
+  groupId: string,
+  database?: AnyDb,
+): Promise<string[]> {
+  const normalizedCardIds = [...new Set(cardIds.map((cardId) => cardId.trim()).filter(Boolean))];
+
+  if (normalizedCardIds.length === 0) {
+    return [];
+  }
+
+  const activeCards = await getConn(database)
+    .select({ cardId: cards.cardId })
+    .from(cards)
+    .where(and(
+      eq(cards.userId, userId),
+      eq(cards.languageId, languageId),
+      eq(cards.status, 'active'),
+      inArray(cards.cardId, normalizedCardIds),
+    ));
+
+  const activeCardIds = activeCards.map((card) => card.cardId);
+
+  if (activeCardIds.length === 0) {
+    return [];
+  }
+
+  await getConn(database)
+    .insert(cardGroups)
+    .values(
+      activeCardIds.map((cardId) => ({
+        userId,
+        languageId,
+        cardId,
+        groupId,
+        assignedAt: new Date(),
+      })),
+    )
+    .onConflictDoNothing();
+
+  return activeCardIds;
+}
+
+export async function listGroupsWithActiveCardCounts(
+  userId: string,
+  languageId: string,
+  database?: AnyDb,
+): Promise<GroupWithActiveCardCount[]> {
+  const [allGroups, countRows] = await Promise.all([
+    getGroups(userId, languageId, database),
+    getConn(database)
+      .select({
+        groupId: cardGroups.groupId,
+        activeCardCount: sql<number>`cast(count(*) as integer)`,
+      })
+      .from(cardGroups)
+      .innerJoin(cards, and(
+        eq(cards.userId, cardGroups.userId),
+        eq(cards.languageId, cardGroups.languageId),
+        eq(cards.cardId, cardGroups.cardId),
+      ))
+      .where(and(
+        eq(cardGroups.userId, userId),
+        eq(cardGroups.languageId, languageId),
+        eq(cards.status, 'active'),
+      ))
+      .groupBy(cardGroups.groupId),
+  ]);
+
+  const countsByGroupId = new Map(countRows.map((row) => [row.groupId, row.activeCardCount]));
+
+  return allGroups.map((group) => ({
+    ...group,
+    activeCardCount: countsByGroupId.get(group.groupId) ?? 0,
+  }));
+}
+
+export async function getGroupWithActiveCardCount(
+  userId: string,
+  languageId: string,
+  groupId: string,
+  database?: AnyDb,
+): Promise<GroupWithActiveCardCount | null> {
+  const group = await getGroup(userId, languageId, groupId, database);
+
+  if (!group) {
+    return null;
+  }
+
+  const [countRow] = await getConn(database)
+    .select({
+      activeCardCount: sql<number>`cast(count(*) as integer)`,
+    })
+    .from(cardGroups)
+    .innerJoin(cards, and(
+      eq(cards.userId, cardGroups.userId),
+      eq(cards.languageId, cardGroups.languageId),
+      eq(cards.cardId, cardGroups.cardId),
+    ))
+    .where(and(
+      eq(cardGroups.userId, userId),
+      eq(cardGroups.languageId, languageId),
+      eq(cardGroups.groupId, groupId),
+      eq(cards.status, 'active'),
+    ));
+
+  return {
+    ...group,
+    activeCardCount: countRow?.activeCardCount ?? 0,
+  };
 }
