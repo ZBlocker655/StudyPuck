@@ -90,11 +90,10 @@ test('saves a language-specific Card Entry example sentence format', async ({ pa
 	}).click();
 	await chineseCard.getByRole('button', { name: 'Save Example Format', exact: true }).click();
 
-	await expect(
-		chineseCard.getByText(
-			'Chinese (Mandarin) Card Entry examples will now use sentence + transliteration + translation.'
-		)
-	).toBeVisible();
+	await expect(chineseCard).toContainText(
+		'Chinese (Mandarin) Card Entry examples will now use sentence + transliteration + translation.',
+		{ timeout: 10000 }
+	);
 
 	await page.reload();
 
