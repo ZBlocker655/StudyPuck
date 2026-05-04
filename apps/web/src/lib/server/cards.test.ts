@@ -3,6 +3,7 @@ import {
   CardLibraryRequestError,
   formatCardLibraryRelativeTime,
   loadCardLibraryData,
+  loadCardLibraryGroupsData,
   loadGroupDetailData,
   loadActiveCardDetailData,
 } from './cards.js';
@@ -160,6 +161,42 @@ describe('Card Library server helpers', () => {
 
     expect(result.card.examples).toEqual(['我们聊天吧。']);
     expect(result.availableGroups).toEqual([{ groupId: 'group-chat', groupName: 'Chat' }]);
+  });
+
+  it('loads the groups list sorted alphabetically with active card counts', async () => {
+    baseDeps.listGroupsWithActiveCardCounts.mockResolvedValueOnce([
+      {
+        userId: 'user-1',
+        languageId: 'zh',
+        groupId: 'group-z',
+        groupName: 'Zeta',
+        description: null,
+        embedding: null,
+        embeddingModel: null,
+        embeddingGeneratedAt: null,
+        createdAt: null,
+        metadata: null,
+        activeCardCount: 0,
+      },
+      {
+        userId: 'user-1',
+        languageId: 'zh',
+        groupId: 'group-a',
+        groupName: 'Alpha',
+        description: null,
+        embedding: null,
+        embeddingModel: null,
+        embeddingGeneratedAt: null,
+        createdAt: null,
+        metadata: null,
+        activeCardCount: 2,
+      },
+    ]);
+
+    const result = await loadCardLibraryGroupsData('user-1', 'zh', database, baseDeps);
+
+    expect(result.items.map((group) => group.groupName)).toEqual(['Alpha', 'Zeta']);
+    expect(result.totalCount).toBe(2);
   });
 
   it('rejects invalid filter input before hitting the data layer', async () => {

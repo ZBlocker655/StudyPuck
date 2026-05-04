@@ -46,7 +46,7 @@
   }
 
   function handleKeydown(event: KeyboardEvent) {
-    if (!clickable || shouldIgnoreActivate(event.target) || event.key !== 'Enter') {
+    if (!clickable || shouldIgnoreActivate(event.target) || (event.key !== 'Enter' && event.key !== ' ')) {
       return;
     }
 
@@ -68,11 +68,12 @@
   }
 </script>
 
-<article
+<div
   class:selected
   class:card-list-row--clickable={clickable}
   class:card-list-row--mobile-checkbox-hidden={!mobileShowCheckbox}
   class="card-list-row"
+  role={clickable ? 'button' : undefined}
   tabindex={clickable ? 0 : undefined}
   on:click={handleActivate}
   on:keydown={handleKeydown}
@@ -105,7 +106,7 @@
       </div>
     {/if}
   </div>
-</article>
+</div>
 
 <style>
   .card-list-row {

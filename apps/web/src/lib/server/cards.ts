@@ -2,6 +2,7 @@ import {
   addCardToGroup,
   bulkAssignActiveCardsToGroup,
   createGroup,
+  deleteGroup,
   getActiveCardWithGroups,
   getActiveUserLanguages,
   getDb,
@@ -21,8 +22,10 @@ import {
 } from '@studypuck/database';
 import {
   cardEntryDraftCardUpdateSchema,
+  editableCardOptionalTextSchema,
   editableGroupNameSchema,
 } from '$lib/schemas/card-entry.js';
+import { z } from 'zod';
 import {
   activeCardIdSchema,
   activeCardTypeSchema,
@@ -118,6 +121,23 @@ export type GroupDetailData = {
   };
   cards: CardLibraryData;
 };
+
+export type CardLibraryGroupListItemData = {
+  groupId: string;
+  groupName: string;
+  description: string | null;
+  activeCardCount: number;
+};
+
+export type CardLibraryGroupsData = {
+  items: CardLibraryGroupListItemData[];
+  totalCount: number;
+};
+
+const cardLibraryGroupCreateSchema = z.object({
+  groupName: editableGroupNameSchema,
+  description: editableCardOptionalTextSchema.optional().default(null),
+});
 
 function normalizeStringList(value: unknown): string[] {
   if (!Array.isArray(value)) {
@@ -263,6 +283,15 @@ function mapGroupFilterOption(group: GroupWithActiveCardCount): CardLibraryGroup
   return {
     groupId: group.groupId,
     groupName: group.groupName,
+    activeCardCount: group.activeCardCount,
+  };
+}
+
+function mapGroupListItem(group: GroupWithActiveCardCount): CardLibraryGroupListItemData {
+  return {
+    groupId: group.groupId,
+    groupName: group.groupName,
+    description: group.description ?? null,
     activeCardCount: group.activeCardCount,
   };
 }
@@ -426,6 +455,22 @@ export async function loadCardLibraryData(
     filteredCardIds: items.map((item) => item.cardId),
     filters,
     availableGroups: sortGroupsByName(availableGroups.map((group) => mapGroupFilterOption(group))),
+  };
+}
+
+export async function loadCardLibraryGroupsData(
+  userId: string,
+  languageId: string,
+  database: DatabaseClient,
+  deps: LoaderDeps = defaultLoaderDeps,
+): Promise<CardLibraryGroupsData> {
+  await assertUserHasLanguage(userId, languageId, database, deps);
+
+  const groups = await deps.listGroupsWithActiveCardCounts(userId, languageId, database as never);
+
+  return {
+    items: sortGroupsByName(groups.map((group) => mapGroupListItem(group))),
+    totalCount: groups.length,
   };
 }
 
@@ -594,4 +639,75 @@ export async function deleteCardLibraryCardsForLanguage(
     parseCardIds(cardIds),
     database as never,
   );
+}
+
+export async function createCardLibraryGroupForLanguage(
+  userId: string,
+  languageId: string,
+  input: unknown,
+  database: DatabaseClient,
+) {
+  await assertUserHasLanguage(userId, languageId, database);
+
+  const parsedInput = cardLibraryGroupCreateSchema.safeParse(input);
+
+  if (!parsedInput.success) {
+    throw new CardLibraryRequestError(
+      400,
+      parsedInput.error.issues[0]?.message ?? 'Group data is invalid.',
+    );
+  }
+
+  const existingGroups = await getGroups(userId, languageId, database as never);
+  const normalizedName = parsedInput.data.groupName.trim().toLocaleLowerCase();
+  const duplicateGroup = existingGroups.find(
+    (group) => group.groupName.trim().toLocaleLowerCase() === normalizedName,
+  );
+
+  if (duplicateGroup) {
+    throw new CardLibraryRequestError(409, 'A group with this name already exists.');
+  }
+
+  const createdGroup = await createGroup(
+    {
+      userId,
+      languageId,
+      groupId: createGroupId(),
+      groupName: parsedInput.data.groupName,
+      description: parsedInput.data.description,
+    },
+    database as never,
+  );
+
+  return mapGroupListItem({
+    ...createdGroup,
+    activeCardCount: 0,
+  });
+}
+
+export async function deleteCardLibraryGroupForLanguage(
+  userId: string,
+  languageId: string,
+  groupId: unknown,
+  database: DatabaseClient,
+) {
+  await assertUserHasLanguage(userId, languageId, database);
+
+  const parsedGroupId = parseGroupId(groupId);
+  const group = await getGroupWithActiveCardCount(userId, languageId, parsedGroupId, database as never);
+
+  if (!group) {
+    throw new CardLibraryRequestError(404, 'Group not found.');
+  }
+
+  const deleted = await deleteGroup(userId, languageId, parsedGroupId, database as never);
+
+  if (!deleted) {
+    throw new CardLibraryRequestError(404, 'Group not found.');
+  }
+
+  return {
+    groupId: group.groupId,
+    activeCardCount: group.activeCardCount,
+  };
 }
