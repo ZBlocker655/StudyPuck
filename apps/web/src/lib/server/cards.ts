@@ -14,6 +14,7 @@ import {
   removeCardFromGroup,
   softDeleteActiveCards,
   updateActiveCard,
+  updateGroup,
   type ActiveCardDetail,
   type ActiveCardGroupSummary,
   type ActiveCardListItem,
@@ -120,6 +121,10 @@ export type GroupDetailData = {
     activeCardCount: number;
   };
   cards: CardLibraryData;
+  addableCards: {
+    items: CardLibraryCardListItemData[];
+    totalCount: number;
+  };
 };
 
 export type CardLibraryGroupListItemData = {
@@ -139,6 +144,11 @@ const cardLibraryGroupCreateSchema = z.object({
   description: editableCardOptionalTextSchema.optional().default(null),
 });
 
+const groupDetailGroupUpdateSchema = z.object({
+  groupName: editableGroupNameSchema,
+  description: editableCardOptionalTextSchema.optional().default(null),
+});
+
 function normalizeStringList(value: unknown): string[] {
   if (!Array.isArray(value)) {
     return [];
@@ -149,6 +159,10 @@ function normalizeStringList(value: unknown): string[] {
 
 function createGroupId(): string {
   return `group-${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`}`;
+}
+
+function normalizeGroupName(value: string) {
+  return value.trim().toLocaleLowerCase();
 }
 
 async function assertUserHasLanguage(
@@ -326,6 +340,30 @@ function mapActiveCardDetail(card: ActiveCardDetail): CardLibraryCardDetailData 
   };
 }
 
+async function ensureUniqueGroupName(
+  userId: string,
+  languageId: string,
+  groupName: string,
+  database: DatabaseClient,
+  options?: {
+    excludeGroupId?: string;
+  },
+) {
+  const normalizedName = normalizeGroupName(groupName);
+  const existingGroups = await getGroups(userId, languageId, database as never);
+  const duplicateGroup = existingGroups.find((group) => {
+    if (options?.excludeGroupId && group.groupId === options.excludeGroupId) {
+      return false;
+    }
+
+    return normalizeGroupName(group.groupName) === normalizedName;
+  });
+
+  if (duplicateGroup) {
+    throw new CardLibraryRequestError(409, 'A group with this name already exists.');
+  }
+}
+
 async function resolveGroupSelections(
   userId: string,
   languageId: string,
@@ -486,7 +524,7 @@ export async function loadGroupDetailData(
 
   const parsedGroupId = parseGroupId(groupId);
   const filters = parseFilters(url);
-  const [group, items, availableGroups] = await Promise.all([
+  const [group, items, allActiveCards, availableGroups] = await Promise.all([
     deps.getGroupWithActiveCardCount(userId, languageId, parsedGroupId, database as never),
     deps.listActiveCardsInGroup(
       userId,
@@ -498,6 +536,7 @@ export async function loadGroupDetailData(
       },
       database as never,
     ),
+    deps.listActiveCards(userId, languageId, {}, database as never),
     deps.listGroupsWithActiveCardCounts(userId, languageId, database as never),
   ]);
 
@@ -518,6 +557,12 @@ export async function loadGroupDetailData(
       filteredCardIds: items.map((item) => item.cardId),
       filters,
       availableGroups: sortGroupsByName(availableGroups.map((availableGroup) => mapGroupFilterOption(availableGroup))),
+    },
+    addableCards: {
+      items: allActiveCards
+        .filter((item) => !item.groups.some((itemGroup) => itemGroup.groupId === parsedGroupId))
+        .map((item) => mapCardListItem(item)),
+      totalCount: allActiveCards.filter((item) => !item.groups.some((itemGroup) => itemGroup.groupId === parsedGroupId)).length,
     },
   };
 }
@@ -658,15 +703,7 @@ export async function createCardLibraryGroupForLanguage(
     );
   }
 
-  const existingGroups = await getGroups(userId, languageId, database as never);
-  const normalizedName = parsedInput.data.groupName.trim().toLocaleLowerCase();
-  const duplicateGroup = existingGroups.find(
-    (group) => group.groupName.trim().toLocaleLowerCase() === normalizedName,
-  );
-
-  if (duplicateGroup) {
-    throw new CardLibraryRequestError(409, 'A group with this name already exists.');
-  }
+  await ensureUniqueGroupName(userId, languageId, parsedInput.data.groupName, database);
 
   const createdGroup = await createGroup(
     {
@@ -710,4 +747,115 @@ export async function deleteCardLibraryGroupForLanguage(
     groupId: group.groupId,
     activeCardCount: group.activeCardCount,
   };
+}
+
+export async function updateGroupDetailForLanguage(
+  userId: string,
+  languageId: string,
+  groupId: unknown,
+  input: unknown,
+  database: DatabaseClient,
+) {
+  await assertUserHasLanguage(userId, languageId, database);
+
+  const parsedGroupId = parseGroupId(groupId);
+  const parsedInput = groupDetailGroupUpdateSchema.safeParse(input);
+
+  if (!parsedInput.success) {
+    throw new CardLibraryRequestError(
+      400,
+      parsedInput.error.issues[0]?.message ?? 'Group data is invalid.',
+    );
+  }
+
+  const existingGroup = await getGroupWithActiveCardCount(userId, languageId, parsedGroupId, database as never);
+
+  if (!existingGroup) {
+    throw new CardLibraryRequestError(404, 'Group not found.');
+  }
+
+  await ensureUniqueGroupName(
+    userId,
+    languageId,
+    parsedInput.data.groupName,
+    database,
+    { excludeGroupId: parsedGroupId },
+  );
+
+  const updatedGroup = await updateGroup(
+    userId,
+    languageId,
+    parsedGroupId,
+    {
+      groupName: parsedInput.data.groupName,
+      description: parsedInput.data.description,
+    },
+    database as never,
+  );
+
+  if (!updatedGroup) {
+    throw new CardLibraryRequestError(404, 'Group not found.');
+  }
+
+  return {
+    groupId: updatedGroup.groupId,
+    groupName: updatedGroup.groupName,
+    description: updatedGroup.description ?? null,
+    activeCardCount: existingGroup.activeCardCount,
+  };
+}
+
+export async function addCardsToGroupDetailForLanguage(
+  userId: string,
+  languageId: string,
+  groupId: unknown,
+  cardIds: unknown,
+  database: DatabaseClient,
+) {
+  await assertUserHasLanguage(userId, languageId, database);
+
+  const parsedGroupId = parseGroupId(groupId);
+  const parsedCardIds = parseCardIds(cardIds);
+  const group = await getGroupWithActiveCardCount(userId, languageId, parsedGroupId, database as never);
+
+  if (!group) {
+    throw new CardLibraryRequestError(404, 'Group not found.');
+  }
+
+  return bulkAssignActiveCardsToGroup(
+    userId,
+    languageId,
+    parsedCardIds,
+    parsedGroupId,
+    database as never,
+  );
+}
+
+export async function removeCardsFromGroupDetailForLanguage(
+  userId: string,
+  languageId: string,
+  groupId: unknown,
+  cardIds: unknown,
+  database: DatabaseClient,
+) {
+  await assertUserHasLanguage(userId, languageId, database);
+
+  const parsedGroupId = parseGroupId(groupId);
+  const parsedCardIds = parseCardIds(cardIds);
+  const group = await getGroupWithActiveCardCount(userId, languageId, parsedGroupId, database as never);
+
+  if (!group) {
+    throw new CardLibraryRequestError(404, 'Group not found.');
+  }
+
+  const removableCards = await listActiveCardsInGroup(userId, languageId, parsedGroupId, {}, database as never);
+  const removableCardIds = removableCards
+    .map((card) => card.cardId)
+    .filter((cardId) => parsedCardIds.includes(cardId));
+
+  for (const cardId of removableCardIds) {
+    await removeCardFromGroup(userId, languageId, cardId, parsedGroupId, database as never);
+  }
+
+  return removableCardIds;
 }

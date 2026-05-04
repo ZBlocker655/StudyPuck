@@ -154,6 +154,7 @@ describe('Card Library server helpers', () => {
       },
       database,
     );
+    expect(result.addableCards.items.map((item) => item.cardId)).toEqual([]);
   });
 
   it('loads active card detail with available groups', async () => {
@@ -197,6 +198,33 @@ describe('Card Library server helpers', () => {
 
     expect(result.items.map((group) => group.groupName)).toEqual(['Alpha', 'Zeta']);
     expect(result.totalCount).toBe(2);
+  });
+
+  it('excludes current group members from addable cards in group detail', async () => {
+    baseDeps.listActiveCards.mockResolvedValueOnce([
+      {
+        cardId: 'card-2',
+        content: '聊天',
+        meaning: 'to chat',
+        cardType: 'pattern',
+        updatedAt: new Date('2026-04-02T00:00:00.000Z'),
+        groups: [{ groupId: 'group-chat', groupName: 'Chat' }],
+      },
+      {
+        cardId: 'card-3',
+        content: '你好',
+        meaning: 'hello',
+        cardType: 'word',
+        updatedAt: new Date('2026-04-03T00:00:00.000Z'),
+        groups: [],
+      },
+    ]);
+
+    const url = new URL('https://studypuck.test/zh/cards/groups/group-chat');
+    const result = await loadGroupDetailData('user-1', 'zh', 'group-chat', url, database, baseDeps);
+
+    expect(result.addableCards.items.map((item) => item.cardId)).toEqual(['card-3']);
+    expect(result.addableCards.totalCount).toBe(1);
   });
 
   it('rejects invalid filter input before hitting the data layer', async () => {

@@ -4,6 +4,7 @@
   const dispatch = createEventDispatcher<{
     primary: void;
     secondary: void;
+    tertiary: void;
     clear: void;
   }>();
 
@@ -14,9 +15,11 @@
   export let primaryActionPendingLabel = 'Working...';
   export let secondaryActionLabel = 'Secondary';
   export let secondaryActionPendingLabel = 'Working...';
+  export let tertiaryActionLabel = '';
+  export let tertiaryActionPendingLabel = 'Working...';
   export let clearLabel = 'Deselect all';
   export let disabled = false;
-  export let pendingAction: 'primary' | 'secondary' | null = null;
+  export let pendingAction: 'primary' | 'secondary' | 'tertiary' | null = null;
 </script>
 
 <section class="card-list-bulk-bar cluster" aria-live="polite">
@@ -34,6 +37,11 @@
     >
       {pendingAction === 'secondary' ? secondaryActionPendingLabel : secondaryActionLabel}
     </button>
+    {#if tertiaryActionLabel}
+      <button type="button" class="card-list-bulk-bar__button" disabled={disabled} on:click={() => dispatch('tertiary')}>
+        {pendingAction === 'tertiary' ? tertiaryActionPendingLabel : tertiaryActionLabel}
+      </button>
+    {/if}
     <button type="button" class="card-list-bulk-bar__link" on:click={() => dispatch('clear')}>{clearLabel}</button>
   </div>
 </section>

@@ -12,6 +12,7 @@
   export let rowTemplate = '1rem minmax(0, 2.25fr) minmax(9rem, 1fr) auto auto';
   export let clickable = false;
   export let mobileShowCheckbox = true;
+  export let showGroups = true;
   export let hasActions = true;
   export let longPressDuration = 500;
 
@@ -92,9 +93,11 @@
       <slot name="content" />
     </div>
 
-    <div class="card-list-row__groups">
-      <slot name="groups" />
-    </div>
+    {#if showGroups}
+      <div class="card-list-row__groups">
+        <slot name="groups" />
+      </div>
+    {/if}
 
     <div class="card-list-row__updated">
       <slot name="updated" />

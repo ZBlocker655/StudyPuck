@@ -20,6 +20,7 @@
   export let selectedType: string | null = null;
   export let clearGroupLabel = 'Clear group filters';
   export let clearTypeLabel = 'All types';
+  export let showGroupFilter = true;
 
   function toggleGroup(groupId: string) {
     if (selectedGroupIds.includes(groupId)) {
@@ -51,32 +52,34 @@
     />
   </label>
 
-  <details class="card-list-filter-bar__groups">
-    <summary
-      class:card-list-filter-bar__summary--active={selectedGroupIds.length > 0}
-      class="card-list-filter-bar__groups-summary"
-    >
-      {groupFilterLabel}
-      <span aria-hidden="true">▾</span>
-    </summary>
+  {#if showGroupFilter}
+    <details class="card-list-filter-bar__groups">
+      <summary
+        class:card-list-filter-bar__summary--active={selectedGroupIds.length > 0}
+        class="card-list-filter-bar__groups-summary"
+      >
+        {groupFilterLabel}
+        <span aria-hidden="true">▾</span>
+      </summary>
 
-    <div class="card-list-filter-bar__groups-menu stack" style="--stack-space: var(--space-2)">
-      <button type="button" class="card-list-filter-bar__clear" on:click={clearGroupFilters}>
-        {clearGroupLabel}
-      </button>
+      <div class="card-list-filter-bar__groups-menu stack" style="--stack-space: var(--space-2)">
+        <button type="button" class="card-list-filter-bar__clear" on:click={clearGroupFilters}>
+          {clearGroupLabel}
+        </button>
 
-      {#each availableGroups as group}
-        <label class="card-list-filter-bar__group-option">
-          <input
-            type="checkbox"
-            checked={selectedGroupIds.includes(group.groupId)}
-            on:change={() => toggleGroup(group.groupId)}
-          />
-          <span>{group.groupName}</span>
-        </label>
-      {/each}
-    </div>
-  </details>
+        {#each availableGroups as group}
+          <label class="card-list-filter-bar__group-option">
+            <input
+              type="checkbox"
+              checked={selectedGroupIds.includes(group.groupId)}
+              on:change={() => toggleGroup(group.groupId)}
+            />
+            <span>{group.groupName}</span>
+          </label>
+        {/each}
+      </div>
+    </details>
+  {/if}
 
   {#if availableTypes.length > 0}
     <details class="card-list-filter-bar__groups">
