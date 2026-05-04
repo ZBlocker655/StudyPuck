@@ -3,14 +3,84 @@
 
   const dispatch = createEventDispatcher<{
     toggleSelection: void;
+    activate: void;
+    longpress: void;
   }>();
 
   export let selected = false;
   export let checkboxLabel = 'Select card';
   export let rowTemplate = '1rem minmax(0, 2.25fr) minmax(9rem, 1fr) auto auto';
+  export let clickable = false;
+  export let mobileShowCheckbox = true;
+  export let hasActions = true;
+  export let longPressDuration = 500;
+
+  let longPressTimer: ReturnType<typeof setTimeout> | null = null;
+  let didTriggerLongPress = false;
+
+  function clearLongPressTimer() {
+    if (!longPressTimer) {
+      return;
+    }
+
+    clearTimeout(longPressTimer);
+    longPressTimer = null;
+  }
+
+  function shouldIgnoreActivate(target: EventTarget | null) {
+    return target instanceof Element && Boolean(target.closest('input, button, a, summary, [data-card-list-ignore-activate="true"]'));
+  }
+
+  function handleActivate(event: MouseEvent) {
+    if (!clickable || shouldIgnoreActivate(event.target)) {
+      didTriggerLongPress = false;
+      return;
+    }
+
+    if (didTriggerLongPress) {
+      didTriggerLongPress = false;
+      return;
+    }
+
+    dispatch('activate');
+  }
+
+  function handleKeydown(event: KeyboardEvent) {
+    if (!clickable || shouldIgnoreActivate(event.target) || event.key !== 'Enter') {
+      return;
+    }
+
+    event.preventDefault();
+    dispatch('activate');
+  }
+
+  function handleTouchStart(event: TouchEvent) {
+    if (!clickable || shouldIgnoreActivate(event.target)) {
+      return;
+    }
+
+    didTriggerLongPress = false;
+    clearLongPressTimer();
+    longPressTimer = setTimeout(() => {
+      didTriggerLongPress = true;
+      dispatch('longpress');
+    }, longPressDuration);
+  }
 </script>
 
-<article class:selected class="card-list-row">
+<article
+  class:selected
+  class:card-list-row--clickable={clickable}
+  class:card-list-row--mobile-checkbox-hidden={!mobileShowCheckbox}
+  class="card-list-row"
+  tabindex={clickable ? 0 : undefined}
+  on:click={handleActivate}
+  on:keydown={handleKeydown}
+  on:touchstart={handleTouchStart}
+  on:touchend={clearLongPressTimer}
+  on:touchmove={clearLongPressTimer}
+  on:touchcancel={clearLongPressTimer}
+>
   <div class="card-list-row__track" style={`--card-list-row-template: ${rowTemplate}`}>
     <label class="card-list-row__checkbox">
       <input type="checkbox" checked={selected} on:change={() => dispatch('toggleSelection')} />
@@ -29,9 +99,11 @@
       <slot name="updated" />
     </div>
 
-    <div class="card-list-row__actions" aria-label="Row actions">
-      <slot name="actions" />
-    </div>
+    {#if hasActions}
+      <div class="card-list-row__actions" aria-label="Row actions">
+        <slot name="actions" />
+      </div>
+    {/if}
   </div>
 </article>
 
@@ -49,6 +121,10 @@
   .card-list-row.selected {
     border-color: color-mix(in srgb, var(--color-primary-text) 45%, var(--color-border));
     background: color-mix(in srgb, var(--color-primary-subtle) 12%, var(--color-surface));
+  }
+
+  .card-list-row--clickable {
+    cursor: pointer;
   }
 
   .card-list-row:hover,
@@ -156,6 +232,17 @@
 
     .card-list-row__checkbox {
       justify-content: start;
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .card-list-row--mobile-checkbox-hidden .card-list-row__checkbox {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .card-list-row--mobile-checkbox-hidden.selected .card-list-row__checkbox,
+    .card-list-row--mobile-checkbox-hidden:focus-within .card-list-row__checkbox {
       opacity: 1;
       pointer-events: auto;
     }

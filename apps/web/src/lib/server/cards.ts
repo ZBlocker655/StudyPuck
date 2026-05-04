@@ -221,35 +221,35 @@ export function formatCardLibraryRelativeTime(date: Date, now = new Date()): str
   const differenceInMinutes = Math.floor(differenceInSeconds / 60);
 
   if (differenceInMinutes < 60) {
-    return `${differenceInMinutes}m ago`;
+    return `${differenceInMinutes}m`;
   }
 
   const differenceInHours = Math.floor(differenceInMinutes / 60);
 
   if (differenceInHours < 24) {
-    return `${differenceInHours}h ago`;
+    return `${differenceInHours}h`;
   }
 
   const differenceInDays = Math.floor(differenceInHours / 24);
 
   if (differenceInDays < 7) {
-    return `${differenceInDays}d ago`;
+    return `${differenceInDays}d`;
   }
 
   const differenceInWeeks = Math.floor(differenceInDays / 7);
 
   if (differenceInWeeks < 5) {
-    return `${differenceInWeeks}w ago`;
+    return `${differenceInWeeks}w`;
   }
 
   const differenceInMonths = Math.floor(differenceInDays / 30);
 
   if (differenceInMonths < 12) {
-    return `${differenceInMonths}mo ago`;
+    return `${differenceInMonths}mo`;
   }
 
   const differenceInYears = Math.floor(differenceInDays / 365);
-  return `${differenceInYears}y ago`;
+  return `${differenceInYears}y`;
 }
 
 function mapGroupSummary(group: ActiveCardGroupSummary): CardLibraryGroupData {
@@ -265,6 +265,10 @@ function mapGroupFilterOption(group: GroupWithActiveCardCount): CardLibraryGroup
     groupName: group.groupName,
     activeCardCount: group.activeCardCount,
   };
+}
+
+function sortGroupsByName<T extends { groupName: string }>(groups: T[]) {
+  return [...groups].sort((left, right) => left.groupName.localeCompare(right.groupName));
 }
 
 function mapCardListItem(card: ActiveCardListItem, now = new Date()): CardLibraryCardListItemData {
@@ -421,7 +425,7 @@ export async function loadCardLibraryData(
     totalCount: items.length,
     filteredCardIds: items.map((item) => item.cardId),
     filters,
-    availableGroups: availableGroups.map((group) => mapGroupFilterOption(group)),
+    availableGroups: sortGroupsByName(availableGroups.map((group) => mapGroupFilterOption(group))),
   };
 }
 
@@ -468,7 +472,7 @@ export async function loadGroupDetailData(
       totalCount: items.length,
       filteredCardIds: items.map((item) => item.cardId),
       filters,
-      availableGroups: availableGroups.map((availableGroup) => mapGroupFilterOption(availableGroup)),
+      availableGroups: sortGroupsByName(availableGroups.map((availableGroup) => mapGroupFilterOption(availableGroup))),
     },
   };
 }
@@ -497,7 +501,7 @@ export async function loadActiveCardDetailData(
 
   return {
     card: mapActiveCardDetail(card),
-    availableGroups: availableGroups.map((group) => mapGroupSummary(group)),
+    availableGroups: sortGroupsByName(availableGroups.map((group) => mapGroupSummary(group))),
   };
 }
 

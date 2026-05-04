@@ -171,6 +171,6 @@ describe('Card Library server helpers', () => {
   });
 
   it('formats relative card timestamps using compact labels', () => {
-    expect(formatCardLibraryRelativeTime(new Date('2026-04-10T12:00:00Z'), new Date('2026-04-12T12:00:00Z'))).toBe('2d ago');
+    expect(formatCardLibraryRelativeTime(new Date('2026-04-10T12:00:00Z'), new Date('2026-04-12T12:00:00Z'))).toBe('2d');
   });
 });
