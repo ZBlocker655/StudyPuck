@@ -4,13 +4,22 @@
     groupName: string;
   };
 
+  type CardListTypeOption = {
+    value: string;
+    label: string;
+  };
+
   export let availableGroups: CardListGroupOption[] = [];
+  export let availableTypes: CardListTypeOption[] = [];
   export let searchLabel = 'Search';
   export let searchPlaceholder = 'Search...';
   export let searchQuery = '';
   export let groupFilterLabel = 'All groups';
+  export let typeFilterLabel = 'All types';
   export let selectedGroupIds: string[] = [];
+  export let selectedType: string | null = null;
   export let clearGroupLabel = 'Clear group filters';
+  export let clearTypeLabel = 'All types';
 
   function toggleGroup(groupId: string) {
     if (selectedGroupIds.includes(groupId)) {
@@ -23,6 +32,10 @@
 
   function clearGroupFilters() {
     selectedGroupIds = [];
+  }
+
+  function selectType(value: string | null) {
+    selectedType = value;
   }
 </script>
 
@@ -39,7 +52,10 @@
   </label>
 
   <details class="card-list-filter-bar__groups">
-    <summary class="card-list-filter-bar__groups-summary">
+    <summary
+      class:card-list-filter-bar__summary--active={selectedGroupIds.length > 0}
+      class="card-list-filter-bar__groups-summary"
+    >
       {groupFilterLabel}
       <span aria-hidden="true">▾</span>
     </summary>
@@ -61,12 +77,41 @@
       {/each}
     </div>
   </details>
+
+  {#if availableTypes.length > 0}
+    <details class="card-list-filter-bar__groups">
+      <summary
+        class:card-list-filter-bar__summary--active={selectedType !== null}
+        class="card-list-filter-bar__groups-summary"
+      >
+        {typeFilterLabel}
+        <span aria-hidden="true">▾</span>
+      </summary>
+
+      <div class="card-list-filter-bar__groups-menu stack" style="--stack-space: var(--space-2)">
+        <button type="button" class="card-list-filter-bar__clear" on:click={() => selectType(null)}>
+          {clearTypeLabel}
+        </button>
+
+        {#each availableTypes as typeOption}
+          <button
+            type="button"
+            class:selected={selectedType === typeOption.value}
+            class="card-list-filter-bar__type-option"
+            on:click={() => selectType(typeOption.value)}
+          >
+            {typeOption.label}
+          </button>
+        {/each}
+      </div>
+    </details>
+  {/if}
 </section>
 
 <style>
   .card-list-filter-bar {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto auto;
     gap: var(--space-3);
   }
 
@@ -120,6 +165,12 @@
     list-style: none;
   }
 
+  .card-list-filter-bar__summary--active {
+    border-color: color-mix(in srgb, var(--color-primary-text) 40%, var(--color-border));
+    background: color-mix(in srgb, var(--color-primary-subtle) 12%, var(--color-surface));
+    color: var(--color-primary-text);
+  }
+
   .card-list-filter-bar__groups-summary::-webkit-details-marker {
     display: none;
   }
@@ -160,9 +211,27 @@
     font-family: var(--font-ui);
   }
 
+  .card-list-filter-bar__type-option {
+    justify-self: start;
+    padding: 0.25rem 0;
+    border: 0;
+    background: none;
+    color: var(--color-text-primary);
+    cursor: pointer;
+    font: inherit;
+    font-family: var(--font-ui);
+    text-align: start;
+  }
+
+  .card-list-filter-bar__type-option.selected {
+    color: var(--color-primary-text);
+    font-weight: 600;
+  }
+
   .card-list-filter-bar__search-input:focus-visible,
   .card-list-filter-bar__groups-summary:focus-visible,
-  .card-list-filter-bar__clear:focus-visible {
+  .card-list-filter-bar__clear:focus-visible,
+  .card-list-filter-bar__type-option:focus-visible {
     outline: none;
     border-color: color-mix(in srgb, var(--color-primary-text) 45%, var(--color-border));
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary-text) 18%, transparent);
@@ -170,7 +239,11 @@
 
   @media (max-width: 900px) {
     .card-list-filter-bar {
-      grid-template-columns: 1fr;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .card-list-filter-bar__search {
+      grid-column: 1 / -1;
     }
 
     .card-list-filter-bar__groups-summary {
