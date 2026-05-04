@@ -360,8 +360,41 @@ export async function updateGroup(
       eq(groups.groupId, groupId)
     ))
     .returning();
-  
+
   return result[0] || null;
+}
+
+/**
+ * Delete a group and dissociate any cards currently assigned to it.
+ */
+export async function deleteGroup(
+  userId: string,
+  languageId: string,
+  groupId: string,
+  database?: AnyDb,
+): Promise<boolean> {
+  const conn = getConn(database);
+
+  await conn
+    .delete(cardGroups)
+    .where(and(
+      eq(cardGroups.userId, userId),
+      eq(cardGroups.languageId, languageId),
+      eq(cardGroups.groupId, groupId),
+    ));
+
+  const result = await conn
+    .delete(groups)
+    .where(and(
+      eq(groups.userId, userId),
+      eq(groups.languageId, languageId),
+      eq(groups.groupId, groupId),
+    ))
+    .returning({
+      groupId: groups.groupId,
+    });
+
+  return result.length > 0;
 }
 
 /**

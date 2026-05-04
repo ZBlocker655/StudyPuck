@@ -5,6 +5,7 @@ import { setupTestDatabase, cleanupTestDatabase, resetTestTables, type TestDb } 
 import { cardGroups, cards, groups, studyLanguages, users } from '../schema.js';
 import {
   bulkAssignActiveCardsToGroup,
+  deleteGroup,
   getActiveCardWithGroups,
   getGroupWithActiveCardCount,
   listActiveCards,
@@ -301,5 +302,18 @@ describe('Card Library database operations', () => {
     expect(storedContentCard.status).toBe('deleted');
     expect(storedContentCard.deletedAt).not.toBeNull();
     expect(foodCards.map((card) => card.cardId)).toEqual(['card-examples']);
+  });
+
+  it('deletes groups by dissociating memberships without deleting cards', async () => {
+    await seedLibrary();
+
+    const deleted = await deleteGroup(TEST_USER.userId, TEST_LANG.languageId, 'group-greetings', db);
+
+    const remainingGroups = await listGroupsWithActiveCardCounts(TEST_USER.userId, TEST_LANG.languageId, db);
+    const remainingCards = await listActiveCards(TEST_USER.userId, TEST_LANG.languageId, {}, db);
+
+    expect(deleted).toBe(true);
+    expect(remainingGroups.map((group) => group.groupId)).toEqual(['group-chat', 'group-food']);
+    expect(remainingCards.find((card) => card.cardId === 'card-content')?.groups).toEqual([]);
   });
 });
