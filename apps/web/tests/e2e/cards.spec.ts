@@ -152,11 +152,11 @@ test('card library drawer closes on backdrop click', async ({ page }) => {
 	const drawer = page.getByRole('dialog');
 	await expect(drawer).toBeVisible();
 
-	await page.locator('.active-card-drawer__backdrop').evaluate((element: HTMLButtonElement) => {
-		element.click();
-	});
-
-	await expect(drawer).toHaveCount(0);
+	await expect(async () => {
+		await page.locator('.active-card-drawer__backdrop').click({ force: true });
+		await expect(page).not.toHaveURL(/card=/);
+		await expect(drawer).toHaveCount(0);
+	}).toPass({ timeout: 10000 });
 });
 
 test('card library drawer closes on Escape key', async ({ page }) => {
@@ -178,11 +178,12 @@ test('card library drawer closes on Escape key', async ({ page }) => {
 		await expect(drawer).toBeVisible();
 	}).toPass({ timeout: 10000 });
 
-	await page.evaluate(() => {
-		window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-	});
-
-	await expect(drawer).toHaveCount(0);
+	await drawer.focus();
+	await expect(async () => {
+		await page.keyboard.press('Escape');
+		await expect(page).not.toHaveURL(/card=/);
+		await expect(drawer).toHaveCount(0);
+	}).toPass({ timeout: 10000 });
 });
 
 test('card library deletes a card from the drawer and removes it from the list', async ({ page }) => {
@@ -201,16 +202,13 @@ test('card library deletes a card from the drawer and removes it from the list',
 	const drawer = page.getByRole('dialog');
 	await expect(drawer).toBeVisible();
 
-	await drawer.getByRole('button', { name: 'Delete card' }).evaluate((element: HTMLButtonElement) => {
-		element.click();
-	});
-
 	const confirmDialog = page.getByRole('alertdialog');
-	await expect(confirmDialog).toBeVisible();
+	await expect(async () => {
+		await drawer.locator('.active-card-drawer__delete').click({ force: true });
+		await expect(confirmDialog).toBeVisible();
+	}).toPass({ timeout: 10000 });
 
-	const confirmDeleteButton = confirmDialog.getByRole('button', { name: 'Delete card' });
-	await expect(confirmDeleteButton).toBeVisible();
-	await confirmDeleteButton.dispatchEvent('click');
+	await confirmDialog.locator('.active-card-drawer__confirm-delete').click({ force: true });
 
 	await expect(page.getByText('No cards yet')).toBeVisible({ timeout: 10000 });
 });
@@ -283,10 +281,10 @@ test('groups list renders existing groups and navigates to group detail', async 
 
 	await expect(page.getByRole('heading', { level: 2, name: 'Verbs' })).toBeVisible();
 
-	await page.locator('.groups-page__row', { hasText: 'Verbs' }).evaluate((element: HTMLButtonElement) => {
-		element.click();
-	});
-	await expect(page).toHaveURL(/\/es\/cards\/groups\/[^/?]+$/);
+	await expect(async () => {
+		await page.locator('.groups-page__row', { hasText: 'Verbs' }).click({ force: true });
+		await expect(page).toHaveURL(/\/es\/cards\/groups\/[^/?]+$/);
+	}).toPass({ timeout: 10000 });
 	await expect(page.getByRole('heading', { level: 1, name: 'Verbs' })).toBeVisible();
 });
 
@@ -305,13 +303,14 @@ test('groups list deletes a group via confirm dialog', async ({ page }) => {
 
 	await expect(page.getByRole('heading', { level: 2, name: 'TestGroup' })).toBeVisible();
 
-	await page.locator('.groups-page__row-shell', { hasText: 'TestGroup' }).hover();
-	await page.locator('.groups-page__row-shell', { hasText: 'TestGroup' })
-		.getByRole('button', { name: 'Delete TestGroup' })
-		.click({ force: true });
-
 	const dialog = page.getByRole('alertdialog');
-	await expect(dialog).toBeVisible();
+	await expect(async () => {
+		await page.locator('.groups-page__row-shell', { hasText: 'TestGroup' }).hover();
+		await page.locator('.groups-page__row-shell', { hasText: 'TestGroup' })
+			.getByRole('button', { name: 'Delete TestGroup' })
+			.click({ force: true });
+		await expect(dialog).toBeVisible();
+	}).toPass({ timeout: 10000 });
 	await expect(dialog).toContainText('Delete "TestGroup"?');
 
 	await dialog.getByRole('button', { name: 'Delete Group' }).click();
@@ -332,13 +331,14 @@ test('groups list delete confirm dialog cancels when Cancel is clicked', async (
 
 	await page.goto('/es/cards/groups');
 
-	await page.locator('.groups-page__row-shell', { hasText: 'CancelGroup' }).hover();
-	await page.locator('.groups-page__row-shell', { hasText: 'CancelGroup' })
-		.getByRole('button', { name: 'Delete CancelGroup' })
-		.click({ force: true });
-
 	const dialog = page.getByRole('alertdialog');
-	await expect(dialog).toBeVisible();
+	await expect(async () => {
+		await page.locator('.groups-page__row-shell', { hasText: 'CancelGroup' }).hover();
+		await page.locator('.groups-page__row-shell', { hasText: 'CancelGroup' })
+			.getByRole('button', { name: 'Delete CancelGroup' })
+			.click({ force: true });
+		await expect(dialog).toBeVisible();
+	}).toPass({ timeout: 10000 });
 
 	await dialog.getByRole('button', { name: 'Cancel' }).click();
 
@@ -442,11 +442,13 @@ test('group detail removes cards from the group using bulk Remove from group act
 
 	// Select the card (desktop: hover to show checkbox)
 	const row = page.locator('.card-list-row', { hasText: 'quitar' });
-	await row.hover();
-	await row.getByRole('checkbox', { name: 'Select card' }).check({ force: true });
-
 	const bulkBar = page.locator('.card-list-bulk-bar');
-	await expect(bulkBar).toBeVisible();
+	await expect(async () => {
+		await row.hover();
+		await row.getByRole('checkbox', { name: 'Select card' }).check({ force: true });
+		await expect(row.getByRole('checkbox', { name: 'Select card' })).toBeChecked();
+		await expect(bulkBar).toBeVisible();
+	}).toPass({ timeout: 10000 });
 	await bulkBar.getByRole('button', { name: 'Remove from group' }).click();
 
 	await expect(page.getByText('No cards in this group yet')).toBeVisible({ timeout: 10000 });
