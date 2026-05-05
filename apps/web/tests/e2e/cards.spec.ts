@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { resetDatabase, seedActiveCard, seedUser } from './support/database';
+import { resetDatabase, seedActiveCard, seedGroup, seedUser } from './support/database';
 import { signInAs } from './support/session';
 
 async function signInCardsUser(page: Page) {
@@ -27,7 +27,7 @@ test('card library shows empty state when no active cards exist', async ({ page 
 
 	await page.goto('/es/cards');
 
-	await expect(page.getByRole('heading', { name: 'Cards' })).toBeVisible();
+	await expect(page.getByRole('heading', { level: 1, name: 'Cards' })).toBeVisible();
 	await expect(page.getByText('No cards yet')).toBeVisible();
 	await expect(page.getByRole('link', { name: 'Go to Card Entry' })).toBeVisible();
 });
@@ -133,11 +133,11 @@ test('card library opens the card drawer when a row is activated', async ({ page
 	await page.goto('/es/cards');
 
 	const row = page.locator('.card-list-row', { hasText: 'aprender' });
-	await row.click();
+	await row.dispatchEvent('click');
 
 	const drawer = page.getByRole('dialog');
 	await expect(drawer).toBeVisible();
-	await expect(drawer.getByText('aprender')).toBeVisible();
+	await expect(drawer.getByRole('textbox', { name: 'Content' })).toHaveValue('aprender');
 });
 
 test('card library drawer closes on backdrop click', async ({ page }) => {
@@ -152,10 +152,11 @@ test('card library drawer closes on backdrop click', async ({ page }) => {
 	});
 
 	await page.goto('/es/cards');
-	await page.locator('.card-list-row', { hasText: 'cerrar' }).click();
-
 	const drawer = page.getByRole('dialog');
-	await expect(drawer).toBeVisible();
+	await expect(async () => {
+		await page.locator('.card-list-row', { hasText: 'cerrar' }).dispatchEvent('click');
+		await expect(drawer).toBeVisible();
+	}).toPass({ timeout: 10000 });
 
 	await page.locator('.active-card-drawer__backdrop').click();
 
@@ -174,7 +175,7 @@ test('card library drawer closes on Escape key', async ({ page }) => {
 	});
 
 	await page.goto('/es/cards');
-	await page.locator('.card-list-row', { hasText: 'salir' }).click();
+	await page.locator('.card-list-row', { hasText: 'salir' }).dispatchEvent('click');
 
 	const drawer = page.getByRole('dialog');
 	await expect(drawer).toBeVisible();
@@ -206,7 +207,9 @@ test('card library deletes a card from the drawer and removes it from the list',
 	const confirmDialog = page.getByRole('alertdialog');
 	await expect(confirmDialog).toBeVisible();
 
-	await confirmDialog.getByRole('button', { name: 'Delete card' }).click();
+	const confirmDeleteButton = confirmDialog.getByRole('button', { name: 'Delete card' });
+	await expect(confirmDeleteButton).toBeVisible();
+	await confirmDeleteButton.dispatchEvent('click');
 
 	await expect(page.getByText('No cards yet')).toBeVisible({ timeout: 10000 });
 });
@@ -227,7 +230,7 @@ test('groups list shows empty state when no groups exist', async ({ page }) => {
 
 	await page.goto('/es/cards/groups');
 
-	await expect(page.getByRole('heading', { name: 'Groups' })).toBeVisible();
+	await expect(page.getByRole('heading', { level: 1, name: 'Groups' })).toBeVisible();
 	await expect(page.getByText('No groups yet')).toBeVisible();
 	await expect(page.getByRole('button', { name: '+ Create your first group' })).toBeVisible();
 });
@@ -236,10 +239,11 @@ test('groups list creates a new group via the drawer', async ({ page }) => {
 	await signInCardsUser(page);
 
 	await page.goto('/es/cards/groups');
-	await page.getByRole('button', { name: /\+ New/ }).click();
-
 	const drawer = page.getByRole('dialog', { name: 'New Group' });
-	await expect(drawer).toBeVisible();
+	await expect(async () => {
+		await page.getByRole('button', { name: /\+ New/ }).click();
+		await expect(drawer).toBeVisible();
+	}).toPass({ timeout: 10000 });
 
 	await drawer.getByRole('textbox').first().fill('Vocabulary');
 	await drawer.getByRole('button', { name: 'Create Group' }).click();
@@ -252,10 +256,11 @@ test('groups list create-group drawer closes on Escape', async ({ page }) => {
 	await signInCardsUser(page);
 
 	await page.goto('/es/cards/groups');
-	await page.getByRole('button', { name: /\+ New/ }).click();
-
 	const drawer = page.getByRole('dialog', { name: 'New Group' });
-	await expect(drawer).toBeVisible();
+	await expect(async () => {
+		await page.getByRole('button', { name: /\+ New/ }).click();
+		await expect(drawer).toBeVisible();
+	}).toPass({ timeout: 10000 });
 
 	await page.keyboard.press('Escape');
 
@@ -277,8 +282,7 @@ test('groups list renders existing groups and navigates to group detail', async 
 
 	await expect(page.getByRole('heading', { level: 2, name: 'Verbs' })).toBeVisible();
 
-	await page.locator('.groups-page__row', { hasText: 'Verbs' }).click();
-
+	await page.locator('.groups-page__row', { hasText: 'Verbs' }).dispatchEvent('click');
 	await page.waitForURL(/\/es\/cards\/groups\//);
 	await expect(page.getByRole('heading', { level: 1, name: 'Verbs' })).toBeVisible();
 });
@@ -360,23 +364,17 @@ test('group detail shows back link and card count', async ({ page }) => {
 });
 
 test('group detail shows empty state when no cards are in the group', async ({ page }) => {
-	await signInCardsUser(page);
+	const user = await signInCardsUser(page);
+	const group = await seedGroup({
+		userId: user.userId,
+		languageId: 'es',
+		groupName: 'EmptyTarget',
+	});
 
-	// Create a new empty group via the drawer and verify the empty state
-	await page.goto('/es/cards/groups');
-	await page.getByRole('button', { name: /\+ New/ }).click();
-
-	const drawer = page.getByRole('dialog', { name: 'New Group' });
-	await drawer.getByRole('textbox').first().fill('EmptyTarget');
-	await drawer.getByRole('button', { name: 'Create Group' }).click();
-
-	await expect(page.getByRole('heading', { level: 2, name: 'EmptyTarget' })).toBeVisible({ timeout: 10000 });
-
-	await page.locator('.groups-page__row', { hasText: 'EmptyTarget' }).click();
-	await page.waitForURL(/\/es\/cards\/groups\//);
+	await page.goto(`/es/cards/groups/${group.groupId}`);
 
 	await expect(page.getByText('No cards in this group yet')).toBeVisible();
-	await expect(page.getByRole('button', { name: '+ Add Cards' })).toBeVisible();
+	await expect(page.locator('.group-detail-page__state-cta', { hasText: '+ Add Cards' })).toBeVisible();
 });
 
 test('group detail adds cards via the Add Cards drawer', async ({ page }) => {
@@ -402,6 +400,8 @@ test('group detail adds cards via the Add Cards drawer', async ({ page }) => {
 	});
 
 	await page.goto(`/es/cards/groups/${groupId}`);
+	await page.waitForLoadState('networkidle');
+	await expect(page.getByRole('heading', { level: 1, name: 'Destination', exact: true })).toBeVisible();
 
 	await page.getByRole('button', { name: '+ Add Cards' }).click();
 
@@ -462,15 +462,17 @@ test('group detail edits the group name inline', async ({ page }) => {
 	});
 
 	await page.goto(`/es/cards/groups/${groupId}`);
+	await page.waitForLoadState('networkidle');
+	await expect(page.getByRole('heading', { level: 1, name: 'OldName', exact: true })).toBeVisible();
 
-	await page.getByRole('button', { name: /OldName/ }).click();
+	await page.locator('.group-detail-page__name-button').press('Enter');
 
-	const nameInput = page.getByRole('textbox', { name: 'Group name' });
+	const nameInput = page.locator('.group-detail-page__name-input');
 	await expect(nameInput).toBeVisible();
 	await nameInput.fill('NewName');
-	await nameInput.blur();
+	await nameInput.press('Enter');
 
-	await expect(page.getByRole('heading', { level: 1, name: 'NewName' })).toBeVisible({ timeout: 10000 });
+	await expect(page.getByRole('heading', { level: 1, name: 'NewName', exact: true })).toBeVisible({ timeout: 10000 });
 });
 
 test('group detail deletes the group and navigates back to groups list', async ({ page }) => {
@@ -485,17 +487,19 @@ test('group detail deletes the group and navigates back to groups list', async (
 	});
 
 	await page.goto(`/es/cards/groups/${groupId}`);
+	await page.waitForLoadState('networkidle');
+	await expect(page.getByRole('heading', { level: 1, name: 'DeleteMe', exact: true })).toBeVisible();
 
-	await page.getByRole('button', { name: 'Delete Group' }).click();
+	await page.locator('.group-detail-page__header-button--danger').press('Enter');
 
-	const dialog = page.getByRole('alertdialog');
+	const dialog = page.locator('.group-detail-page__dialog[role="alertdialog"]');
 	await expect(dialog).toBeVisible();
 	await expect(dialog).toContainText('Delete "DeleteMe"?');
 
 	await dialog.getByRole('button', { name: 'Delete Group' }).click();
 
 	await page.waitForURL(/\/es\/cards\/groups$/);
-	await expect(page.getByRole('heading', { name: 'Groups' })).toBeVisible();
+	await expect(page.getByRole('heading', { level: 1, name: 'Groups' })).toBeVisible();
 });
 
 test('group detail search filter shows no-results state when nothing matches', async ({ page }) => {

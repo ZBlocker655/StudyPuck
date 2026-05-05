@@ -66,8 +66,8 @@
     });
   }
 
-  function closeCreateDrawer() {
-    if (createPending) {
+  function closeCreateDrawer(force = false) {
+    if (createPending && !force) {
       return;
     }
 
@@ -161,7 +161,7 @@
         items: nextItems,
         totalCount: nextItems.length,
       };
-      closeCreateDrawer();
+      closeCreateDrawer(true);
     } catch (error) {
       createErrorMessage = error instanceof Error ? error.message : 'The group could not be created right now.';
     } finally {
@@ -339,7 +339,7 @@
     type="button"
     class="groups-page__backdrop"
     aria-label="Close new group drawer"
-    on:click={closeCreateDrawer}
+    on:click={() => closeCreateDrawer()}
   ></button>
 
   <div
@@ -354,7 +354,7 @@
   >
     <header class="groups-page__drawer-header cluster">
       <h2 id="new-group-title">New Group</h2>
-      <button type="button" class="groups-page__drawer-close" aria-label="Close drawer" on:click={closeCreateDrawer}>
+      <button type="button" class="groups-page__drawer-close" aria-label="Close drawer" on:click={() => closeCreateDrawer()}>
         x
       </button>
     </header>
@@ -400,7 +400,7 @@
 
 {#if deleteTarget}
   <div class="groups-page__dialog-backdrop">
-    <section class="groups-page__dialog stack" style="--stack-space: var(--space-3)" role="alertdialog" aria-modal="true" aria-labelledby="groups-delete-dialog-title">
+    <div class="groups-page__dialog stack" style="--stack-space: var(--space-3)" role="alertdialog" aria-modal="true" aria-labelledby="groups-delete-dialog-title">
       <h2 id="groups-delete-dialog-title">Delete "{deleteTarget.groupName}"?</h2>
       <p>{buildDeleteGroupMessage(deleteTarget)}</p>
       <div class="groups-page__dialog-actions cluster">
@@ -424,7 +424,7 @@
           {deletePendingGroupId === deleteTarget.groupId ? 'Deleting...' : 'Delete Group'}
         </button>
       </div>
-    </section>
+    </div>
   </div>
 {/if}
 

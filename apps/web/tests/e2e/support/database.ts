@@ -58,6 +58,14 @@ type SeedActiveCardOptions = {
 	groupId?: string;
 };
 
+type SeedGroupOptions = {
+	userId: string;
+	languageId: string;
+	groupName: string;
+	groupId?: string;
+	description?: string | null;
+};
+
 const testDatabaseUrl =
 	process.env.TEST_DATABASE_URL ??
 	process.env.DATABASE_URL ??
@@ -222,6 +230,22 @@ export async function seedActiveCard(options: SeedActiveCardOptions) {
 	}
 
 	return { card, groupId: createdGroupId };
+}
+
+export async function seedGroup(options: SeedGroupOptions) {
+	const database = getDb(testDatabaseUrl);
+	const groupId = options.groupId ?? `group-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+	return createGroup(
+		{
+			userId: options.userId,
+			languageId: options.languageId,
+			groupId,
+			groupName: options.groupName,
+			description: options.description ?? null,
+		},
+		database as never
+	);
 }
 
 export async function getCardStatus(userId: string, languageId: string, cardId: string) {
