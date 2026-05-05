@@ -470,8 +470,8 @@
 
 {#if bulkAssignOpen}
   <div class="cards-page__dialog-backdrop">
-    <section class="cards-page__dialog stack" style="--stack-space: var(--space-3)">
-      <h2>Assign {selectedCardIds.length} {selectedCardIds.length === 1 ? 'card' : 'cards'} to a group</h2>
+    <section class="cards-page__dialog stack" style="--stack-space: var(--space-3)" role="dialog" aria-modal="true" aria-labelledby="cards-bulk-assign-title">
+      <h2 id="cards-bulk-assign-title">Assign {selectedCardIds.length} {selectedCardIds.length === 1 ? 'card' : 'cards'} to a group</h2>
 
       <div class="stack" style="--stack-space: var(--space-2)">
         {#each sortedAvailableGroups as group}

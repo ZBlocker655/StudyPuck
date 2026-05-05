@@ -81,6 +81,7 @@
 
   let deleteDialogOpen = false;
   let deleteGroupPending = false;
+  let deleteDialogCancelButton: HTMLButtonElement | null = null;
 
   function serializeFilterState(nextSearchQuery: string, nextType: GroupDetailCardType | null) {
     return JSON.stringify({
@@ -755,6 +756,9 @@
       <div class="group-detail-page__header-actions cluster">
         <button type="button" class="group-detail-page__header-button group-detail-page__header-button--danger" on:click={() => {
           deleteDialogOpen = true;
+          tick().then(() => {
+            deleteDialogCancelButton?.focus();
+          });
         }}>
           Delete Group
         </button>
@@ -880,8 +884,8 @@
 
 {#if bulkAssignOpen}
   <div class="group-detail-page__dialog-backdrop">
-    <section class="group-detail-page__dialog stack" style="--stack-space: var(--space-3)">
-      <h2>Assign {selectedCardIds.length} {selectedCardIds.length === 1 ? 'card' : 'cards'} to a group</h2>
+    <section class="group-detail-page__dialog stack" style="--stack-space: var(--space-3)" role="dialog" aria-modal="true" aria-labelledby="group-detail-bulk-assign-title">
+      <h2 id="group-detail-bulk-assign-title">Assign {selectedCardIds.length} {selectedCardIds.length === 1 ? 'card' : 'cards'} to a group</h2>
 
       <div class="stack" style="--stack-space: var(--space-2)">
         {#each sortedAssignableGroups as assignableGroup}
@@ -1029,11 +1033,11 @@
 
 {#if deleteDialogOpen}
   <div class="group-detail-page__dialog-backdrop">
-    <section class="group-detail-page__dialog stack" style="--stack-space: var(--space-3)" role="alertdialog" aria-modal="true">
-      <h2>Delete "{group.groupName}"?</h2>
+    <section class="group-detail-page__dialog stack" style="--stack-space: var(--space-3)" role="alertdialog" aria-modal="true" aria-labelledby="group-detail-delete-title">
+      <h2 id="group-detail-delete-title">Delete "{group.groupName}"?</h2>
       <p>{buildDeleteGroupMessage(group)}</p>
       <div class="group-detail-page__dialog-actions cluster">
-        <button type="button" class="group-detail-page__dialog-button" disabled={deleteGroupPending} on:click={() => {
+        <button type="button" class="group-detail-page__dialog-button" bind:this={deleteDialogCancelButton} disabled={deleteGroupPending} on:click={() => {
           deleteDialogOpen = false;
         }}>
           Cancel

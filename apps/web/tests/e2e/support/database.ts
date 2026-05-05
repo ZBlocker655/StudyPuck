@@ -47,6 +47,17 @@ type SeedDraftCardOptions = {
 	aiState?: 'queued' | 'processing' | 'complete' | 'failed';
 };
 
+type SeedActiveCardOptions = {
+	userId: string;
+	languageId: string;
+	cardContent: string;
+	cardId?: string;
+	meaning?: string;
+	cardType?: 'word' | 'pattern' | 'complex_prompt';
+	groupName?: string;
+	groupId?: string;
+};
+
 const testDatabaseUrl =
 	process.env.TEST_DATABASE_URL ??
 	process.env.DATABASE_URL ??
@@ -158,6 +169,59 @@ export async function seedDraftCard(options: SeedDraftCardOptions) {
 	}
 
 	return { note, card, groupId: createdGroupId };
+}
+
+export async function seedActiveCard(options: SeedActiveCardOptions) {
+	const database = getDb(testDatabaseUrl);
+	const cardId = options.cardId ?? `card-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+	const groupId = options.groupId ?? `group-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+	const now = new Date();
+
+	const [card] = await database
+		.insert(cards)
+		.values({
+			userId: options.userId,
+			languageId: options.languageId,
+			cardId,
+			content: options.cardContent,
+			meaning: options.meaning ?? null,
+			cardType: options.cardType ?? 'word',
+			status: 'active',
+			createdAt: now,
+			updatedAt: now,
+		})
+		.returning();
+
+	if (!card) {
+		throw new Error('Failed to create active card');
+	}
+
+	let createdGroupId: string | null = null;
+
+	if (options.groupName) {
+		const group = await createGroup(
+			{
+				userId: options.userId,
+				languageId: options.languageId,
+				groupId,
+				groupName: options.groupName,
+			},
+			database as never
+		);
+
+		createdGroupId = group.groupId;
+		await addCardToGroup(
+			{
+				userId: options.userId,
+				languageId: options.languageId,
+				cardId: card.cardId,
+				groupId: group.groupId,
+			},
+			database as never
+		);
+	}
+
+	return { card, groupId: createdGroupId };
 }
 
 export async function getCardStatus(userId: string, languageId: string, cardId: string) {

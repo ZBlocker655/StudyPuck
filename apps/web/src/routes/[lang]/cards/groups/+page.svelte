@@ -18,6 +18,7 @@
   let createDrawerOpen = false;
   let drawerElement: HTMLElement | null = null;
   let groupNameInput: HTMLInputElement | null = null;
+  let deleteDialogCancelButton: HTMLButtonElement | null = null;
   let groupName = '';
   let groupDescription = '';
   let createErrorMessage = '';
@@ -171,6 +172,9 @@
   function requestDelete(group: CardLibraryGroupListItemData) {
     deleteTarget = group;
     feedback = null;
+    tick().then(() => {
+      deleteDialogCancelButton?.focus();
+    });
   }
 
   async function confirmDelete() {
@@ -396,13 +400,14 @@
 
 {#if deleteTarget}
   <div class="groups-page__dialog-backdrop">
-    <section class="groups-page__dialog stack" style="--stack-space: var(--space-3)" role="alertdialog" aria-modal="true">
-      <h2>Delete "{deleteTarget.groupName}"?</h2>
+    <section class="groups-page__dialog stack" style="--stack-space: var(--space-3)" role="alertdialog" aria-modal="true" aria-labelledby="groups-delete-dialog-title">
+      <h2 id="groups-delete-dialog-title">Delete "{deleteTarget.groupName}"?</h2>
       <p>{buildDeleteGroupMessage(deleteTarget)}</p>
       <div class="groups-page__dialog-actions cluster">
         <button
           type="button"
           class="groups-page__dialog-button"
+          bind:this={deleteDialogCancelButton}
           disabled={deletePendingGroupId !== null}
           on:click={() => {
             deleteTarget = null;
