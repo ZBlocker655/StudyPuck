@@ -81,6 +81,7 @@
 
   let deleteDialogOpen = false;
   let deleteGroupPending = false;
+  let deleteDialogCancelButton: HTMLButtonElement | null = null;
 
   function serializeFilterState(nextSearchQuery: string, nextType: GroupDetailCardType | null) {
     return JSON.stringify({
@@ -422,8 +423,8 @@
     tick().then(() => addCardsDrawerElement?.focus());
   }
 
-  function closeAddCardsDrawer() {
-    if (addCardsPending) {
+  function closeAddCardsDrawer(force = false) {
+    if (addCardsPending && !force) {
       return;
     }
 
@@ -491,7 +492,7 @@
         ...group,
         activeCardCount: group.activeCardCount + addedCardIds.length,
       };
-      closeAddCardsDrawer();
+      closeAddCardsDrawer(true);
     } catch (error) {
       actionFeedback = {
         title: 'Add cards failed',
@@ -755,6 +756,9 @@
       <div class="group-detail-page__header-actions cluster">
         <button type="button" class="group-detail-page__header-button group-detail-page__header-button--danger" on:click={() => {
           deleteDialogOpen = true;
+          tick().then(() => {
+            deleteDialogCancelButton?.focus();
+          });
         }}>
           Delete Group
         </button>
@@ -880,8 +884,8 @@
 
 {#if bulkAssignOpen}
   <div class="group-detail-page__dialog-backdrop">
-    <section class="group-detail-page__dialog stack" style="--stack-space: var(--space-3)">
-      <h2>Assign {selectedCardIds.length} {selectedCardIds.length === 1 ? 'card' : 'cards'} to a group</h2>
+    <div class="group-detail-page__dialog stack" style="--stack-space: var(--space-3)" role="dialog" aria-modal="true" aria-labelledby="group-detail-bulk-assign-title">
+      <h2 id="group-detail-bulk-assign-title">Assign {selectedCardIds.length} {selectedCardIds.length === 1 ? 'card' : 'cards'} to a group</h2>
 
       <div class="stack" style="--stack-space: var(--space-2)">
         {#each sortedAssignableGroups as assignableGroup}
@@ -912,7 +916,7 @@
           {pendingBulkAction === 'assign-group' ? 'Assigning...' : 'Assign cards'}
         </button>
       </div>
-    </section>
+    </div>
   </div>
 {/if}
 
@@ -921,7 +925,7 @@
     type="button"
     class="group-detail-page__drawer-backdrop"
     aria-label="Close add cards drawer"
-    on:click={closeAddCardsDrawer}
+    on:click={() => closeAddCardsDrawer()}
   ></button>
 
   <div
@@ -936,7 +940,7 @@
   >
     <header class="group-detail-page__drawer-header cluster">
       <h2 id="group-detail-add-cards-title">Add cards to {group.groupName}</h2>
-      <button type="button" class="group-detail-page__drawer-close" aria-label="Close drawer" on:click={closeAddCardsDrawer}>
+      <button type="button" class="group-detail-page__drawer-close" aria-label="Close drawer" on:click={() => closeAddCardsDrawer()}>
         ×
       </button>
     </header>
@@ -950,7 +954,7 @@
     {:else if addableCards.totalCount === 0}
       <section class="group-detail-page__drawer-state stack" style="--stack-space: var(--space-3)">
         <h3>All your cards are already in this group.</h3>
-        <button type="button" class="group-detail-page__state-cta" on:click={closeAddCardsDrawer}>Close</button>
+        <button type="button" class="group-detail-page__state-cta" on:click={() => closeAddCardsDrawer()}>Close</button>
       </section>
     {:else}
       <label class="group-detail-page__drawer-search stack" style="--stack-space: var(--space-2)">
@@ -1029,11 +1033,11 @@
 
 {#if deleteDialogOpen}
   <div class="group-detail-page__dialog-backdrop">
-    <section class="group-detail-page__dialog stack" style="--stack-space: var(--space-3)" role="alertdialog" aria-modal="true">
-      <h2>Delete "{group.groupName}"?</h2>
+    <div class="group-detail-page__dialog stack" style="--stack-space: var(--space-3)" role="alertdialog" aria-modal="true" aria-labelledby="group-detail-delete-title">
+      <h2 id="group-detail-delete-title">Delete "{group.groupName}"?</h2>
       <p>{buildDeleteGroupMessage(group)}</p>
       <div class="group-detail-page__dialog-actions cluster">
-        <button type="button" class="group-detail-page__dialog-button" disabled={deleteGroupPending} on:click={() => {
+        <button type="button" class="group-detail-page__dialog-button" bind:this={deleteDialogCancelButton} disabled={deleteGroupPending} on:click={() => {
           deleteDialogOpen = false;
         }}>
           Cancel
@@ -1047,7 +1051,7 @@
           {deleteGroupPending ? 'Deleting...' : 'Delete Group'}
         </button>
       </div>
-    </section>
+    </div>
   </div>
 {/if}
 
