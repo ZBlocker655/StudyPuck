@@ -360,22 +360,14 @@ test('group detail shows back link and card count', async ({ page }) => {
 });
 
 test('group detail shows empty state when no cards are in the group', async ({ page }) => {
-	const user = await signInCardsUser(page);
+	await signInCardsUser(page);
 
-	const { groupId } = await seedActiveCard({
-		userId: user.userId,
-		languageId: 'es',
-		cardContent: 'empezar',
-		meaning: 'to start',
-		groupName: 'EmptyGroup',
-	});
-
-	// Reload with the group but simulate an empty state by visiting a freshly created empty group via the groups list
+	// Create a new empty group via the drawer and verify the empty state
 	await page.goto('/es/cards/groups');
 	await page.getByRole('button', { name: /\+ New/ }).click();
 
 	const drawer = page.getByRole('dialog', { name: 'New Group' });
-	await drawer.getByRole('textbox', { name: 'Group name' }).fill('EmptyTarget');
+	await drawer.getByRole('textbox').first().fill('EmptyTarget');
 	await drawer.getByRole('button', { name: 'Create Group' }).click();
 
 	await expect(page.getByRole('heading', { level: 2, name: 'EmptyTarget' })).toBeVisible({ timeout: 10000 });
@@ -385,8 +377,6 @@ test('group detail shows empty state when no cards are in the group', async ({ p
 
 	await expect(page.getByText('No cards in this group yet')).toBeVisible();
 	await expect(page.getByRole('button', { name: '+ Add Cards' })).toBeVisible();
-
-	void groupId;
 });
 
 test('group detail adds cards via the Add Cards drawer', async ({ page }) => {
