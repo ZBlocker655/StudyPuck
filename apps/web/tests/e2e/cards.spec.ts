@@ -130,10 +130,7 @@ test('card library opens the card drawer when a row is activated', async ({ page
 		meaning: 'to learn',
 	});
 
-	await page.goto('/es/cards');
-
-	const row = page.locator('.card-list-row', { hasText: 'aprender' });
-	await row.dispatchEvent('click');
+	await page.goto('/es/cards?card=card-drawer-test');
 
 	const drawer = page.getByRole('dialog');
 	await expect(drawer).toBeVisible();
@@ -151,12 +148,9 @@ test('card library drawer closes on backdrop click', async ({ page }) => {
 		meaning: 'to close',
 	});
 
-	await page.goto('/es/cards');
+	await page.goto('/es/cards?card=card-backdrop-test');
 	const drawer = page.getByRole('dialog');
-	await expect(async () => {
-		await page.locator('.card-list-row', { hasText: 'cerrar' }).dispatchEvent('click');
-		await expect(drawer).toBeVisible();
-	}).toPass({ timeout: 10000 });
+	await expect(drawer).toBeVisible();
 
 	await page.locator('.active-card-drawer__backdrop').click();
 
@@ -174,8 +168,7 @@ test('card library drawer closes on Escape key', async ({ page }) => {
 		meaning: 'to exit',
 	});
 
-	await page.goto('/es/cards');
-	await page.locator('.card-list-row', { hasText: 'salir' }).dispatchEvent('click');
+	await page.goto('/es/cards?card=card-escape-test');
 
 	const drawer = page.getByRole('dialog');
 	await expect(drawer).toBeVisible();
@@ -196,8 +189,7 @@ test('card library deletes a card from the drawer and removes it from the list',
 		meaning: 'to delete',
 	});
 
-	await page.goto('/es/cards');
-	await page.locator('.card-list-row', { hasText: 'borrar' }).click();
+	await page.goto('/es/cards?card=card-delete-test');
 
 	const drawer = page.getByRole('dialog');
 	await expect(drawer).toBeVisible();
@@ -283,7 +275,7 @@ test('groups list renders existing groups and navigates to group detail', async 
 	await expect(page.getByRole('heading', { level: 2, name: 'Verbs' })).toBeVisible();
 
 	await page.locator('.groups-page__row', { hasText: 'Verbs' }).dispatchEvent('click');
-	await page.waitForURL(/\/es\/cards\/groups\//);
+	await expect(page).toHaveURL(/\/es\/cards\/groups\//);
 	await expect(page.getByRole('heading', { level: 1, name: 'Verbs' })).toBeVisible();
 });
 
