@@ -44,22 +44,10 @@ function buildCardEntryNoteWorkspaceContextBlock(context: CardEntryNoteWorkspace
   ].join('\n');
 }
 
-function buildNonActionableContextBlock(
-  context: Extract<CanonicalChatContext, { contextType: 'non_actionable' }>,
+function buildGenericContextBlock(
+  context: Exclude<CanonicalChatContext, { contextType: 'card_entry_note_workspace' }>,
 ): string {
-  return [
-    'Machine context:',
-    JSON.stringify(
-      {
-        contextType: context.contextType,
-        routeContextType: context.routeContextType,
-        languageId: context.languageId,
-        allowedSuggestionTypes: context.allowedSuggestionTypes,
-      },
-      null,
-      2,
-    ),
-  ].join('\n');
+  return ['Machine context:', JSON.stringify(context, null, 2)].join('\n');
 }
 
 function buildConversationHistoryBlock(history: ConversationHistoryTurn[]): string {
@@ -83,7 +71,7 @@ export function buildStructuredChatPrompt(input: {
   const contextBlock =
     input.canonicalContext.contextType === 'card_entry_note_workspace'
       ? buildCardEntryNoteWorkspaceContextBlock(input.canonicalContext)
-      : buildNonActionableContextBlock(input.canonicalContext);
+      : buildGenericContextBlock(input.canonicalContext);
 
   const historyBlock = buildConversationHistoryBlock(input.conversationHistory ?? []);
 

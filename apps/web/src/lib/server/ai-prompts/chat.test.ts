@@ -47,4 +47,50 @@ describe('buildStructuredChatPrompt', () => {
     expect(prompt.userPrompt).toContain('ask a clarifying question instead of guessing');
     expect(prompt.userPrompt).toContain('Use the exact cardId from the workspace data');
   });
+
+  it('includes card-library list state and snapshot data for card-library chat contexts', () => {
+    const canonicalContext: CanonicalChatContext = {
+      contextType: 'card_library_list',
+      languageId: 'zh',
+      allowedSuggestionTypes: [],
+      listState: {
+        searchText: 'train',
+        groupFilters: [{ groupId: 'group-1', groupName: 'Travel' }],
+        cardType: 'word',
+        ordering: 'updated_desc',
+      },
+      resultCount: 2,
+      selectedCardIds: ['card-2'],
+      selectedCards: [
+        {
+          cardId: 'card-2',
+          content: '飞机',
+          meaning: 'airplane',
+          cardType: 'word',
+          groupNames: ['Travel'],
+        },
+      ],
+      visibleCards: [
+        {
+          cardId: 'card-1',
+          content: '火车',
+          meaning: 'train',
+          cardType: 'word',
+          groupNames: ['Travel'],
+        },
+      ],
+    };
+
+    const prompt = buildStructuredChatPrompt({
+      canonicalContext,
+      userInput: 'What should I study first from this list?',
+      allowedSuggestionTypes: [],
+    });
+
+    expect(prompt.userPrompt).toContain('"contextType": "card_library_list"');
+    expect(prompt.userPrompt).toContain('"searchText": "train"');
+    expect(prompt.userPrompt).toContain('"groupName": "Travel"');
+    expect(prompt.userPrompt).toContain('"selectedCardIds": [');
+    expect(prompt.userPrompt).toContain('"content": "火车"');
+  });
 });

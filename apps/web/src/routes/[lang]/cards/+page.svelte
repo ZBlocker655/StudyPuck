@@ -18,6 +18,7 @@
     sortCardLibraryItems,
     type CardLibraryCardType,
   } from '$lib/cards/library.js';
+  import { commandBar } from '$lib/stores/commandBar.js';
   import type {
     CardLibraryCardDetailData,
     CardLibraryCardListItemData,
@@ -79,6 +80,12 @@
   });
 
   $: currentLang = $page.params.lang ?? '';
+  $: commandBar.setWorkspaceContext(currentLang || null, null);
+  $: commandBar.setSurfaceContext({
+    surface: 'card_library_list',
+    filters: library.filters,
+    selectedCardIds,
+  });
 
   $: if (data.library !== previousLibraryData) {
     library = data.library;

@@ -3,6 +3,7 @@
   import { page } from '$app/stores';
   import { onMount, tick } from 'svelte';
   import { buildDeleteGroupMessage, sortCardLibraryGroupItems } from '$lib/cards/groups.js';
+  import { commandBar } from '$lib/stores/commandBar.js';
   import type { CardLibraryGroupListItemData, CardLibraryGroupsData } from '$lib/server/cards.js';
   import type { PageData } from './$types.js';
 
@@ -50,6 +51,10 @@
   });
 
   $: currentLang = $page.params.lang ?? '';
+  $: commandBar.setWorkspaceContext(currentLang || null, null);
+  $: commandBar.setSurfaceContext({
+    surface: 'groups_list',
+  });
 
   $: if (data.groups !== previousGroups) {
     groups = data.groups;

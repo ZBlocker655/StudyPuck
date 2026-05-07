@@ -1,4 +1,11 @@
 import { z } from 'zod';
+import {
+  activeCardIdSchema,
+  activeCardTypeSchema,
+  activeGroupIdSchema,
+  cardLibraryFiltersSchema,
+  cardLibrarySearchSchema,
+} from '$lib/schemas/cards.js';
 
 export const CHAT_SUGGESTION_TYPES = ['append_example_sentence'] as const;
 
@@ -9,7 +16,44 @@ export const conversationHistoryTurnSchema = z.object({
   content: z.string().trim().min(1).max(2_000),
 });
 
+const selectedChatCardIdsSchema = z.array(activeCardIdSchema).max(100).default([]);
+
+export const cardLibraryListSurfaceContextSchema = z.object({
+  surface: z.literal('card_library_list'),
+  filters: cardLibraryFiltersSchema,
+  selectedCardIds: selectedChatCardIdsSchema,
+});
+
+export const groupsListSurfaceContextSchema = z.object({
+  surface: z.literal('groups_list'),
+});
+
+export const groupDetailSurfaceContextSchema = z.object({
+  surface: z.literal('group_detail'),
+  groupId: activeGroupIdSchema,
+  filters: z.object({
+    searchText: cardLibrarySearchSchema.default(''),
+    cardType: activeCardTypeSchema.nullable(),
+  }),
+  selectedCardIds: selectedChatCardIdsSchema,
+});
+
+export const addCardsToGroupDrawerSurfaceContextSchema = z.object({
+  surface: z.literal('add_cards_to_group_drawer'),
+  groupId: activeGroupIdSchema,
+  searchText: cardLibrarySearchSchema.default(''),
+  selectedCardIds: selectedChatCardIdsSchema,
+});
+
+export const chatSurfaceContextSchema = z.discriminatedUnion('surface', [
+  cardLibraryListSurfaceContextSchema,
+  groupsListSurfaceContextSchema,
+  groupDetailSurfaceContextSchema,
+  addCardsToGroupDrawerSurfaceContextSchema,
+]);
+
 export type ConversationHistoryTurn = z.infer<typeof conversationHistoryTurnSchema>;
+export type ChatSurfaceContext = z.infer<typeof chatSurfaceContextSchema>;
 
 export const chatRequestSchema = z.object({
   input: z.string().trim().min(1, 'A chat message is required.').max(2_000),
@@ -18,6 +62,7 @@ export const chatRequestSchema = z.object({
   noteId: z.string().trim().min(1).max(128).optional(),
   cardId: z.string().trim().min(1).max(128).optional(),
   focusedField: z.string().trim().min(1).max(64).optional(),
+  surfaceContext: chatSurfaceContextSchema.optional(),
   conversationHistory: z.array(conversationHistoryTurnSchema).max(PROMPT_HISTORY_CAP).optional(),
 });
 

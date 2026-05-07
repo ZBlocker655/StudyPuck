@@ -23,6 +23,7 @@
     sortCardLibraryGroups,
     sortCardLibraryItems,
   } from '$lib/cards/library.js';
+  import { commandBar } from '$lib/stores/commandBar.js';
   import type {
     CardLibraryCardDetailData,
     CardLibraryCardListItemData,
@@ -106,11 +107,30 @@
   });
 
   $: currentLang = $page.params.lang ?? '';
+  $: commandBar.setWorkspaceContext(currentLang || null, null);
   $: currentGroupId = group.groupId;
   $: currentGroupSummary = {
     groupId: group.groupId,
     groupName: group.groupName,
   };
+  $: commandBar.setSurfaceContext(
+    addCardsDrawerOpen
+      ? {
+          surface: 'add_cards_to_group_drawer',
+          groupId: currentGroupId,
+          searchText: addCardsSearchQuery,
+          selectedCardIds: addCardsSelectedIds,
+        }
+      : {
+          surface: 'group_detail',
+          groupId: currentGroupId,
+          filters: {
+            searchText: cards.filters.searchText,
+            cardType: cards.filters.cardType,
+          },
+          selectedCardIds,
+        },
+  );
 
   $: if (data.groupDetail !== previousGroupDetail) {
     groupDetail = data.groupDetail;
