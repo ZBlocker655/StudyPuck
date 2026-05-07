@@ -1,5 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher, onDestroy, tick } from 'svelte';
+  import { get } from 'svelte/store';
   import type {
     CardEntryGroupData,
     CardEntryNoteDraftCardData,
@@ -49,7 +50,7 @@
   let groupSearchInput: HTMLInputElement | null = null;
   let llmInstructionsOpen = Boolean(card.llmInstructions);
   let removePending = false;
-  let lastHandledSuggestionActionId = 0;
+  let lastHandledSuggestionActionId = get(cardEntrySuggestionActions)?.actionId ?? 0;
 
   $: if (card !== previousCard) {
     draft = structuredClone(card);
@@ -235,6 +236,14 @@
   }
 
   async function applySuggestedExampleSentence(text: string) {
+    await applySuggestedListValue('examples', text);
+  }
+
+  async function applySuggestedMnemonic(text: string) {
+    await applySuggestedListValue('mnemonics', text);
+  }
+
+  async function applySuggestedListValue(field: EditableListField, text: string) {
     if (disabled) {
       return;
     }
@@ -248,9 +257,9 @@
     saveToken++;
     draft = {
       ...draft,
-      examples: [...draft.examples, trimmedText],
+      [field]: [...draft[field], trimmedText],
     };
-    commandBar.setTargetHint(card.cardId, 'examples');
+    commandBar.setTargetHint(card.cardId, field);
 
     await persistDraft();
   }
@@ -262,7 +271,11 @@
     $cardEntrySuggestionActions.cardId === card.cardId
   ) {
     lastHandledSuggestionActionId = $cardEntrySuggestionActions.actionId;
-    void applySuggestedExampleSentence($cardEntrySuggestionActions.text);
+    if ($cardEntrySuggestionActions.suggestionType === 'append_mnemonic') {
+      void applySuggestedMnemonic($cardEntrySuggestionActions.text);
+    } else {
+      void applySuggestedExampleSentence($cardEntrySuggestionActions.text);
+    }
   }
 
   async function toggleGroup(group: CardEntryGroupData) {

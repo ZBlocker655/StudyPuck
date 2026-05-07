@@ -114,7 +114,14 @@
     groupName: group.groupName,
   };
   $: commandBar.setSurfaceContext(
-    addCardsDrawerOpen
+    selectedCard
+      ? {
+          surface: 'card_detail_drawer',
+          sourceSurface: 'group_detail',
+          groupId: currentGroupId,
+          cardId: selectedCard.cardId,
+        }
+      : addCardsDrawerOpen
       ? {
           surface: 'add_cards_to_group_drawer',
           groupId: currentGroupId,
@@ -131,6 +138,9 @@
           selectedCardIds,
         },
   );
+  $: if (!selectedCard) {
+    commandBar.setTargetHint(null, null);
+  }
 
   $: if (data.groupDetail !== previousGroupDetail) {
     groupDetail = data.groupDetail;

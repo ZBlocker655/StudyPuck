@@ -116,6 +116,8 @@ function getSurfaceContextScopeKey(surfaceContext: ChatSurfaceContext | null) {
     case 'group_detail':
     case 'add_cards_to_group_drawer':
       return `${surfaceContext.surface}:${surfaceContext.groupId}`;
+    case 'card_detail_drawer':
+      return `${surfaceContext.surface}:${surfaceContext.sourceSurface}:${surfaceContext.groupId ?? 'none'}:${surfaceContext.cardId}`;
   }
 }
 

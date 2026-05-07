@@ -70,6 +70,7 @@ describe('resolveCanonicalChatContext', () => {
       },
       {} as Parameters<typeof resolveCanonicalChatContext>[2],
       {
+        loadActiveCardDetailData: vi.fn(),
         loadCardLibraryData: vi.fn().mockResolvedValue({
           items: [
             {
@@ -138,6 +139,7 @@ describe('resolveCanonicalChatContext', () => {
       },
       {} as Parameters<typeof resolveCanonicalChatContext>[2],
       {
+        loadActiveCardDetailData: vi.fn(),
         loadCardLibraryData: vi.fn(),
         loadCardLibraryGroupsData: vi.fn().mockResolvedValue({
           items: [
@@ -184,6 +186,7 @@ describe('resolveCanonicalChatContext', () => {
       },
       {} as Parameters<typeof resolveCanonicalChatContext>[2],
       {
+        loadActiveCardDetailData: vi.fn(),
         loadCardLibraryData: vi.fn(),
         loadCardLibraryGroupsData: vi.fn(),
         loadGroupDetailData: vi.fn().mockResolvedValue({
@@ -254,6 +257,7 @@ describe('resolveCanonicalChatContext', () => {
       },
       {} as Parameters<typeof resolveCanonicalChatContext>[2],
       {
+        loadActiveCardDetailData: vi.fn(),
         loadCardLibraryData: vi.fn(),
         loadCardLibraryGroupsData: vi.fn(),
         loadGroupDetailData: vi.fn().mockResolvedValue({
@@ -319,6 +323,84 @@ describe('resolveCanonicalChatContext', () => {
       visibleCards: [{ cardId: 'card-2', content: 'adios' }],
     });
   });
+
+  it('resolves card-detail drawer context with actionable suggestion types', async () => {
+    const context = await resolveCanonicalChatContext(
+      'user-1',
+      {
+        routeContext: resolveRouteContext('/es/cards/groups/group-1'),
+        languageId: 'es',
+        focusedField: 'mnemonics',
+        surfaceContext: {
+          surface: 'card_detail_drawer',
+          sourceSurface: 'group_detail',
+          groupId: 'group-1',
+          cardId: 'card-1',
+        },
+      },
+      {} as Parameters<typeof resolveCanonicalChatContext>[2],
+      {
+        loadActiveCardDetailData: vi.fn().mockResolvedValue({
+          card: {
+            cardId: 'card-1',
+            content: 'hola',
+            meaning: 'hello',
+            cardType: 'word',
+            examples: ['Hola, Marta.'],
+            mnemonics: ['Think of waving hello in a hall.'],
+            llmInstructions: null,
+            updatedAtIso: null,
+            groups: [{ groupId: 'group-1', groupName: 'Greetings' }],
+          },
+          availableGroups: [{ groupId: 'group-1', groupName: 'Greetings' }],
+        }),
+        loadCardLibraryData: vi.fn(),
+        loadCardLibraryGroupsData: vi.fn(),
+        loadGroupDetailData: vi.fn().mockResolvedValue({
+          group: {
+            groupId: 'group-1',
+            groupName: 'Greetings',
+            description: 'Hello and goodbye',
+            activeCardCount: 1,
+          },
+          cards: {
+            items: [],
+            totalCount: 0,
+            filteredCardIds: [],
+            filters: {
+              searchText: '',
+              groupIds: [],
+              cardType: null,
+            },
+            availableGroups: [],
+          },
+          addableCards: {
+            items: [],
+            totalCount: 0,
+          },
+        }),
+      },
+    );
+
+    expect(context).toMatchObject({
+      contextType: 'card_detail_drawer',
+      languageId: 'es',
+      sourceSurface: 'group_detail',
+      likelyTargetCardId: 'card-1',
+      likelyTargetFocusedField: 'mnemonics',
+      allowedSuggestionTypes: ['append_example_sentence', 'append_mnemonic'],
+      card: {
+        cardId: 'card-1',
+        content: 'hola',
+        examples: ['Hola, Marta.'],
+        mnemonics: ['Think of waving hello in a hall.'],
+      },
+      group: {
+        groupId: 'group-1',
+        groupName: 'Greetings',
+      },
+    });
+  });
 });
 
 describe('getAllowedSuggestionTypes', () => {
@@ -340,6 +422,7 @@ describe('getAllowedSuggestionTypes', () => {
       },
       {} as Parameters<typeof resolveCanonicalChatContext>[2],
       {
+        loadActiveCardDetailData: vi.fn(),
         loadCardLibraryData: vi.fn().mockResolvedValue({
           items: [],
           totalCount: 0,
@@ -357,5 +440,42 @@ describe('getAllowedSuggestionTypes', () => {
     );
 
     expect(getAllowedSuggestionTypes(context)).toEqual([]);
+  });
+
+  it('returns mnemonic + example suggestion types for card-detail drawer context', async () => {
+    const context = await resolveCanonicalChatContext(
+      'user-1',
+      {
+        routeContext: resolveRouteContext('/es/cards'),
+        languageId: 'es',
+        surfaceContext: {
+          surface: 'card_detail_drawer',
+          sourceSurface: 'card_library_list',
+          cardId: 'card-1',
+        },
+      },
+      {} as Parameters<typeof resolveCanonicalChatContext>[2],
+      {
+        loadActiveCardDetailData: vi.fn().mockResolvedValue({
+          card: {
+            cardId: 'card-1',
+            content: 'hola',
+            meaning: 'hello',
+            cardType: 'word',
+            examples: [],
+            mnemonics: [],
+            llmInstructions: null,
+            updatedAtIso: null,
+            groups: [],
+          },
+          availableGroups: [],
+        }),
+        loadCardLibraryData: vi.fn(),
+        loadCardLibraryGroupsData: vi.fn(),
+        loadGroupDetailData: vi.fn(),
+      },
+    );
+
+    expect(getAllowedSuggestionTypes(context)).toEqual(['append_example_sentence', 'append_mnemonic']);
   });
 });

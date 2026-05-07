@@ -7,7 +7,7 @@ import {
   cardLibrarySearchSchema,
 } from '$lib/schemas/cards.js';
 
-export const CHAT_SUGGESTION_TYPES = ['append_example_sentence'] as const;
+export const CHAT_SUGGESTION_TYPES = ['append_example_sentence', 'append_mnemonic'] as const;
 
 export const PROMPT_HISTORY_CAP = 10;
 
@@ -45,11 +45,19 @@ export const addCardsToGroupDrawerSurfaceContextSchema = z.object({
   selectedCardIds: selectedChatCardIdsSchema,
 });
 
+export const cardDetailDrawerSurfaceContextSchema = z.object({
+  surface: z.literal('card_detail_drawer'),
+  cardId: activeCardIdSchema,
+  sourceSurface: z.enum(['card_library_list', 'group_detail']),
+  groupId: activeGroupIdSchema.optional(),
+});
+
 export const chatSurfaceContextSchema = z.discriminatedUnion('surface', [
   cardLibraryListSurfaceContextSchema,
   groupsListSurfaceContextSchema,
   groupDetailSurfaceContextSchema,
   addCardsToGroupDrawerSurfaceContextSchema,
+  cardDetailDrawerSurfaceContextSchema,
 ]);
 
 export type ConversationHistoryTurn = z.infer<typeof conversationHistoryTurnSchema>;
@@ -74,7 +82,18 @@ export const appendExampleSentenceSuggestionSchema = z.object({
   }),
 });
 
-export const chatSuggestionSchema = z.discriminatedUnion('type', [appendExampleSentenceSuggestionSchema]);
+export const appendMnemonicSuggestionSchema = z.object({
+  type: z.literal('append_mnemonic'),
+  payload: z.object({
+    cardId: z.string().trim().min(1).max(128),
+    text: z.string().trim().min(1).max(500),
+  }),
+});
+
+export const chatSuggestionSchema = z.discriminatedUnion('type', [
+  appendExampleSentenceSuggestionSchema,
+  appendMnemonicSuggestionSchema,
+]);
 
 export type ChatRequest = z.infer<typeof chatRequestSchema>;
 export type ChatSuggestion = z.infer<typeof chatSuggestionSchema>;

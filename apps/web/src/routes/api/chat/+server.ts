@@ -4,6 +4,7 @@ import { env } from '$env/dynamic/private';
 import { chatRequestSchema } from '$lib/chat.js';
 import { resolveRouteContext } from '$lib/command-bar/shared.js';
 import { CardEntryRequestError, createCardEntryNoteForLanguage } from '$lib/server/card-entry.js';
+import { CardLibraryRequestError } from '$lib/server/cards.js';
 import { handleStudyPuckChatRequest } from '$lib/server/chat.js';
 
 export const POST: RequestHandler = async (event) => {
@@ -51,7 +52,7 @@ export const POST: RequestHandler = async (event) => {
 
     return json(response);
   } catch (requestError) {
-    if (requestError instanceof CardEntryRequestError) {
+    if (requestError instanceof CardEntryRequestError || requestError instanceof CardLibraryRequestError) {
       throw error(requestError.status, requestError.message);
     }
 
