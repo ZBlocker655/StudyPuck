@@ -18,6 +18,21 @@ describe('commandBar route context', () => {
     });
   });
 
+  it('distinguishes Card Library list, Groups list, and Group Detail routes', () => {
+    expect(resolveRouteContext('/zh/cards')).toMatchObject({
+      routeContextType: 'card_library_list',
+      label: 'Cards',
+    });
+    expect(resolveRouteContext('/zh/cards/groups')).toMatchObject({
+      routeContextType: 'groups_list',
+      label: 'Groups',
+    });
+    expect(resolveRouteContext('/zh/cards/groups/group-1')).toMatchObject({
+      routeContextType: 'group_detail',
+      label: 'Group Detail',
+    });
+  });
+
   it('keeps dashboard and settings in the global command context', () => {
     expect(resolveRouteContext('/zh')).toMatchObject({
       commandContext: 'global',
@@ -110,6 +125,52 @@ describe('commandBar entity context and conversation reset', () => {
     expect(stateAfter.activeNoteId).toBe(stateBefore.activeNoteId);
     expect(stateAfter.activeCardId).toBe(stateBefore.activeCardId);
     expect(stateAfter.activeFocusedField).toBe(stateBefore.activeFocusedField);
+  });
+
+  it('resets messages when the card-library surface scope changes', () => {
+    commandBar.setWorkspaceContext('es', null);
+    commandBar.setSurfaceContext({
+      surface: 'card_library_list',
+      filters: { searchText: '', groupIds: [], cardType: null },
+      selectedCardIds: [],
+    });
+    commandBar.pushAssistantMessage('Existing conversation');
+    commandBar.setSurfaceContext({
+      surface: 'group_detail',
+      groupId: 'group-1',
+      filters: { searchText: '', cardType: null },
+      selectedCardIds: [],
+    });
+
+    const state = getState();
+    expect(state.messages).toEqual([]);
+    expect(state.surfaceContextHint).toMatchObject({
+      surface: 'group_detail',
+      groupId: 'group-1',
+    });
+  });
+
+  it('keeps messages when only card-library filter inputs change within one surface', () => {
+    commandBar.setWorkspaceContext('es', null);
+    commandBar.setSurfaceContext({
+      surface: 'card_library_list',
+      filters: { searchText: '', groupIds: [], cardType: null },
+      selectedCardIds: [],
+    });
+    commandBar.pushAssistantMessage('Existing conversation');
+    commandBar.setSurfaceContext({
+      surface: 'card_library_list',
+      filters: { searchText: 'hola', groupIds: [], cardType: null },
+      selectedCardIds: ['card-1'],
+    });
+
+    const state = getState();
+    expect(state.messages).toHaveLength(1);
+    expect(state.surfaceContextHint).toMatchObject({
+      surface: 'card_library_list',
+      filters: { searchText: 'hola' },
+      selectedCardIds: ['card-1'],
+    });
   });
 
   it('getPromptHistory returns only user and assistant turns bounded to PROMPT_HISTORY_CAP', () => {

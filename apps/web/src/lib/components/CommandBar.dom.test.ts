@@ -56,6 +56,7 @@ describe('CommandBar component behavior', () => {
     commandBar.setPathname('/zh/card-review');
     commandBar.setWorkspaceContext(null, null);
     commandBar.setTargetHint(null, null);
+    commandBar.setSurfaceContext(null);
     requestStructuredChatResponse.mockReset();
   });
 

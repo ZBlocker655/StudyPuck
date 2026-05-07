@@ -9,7 +9,13 @@ import {
   type CommandDefinition,
   type RouteContext,
 } from '$lib/command-bar/shared.js';
-import { PROMPT_HISTORY_CAP, type ChatResponse, type ChatSuggestion, type ConversationHistoryTurn } from '$lib/chat.js';
+import {
+  PROMPT_HISTORY_CAP,
+  type ChatResponse,
+  type ChatSuggestion,
+  type ChatSurfaceContext,
+  type ConversationHistoryTurn,
+} from '$lib/chat.js';
 export type MessageRole = 'assistant' | 'system' | 'user';
 
 export type ConversationMessage = {
@@ -33,6 +39,7 @@ export type CommandBarState = {
   /** Last interacted draft-card hint within the current workspace. */
   activeCardId: string | null;
   activeFocusedField: string | null;
+  surfaceContextHint: ChatSurfaceContext | null;
   messages: ConversationMessage[];
   desktopConversationCollapsed: boolean;
   desktopContextWidth: number;
@@ -80,6 +87,7 @@ function initialState(): CommandBarState {
     activeNoteId: null,
     activeCardId: null,
     activeFocusedField: null,
+    surfaceContextHint: null,
     messages: [],
     desktopConversationCollapsed: false,
     desktopContextWidth: DEFAULT_CONTEXT_WIDTH.global,
@@ -94,6 +102,25 @@ function clamp(value: number, min: number, max: number) {
 
 function isAutocompleteInput(input: string) {
   return input.startsWith('/');
+}
+
+function getSurfaceContextScopeKey(surfaceContext: ChatSurfaceContext | null) {
+  if (!surfaceContext) {
+    return null;
+  }
+
+  switch (surfaceContext.surface) {
+    case 'card_library_list':
+    case 'groups_list':
+      return surfaceContext.surface;
+    case 'group_detail':
+    case 'add_cards_to_group_drawer':
+      return `${surfaceContext.surface}:${surfaceContext.groupId}`;
+  }
+}
+
+function areSurfaceContextsEqual(left: ChatSurfaceContext | null, right: ChatSurfaceContext | null) {
+  return JSON.stringify(left) === JSON.stringify(right);
 }
 
 function buildAssistantResponse(input: string, routeContext: RouteContext) {
@@ -181,7 +208,7 @@ function createCommandBarStore() {
 
         const contextChanged =
           state.routeContext.commandContext !== routeContext.commandContext ||
-          state.routeContext.label !== routeContext.label;
+          state.routeContext.routeContextType !== routeContext.routeContextType;
 
         if (!contextChanged) {
           return { ...state, routeContext };
@@ -192,6 +219,11 @@ function createCommandBarStore() {
         return {
           ...state,
           routeContext,
+          activeLanguageId: null,
+          activeNoteId: null,
+          activeCardId: null,
+          activeFocusedField: null,
+          surfaceContextHint: null,
           input: '',
           isWaiting: false,
           lastSubmittedInput: null,
@@ -200,6 +232,40 @@ function createCommandBarStore() {
           messages: [],
           desktopConversationCollapsed: false,
           desktopContextWidth: DEFAULT_CONTEXT_WIDTH[routeContext.commandContext],
+          mobileSheetOpen: false,
+          unreadCount: 0,
+        };
+      });
+    },
+
+    setSurfaceContext(surfaceContext: ChatSurfaceContext | null) {
+      store.update((state) => {
+        if (areSurfaceContextsEqual(state.surfaceContextHint, surfaceContext)) {
+          return state;
+        }
+
+        const scopeChanged =
+          getSurfaceContextScopeKey(state.surfaceContextHint) !== getSurfaceContextScopeKey(surfaceContext);
+
+        if (!scopeChanged) {
+          return {
+            ...state,
+            surfaceContextHint: surfaceContext,
+          };
+        }
+
+        clearPendingTimer();
+
+        return {
+          ...state,
+          surfaceContextHint: surfaceContext,
+          input: '',
+          isWaiting: false,
+          lastSubmittedInput: null,
+          autocompleteOpen: false,
+          highlightedIndex: 0,
+          messages: [],
+          desktopConversationCollapsed: false,
           mobileSheetOpen: false,
           unreadCount: 0,
         };

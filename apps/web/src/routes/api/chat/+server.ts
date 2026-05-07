@@ -32,6 +32,7 @@ export const POST: RequestHandler = async (event) => {
       noteId: parsedBody.data.noteId,
       cardId: parsedBody.data.cardId,
       focusedField: parsedBody.data.focusedField,
+      surfaceContext: parsedBody.data.surfaceContext,
       conversationHistory: parsedBody.data.conversationHistory,
       database: database as never,
       privateEnv: env,

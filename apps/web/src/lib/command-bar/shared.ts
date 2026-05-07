@@ -5,7 +5,9 @@ export type RouteContextType =
   | 'card-entry'
   | 'card-review'
   | 'translation-drills'
-  | 'cards'
+  | 'card_library_list'
+  | 'groups_list'
+  | 'group_detail'
   | 'settings'
   | 'stats';
 
@@ -104,6 +106,8 @@ export function defaultRouteContext(): RouteContext {
 export function resolveRouteContext(pathname: string): RouteContext {
   const segments = pathname.split('/').filter(Boolean);
   const section = segments[1];
+  const cardsSubsection = segments[2];
+  const groupId = segments[3];
 
   if (!section) {
     return {
@@ -127,7 +131,15 @@ export function resolveRouteContext(pathname: string): RouteContext {
         pathname,
       };
     case 'cards':
-      return { commandContext: 'global', routeContextType: 'cards', label: 'Cards', pathname };
+      if (cardsSubsection === 'groups' && groupId) {
+        return { commandContext: 'global', routeContextType: 'group_detail', label: 'Group Detail', pathname };
+      }
+
+      if (cardsSubsection === 'groups') {
+        return { commandContext: 'global', routeContextType: 'groups_list', label: 'Groups', pathname };
+      }
+
+      return { commandContext: 'global', routeContextType: 'card_library_list', label: 'Cards', pathname };
     case 'settings':
       return { commandContext: 'global', routeContextType: 'settings', label: 'Settings', pathname };
     case 'stats':

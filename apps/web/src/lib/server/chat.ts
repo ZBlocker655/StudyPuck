@@ -5,6 +5,7 @@ import {
   getCommandsForContext,
   type RouteContext,
 } from '$lib/command-bar/shared.js';
+import type { ChatSurfaceContext } from '$lib/chat.js';
 import { buildStructuredChatPrompt } from '$lib/server/ai-prompts/chat.js';
 import { resolveCanonicalChatContext, getAllowedSuggestionTypes, type CanonicalChatContext } from '$lib/server/chat-context.js';
 import { createAiService } from '$lib/server/ai-service.js';
@@ -34,6 +35,7 @@ type HandleStudyPuckChatRequestInput = {
   noteId?: string;
   cardId?: string;
   focusedField?: string;
+  surfaceContext?: ChatSurfaceContext;
   conversationHistory?: ConversationHistoryTurn[];
   database?: DatabaseClient;
   privateEnv: Record<string, string | undefined>;
@@ -177,6 +179,7 @@ export async function handleStudyPuckChatRequest(
       noteId: input.noteId,
       cardId: input.cardId,
       focusedField: input.focusedField,
+      surfaceContext: input.surfaceContext,
     },
     input.database ?? null,
   );

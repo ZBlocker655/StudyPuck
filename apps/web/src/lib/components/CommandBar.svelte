@@ -207,6 +207,7 @@
         noteId: effectiveNoteId,
         cardId: submissionState.activeCardId ?? undefined,
         focusedField: submissionState.activeFocusedField ?? undefined,
+        surfaceContext: submissionState.surfaceContextHint ?? undefined,
         conversationHistory: promptHistory.length > 0 ? promptHistory : undefined,
       });
 
