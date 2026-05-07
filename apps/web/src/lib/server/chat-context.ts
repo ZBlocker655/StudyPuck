@@ -9,6 +9,7 @@ import type { ChatSuggestionType, ChatSurfaceContext } from '$lib/chat.js';
 import type { RouteContext } from '$lib/command-bar/shared.js';
 import { CardEntryRequestError } from '$lib/server/card-entry.js';
 import {
+  loadActiveCardDetailData,
   loadCardLibraryData,
   loadCardLibraryGroupsData,
   loadGroupDetailData,
@@ -52,6 +53,12 @@ export type ChatCardSnapshot = {
   meaning: string | null;
   cardType: string | null;
   groupNames: string[];
+};
+
+export type ChatCardDetailSnapshot = ChatCardSnapshot & {
+  examples: string[];
+  mnemonics: string[];
+  llmInstructions: string | null;
 };
 
 export type ChatGroupSnapshot = {
@@ -123,6 +130,17 @@ export type AddCardsToGroupDrawerContext = {
   visibleCards: ChatCardSnapshot[];
 };
 
+export type CardDetailDrawerContext = {
+  contextType: 'card_detail_drawer';
+  languageId: string;
+  allowedSuggestionTypes: readonly ['append_example_sentence', 'append_mnemonic'];
+  sourceSurface: 'card_library_list' | 'group_detail';
+  likelyTargetCardId: string;
+  likelyTargetFocusedField: string | null;
+  card: ChatCardDetailSnapshot;
+  group: ChatGroupSnapshot | null;
+};
+
 export type NonActionableContext = {
   contextType: 'non_actionable';
   routeContextType: RouteContext['routeContextType'];
@@ -136,6 +154,7 @@ export type CanonicalChatContext =
   | GroupsListContext
   | GroupDetailContext
   | AddCardsToGroupDrawerContext
+  | CardDetailDrawerContext
   | NonActionableContext;
 
 // ── Context hint (derived from the client request) ───────────────────────────
@@ -150,12 +169,14 @@ export type ChatContextHint = {
 };
 
 type ResolverDeps = {
+  loadActiveCardDetailData: typeof loadActiveCardDetailData;
   loadCardLibraryData: typeof loadCardLibraryData;
   loadCardLibraryGroupsData: typeof loadCardLibraryGroupsData;
   loadGroupDetailData: typeof loadGroupDetailData;
 };
 
 const defaultResolverDeps: ResolverDeps = {
+  loadActiveCardDetailData,
   loadCardLibraryData,
   loadCardLibraryGroupsData,
   loadGroupDetailData,
@@ -210,6 +231,28 @@ function buildCardSnapshot(item: CardLibraryCardListItemData): ChatCardSnapshot 
     meaning: item.meaning,
     cardType: item.cardType,
     groupNames: item.groups.map((group) => group.groupName),
+  };
+}
+
+function buildCardDetailSnapshot(card: {
+  cardId: string;
+  content: string;
+  meaning: string | null;
+  cardType: string | null;
+  groups: CardLibraryGroupData[];
+  examples: string[];
+  mnemonics: string[];
+  llmInstructions: string | null;
+}): ChatCardDetailSnapshot {
+  return {
+    cardId: card.cardId,
+    content: card.content,
+    meaning: card.meaning,
+    cardType: card.cardType,
+    groupNames: card.groups.map((group) => group.groupName),
+    examples: card.examples,
+    mnemonics: card.mnemonics,
+    llmInstructions: card.llmInstructions,
   };
 }
 
@@ -273,7 +316,7 @@ async function resolveCardEntryNoteWorkspaceContext(
     noteContent: workspace.note.content,
     likelyTargetCardId,
     likelyTargetFocusedField: likelyTargetCardId ? hint.focusedField ?? null : null,
-    allowedSuggestionTypes: ['append_example_sentence'],
+    allowedSuggestionTypes: ['append_example_sentence', 'append_mnemonic'],
     exampleSentenceFormat,
     exampleSentenceFormatInstruction: buildCardEntryExampleSentenceFormatInstruction({
       exampleSentenceFormat,
@@ -411,6 +454,59 @@ async function resolveAddCardsToGroupDrawerContext(
   };
 }
 
+async function resolveCardDetailDrawerContext(
+  userId: string,
+  languageId: string,
+  hint: Pick<ChatContextHint, 'focusedField'>,
+  surfaceContext: Extract<ChatSurfaceContext, { surface: 'card_detail_drawer' }>,
+  database: DatabaseClient,
+  deps: ResolverDeps,
+): Promise<CardDetailDrawerContext> {
+  const activeCard = await deps.loadActiveCardDetailData(
+    userId,
+    languageId,
+    surfaceContext.cardId,
+    database,
+  );
+
+  let group: ChatGroupSnapshot | null = null;
+
+  if (surfaceContext.sourceSurface === 'group_detail') {
+    if (!surfaceContext.groupId) {
+      throw new CardEntryRequestError(400, 'Group detail chat context is missing the group identifier.');
+    }
+
+    const groupDetail = await deps.loadGroupDetailData(
+      userId,
+      languageId,
+      surfaceContext.groupId,
+      new URL(`/${languageId}/cards/groups/${surfaceContext.groupId}`, 'https://studypuck.test'),
+      database,
+    );
+
+    const cardBelongsToGroup = activeCard.card.groups.some(
+      (activeGroup) => activeGroup.groupId === groupDetail.group.groupId,
+    );
+
+    if (!cardBelongsToGroup) {
+      throw new CardEntryRequestError(404, 'Active card not found in the current group.');
+    }
+
+    group = buildGroupSnapshot(groupDetail.group);
+  }
+
+  return {
+    contextType: 'card_detail_drawer',
+    languageId,
+    allowedSuggestionTypes: ['append_example_sentence', 'append_mnemonic'],
+    sourceSurface: surfaceContext.sourceSurface,
+    likelyTargetCardId: activeCard.card.cardId,
+    likelyTargetFocusedField: hint.focusedField ?? null,
+    card: buildCardDetailSnapshot(activeCard.card),
+    group,
+  };
+}
+
 // ── Resolver: non-actionable (cards, stats, settings, workspace) ─────────────
 
 function resolveNonActionableContext(
@@ -508,6 +604,24 @@ export async function resolveCanonicalChatContext(
         languageId,
         surfaceContext,
         hint.routeContext,
+        database,
+        deps,
+      );
+    case 'card_detail_drawer':
+      if (
+        (surfaceContext.sourceSurface === 'card_library_list' &&
+          hint.routeContext.routeContextType !== 'card_library_list') ||
+        (surfaceContext.sourceSurface === 'group_detail' &&
+          hint.routeContext.routeContextType !== 'group_detail')
+      ) {
+        return resolveNonActionableContext(hint);
+      }
+
+      return resolveCardDetailDrawerContext(
+        userId,
+        languageId,
+        hint,
+        surfaceContext,
         database,
         deps,
       );

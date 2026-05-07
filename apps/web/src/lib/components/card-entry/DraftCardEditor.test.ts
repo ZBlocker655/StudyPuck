@@ -94,4 +94,50 @@ describe('DraftCardEditor suggestion application', () => {
     expect(await screen.findByText('Save failed')).toBeTruthy();
     expect(screen.getByText('The draft card could not be saved right now.')).toBeTruthy();
   });
+
+  it('applies append-mnemonic suggestions through the normal draft-card save endpoint', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        card: createCard({ mnemonics: ['Train tracks look like parallel rails carrying the word forward.'] }),
+        availableGroups: [],
+      }),
+    });
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(DraftCardEditor, {
+      props: {
+        lang: 'zh',
+        noteId: 'note-1',
+        card: createCard(),
+        availableGroups: [],
+      },
+    });
+
+    cardEntrySuggestionActions.applyAppendMnemonic(
+      'note-1',
+      'card-1',
+      'Train tracks look like parallel rails carrying the word forward.',
+    );
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/zh/card-entry/notes/note-1/draft-cards/card-1', {
+        method: 'PATCH',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: '火车',
+          meaning: 'train',
+          examples: [],
+          mnemonics: ['Train tracks look like parallel rails carrying the word forward.'],
+          llmInstructions: '',
+          groups: [],
+        }),
+      });
+    });
+
+    expect(await screen.findByDisplayValue('Train tracks look like parallel rails carrying the word forward.')).toBeTruthy();
+  });
 });

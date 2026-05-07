@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ActiveCardDrawer from './ActiveCardDrawer.svelte';
+import { activeCardSuggestionActions } from '$lib/stores/activeCardSuggestionActions.js';
 import type { CardLibraryCardDetailData, CardLibraryGroupData } from '$lib/server/cards.js';
 
 function createCard(overrides: Partial<CardLibraryCardDetailData> = {}): CardLibraryCardDetailData {
@@ -29,6 +30,11 @@ function createGroup(overrides: Partial<CardLibraryGroupData> = {}): CardLibrary
 }
 
 describe('ActiveCardDrawer', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    document.body.innerHTML = '';
+  });
+
   it('saves edited card content through the active-card PATCH endpoint', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -111,5 +117,51 @@ describe('ActiveCardDrawer', () => {
         method: 'DELETE',
       });
     });
+  });
+
+  it('applies append-mnemonic suggestions through the active-card PATCH endpoint', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        card: createCard({ mnemonics: ['Imagine two people talking while a memory hook keeps the phrase anchored.'] }),
+        availableGroups: [createGroup()],
+      }),
+    });
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(ActiveCardDrawer, {
+      props: {
+        lang: 'zh',
+        card: createCard(),
+        availableGroups: [createGroup()],
+        selectedIndex: 0,
+        totalCount: 1,
+      },
+    });
+
+    activeCardSuggestionActions.applyAppendMnemonic(
+      'card-1',
+      'Imagine two people talking while a memory hook keeps the phrase anchored.',
+    );
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/zh/cards/card-1', {
+        method: 'PATCH',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: '谈论',
+          meaning: 'to discuss',
+          examples: [],
+          mnemonics: ['Imagine two people talking while a memory hook keeps the phrase anchored.'],
+          llmInstructions: '',
+          groups: [],
+        }),
+      });
+    });
+
+    expect(await screen.findByDisplayValue('Imagine two people talking while a memory hook keeps the phrase anchored.')).toBeTruthy();
   });
 });

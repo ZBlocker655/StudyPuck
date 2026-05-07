@@ -81,11 +81,22 @@
 
   $: currentLang = $page.params.lang ?? '';
   $: commandBar.setWorkspaceContext(currentLang || null, null);
-  $: commandBar.setSurfaceContext({
-    surface: 'card_library_list',
-    filters: library.filters,
-    selectedCardIds,
-  });
+  $: commandBar.setSurfaceContext(
+    selectedCard
+      ? {
+          surface: 'card_detail_drawer',
+          sourceSurface: 'card_library_list',
+          cardId: selectedCard.cardId,
+        }
+      : {
+          surface: 'card_library_list',
+          filters: library.filters,
+          selectedCardIds,
+        },
+  );
+  $: if (!selectedCard) {
+    commandBar.setTargetHint(null, null);
+  }
 
   $: if (data.library !== previousLibraryData) {
     library = data.library;

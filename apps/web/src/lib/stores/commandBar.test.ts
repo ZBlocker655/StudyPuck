@@ -173,6 +173,28 @@ describe('commandBar entity context and conversation reset', () => {
     });
   });
 
+  it('resets messages when the active card drawer changes to a different card', () => {
+    commandBar.setWorkspaceContext('es', null);
+    commandBar.setSurfaceContext({
+      surface: 'card_detail_drawer',
+      sourceSurface: 'card_library_list',
+      cardId: 'card-1',
+    });
+    commandBar.pushAssistantMessage('Existing conversation');
+    commandBar.setSurfaceContext({
+      surface: 'card_detail_drawer',
+      sourceSurface: 'card_library_list',
+      cardId: 'card-2',
+    });
+
+    const state = getState();
+    expect(state.messages).toEqual([]);
+    expect(state.surfaceContextHint).toMatchObject({
+      surface: 'card_detail_drawer',
+      cardId: 'card-2',
+    });
+  });
+
   it('getPromptHistory returns only user and assistant turns bounded to PROMPT_HISTORY_CAP', () => {
     const mockState = {
       messages: [

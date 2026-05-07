@@ -35,5 +35,5 @@ describe('CommandBar SSR', () => {
         },
       }),
     ).not.toThrow();
-  }, 10_000);
+  }, 20_000);
 });

@@ -1,9 +1,19 @@
 <script lang="ts">
   import { createEventDispatcher, onDestroy, tick } from 'svelte';
+  import { get } from 'svelte/store';
   import CardListStatusBadge from '$lib/components/card-list/CardListStatusBadge.svelte';
   import type { CardLibraryCardDetailData, CardLibraryGroupData } from '$lib/server/cards.js';
+  import { commandBar } from '$lib/stores/commandBar.js';
+  import { activeCardSuggestionActions } from '$lib/stores/activeCardSuggestionActions.js';
 
   type EditableListField = 'examples' | 'mnemonics';
+  type ActiveCardFocusedField =
+    | 'content'
+    | 'meaning'
+    | 'groups'
+    | 'examples'
+    | 'mnemonics'
+    | 'llmInstructions';
   type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
   const dispatch = createEventDispatcher<{
@@ -45,6 +55,7 @@
   let groupFieldElement: HTMLDivElement | null = null;
   let groupSearchInput: HTMLInputElement | null = null;
   let llmInstructionsOpen = Boolean(card.llmInstructions);
+  let lastHandledSuggestionActionId = get(activeCardSuggestionActions)?.actionId ?? 0;
 
   function normalizeList(values: string[]) {
     return values.map((value) => value.trim()).filter(Boolean);
@@ -98,6 +109,7 @@
       return;
     }
 
+    commandBar.setTargetHint(card.cardId, 'groups');
     groupMenuOpen = true;
     await tick();
     groupSearchInput?.focus();
@@ -138,6 +150,7 @@
           : '';
 
   $: if (card !== previousCard) {
+    const previousCardId = previousCard.cardId;
     draft = structuredClone(card);
     previousCard = card;
     lastSavedPayload = serializePayload(buildPayloadFromCard(card));
@@ -151,6 +164,10 @@
     saveToken++;
     saveRequest = null;
     pendingPayloadSignature = null;
+
+    if (!disabled && previousCardId !== card.cardId) {
+      commandBar.setTargetHint(card.cardId, null);
+    }
   }
 
   $: if (!lastSavedPayload) {
@@ -264,6 +281,47 @@
     };
 
     await persistDraft();
+  }
+
+  function handleFieldFocus(field: ActiveCardFocusedField) {
+    if (!disabled) {
+      commandBar.setTargetHint(card.cardId, field);
+    }
+  }
+
+  async function applySuggestedListValue(field: EditableListField, text: string) {
+    if (disabled) {
+      return;
+    }
+
+    const trimmedText = text.trim();
+
+    if (!trimmedText) {
+      return;
+    }
+
+    saveToken++;
+    draft = {
+      ...draft,
+      [field]: [...draft[field], trimmedText],
+    };
+    commandBar.setTargetHint(card.cardId, field);
+
+    await persistDraft();
+  }
+
+  $: if (
+    $activeCardSuggestionActions &&
+    $activeCardSuggestionActions.actionId !== lastHandledSuggestionActionId &&
+    $activeCardSuggestionActions.cardId === card.cardId
+  ) {
+    lastHandledSuggestionActionId = $activeCardSuggestionActions.actionId;
+
+    if ($activeCardSuggestionActions.suggestionType === 'append_mnemonic') {
+      void applySuggestedListValue('mnemonics', $activeCardSuggestionActions.text);
+    } else {
+      void applySuggestedListValue('examples', $activeCardSuggestionActions.text);
+    }
   }
 
   async function toggleGroup(group: CardLibraryGroupData) {
@@ -509,6 +567,7 @@
         bind:value={draft.content}
         placeholder="Card content..."
         disabled={disabled || removePending}
+        on:focus={() => handleFieldFocus('content')}
         on:blur={() => void persistDraft()}
       ></textarea>
     </label>
@@ -522,6 +581,7 @@
         value={draft.meaning ?? ''}
         placeholder="Meaning..."
         disabled={disabled || removePending}
+        on:focus={() => handleFieldFocus('meaning')}
         on:input={(event) => {
           draft = {
             ...draft,
@@ -545,6 +605,7 @@
           class="active-card-drawer__inline-action"
           disabled={disabled || removePending}
           aria-expanded={groupMenuOpen}
+          on:focus={() => handleFieldFocus('groups')}
           on:click={() => void (groupMenuOpen ? closeGroupMenu() : openGroupMenu())}
         >
           + Add group
@@ -574,12 +635,13 @@
           <input
             type="text"
             class="active-card-drawer__group-search"
-            bind:this={groupSearchInput}
-            bind:value={groupQuery}
-            placeholder="Search groups..."
-            disabled={disabled || removePending}
-            on:keydown={handleGroupSearchKeydown}
-          />
+             bind:this={groupSearchInput}
+             bind:value={groupQuery}
+             placeholder="Search groups..."
+             disabled={disabled || removePending}
+             on:focus={() => handleFieldFocus('groups')}
+             on:keydown={handleGroupSearchKeydown}
+           />
 
           <div class="active-card-drawer__group-options stack" style="--stack-space: var(--space-1)">
             {#if filteredGroups.length === 0 && !canCreateGroup}
@@ -639,6 +701,7 @@
               value={example}
               placeholder="Example sentence..."
               disabled={disabled || removePending}
+              on:focus={() => handleFieldFocus('examples')}
               on:input={(event) => updateListValue('examples', index, event.currentTarget.value)}
               on:blur={() => void persistDraft()}
             ></textarea>
@@ -683,6 +746,7 @@
               value={mnemonic}
               placeholder="Mnemonic..."
               disabled={disabled || removePending}
+              on:focus={() => handleFieldFocus('mnemonics')}
               on:input={(event) => updateListValue('mnemonics', index, event.currentTarget.value)}
               on:blur={() => void persistDraft()}
             ></textarea>
@@ -710,6 +774,7 @@
           value={draft.llmInstructions ?? ''}
           placeholder="Optional guidance for future LLM work on this card..."
           disabled={disabled || removePending}
+          on:focus={() => handleFieldFocus('llmInstructions')}
           on:input={(event) => {
             draft = {
               ...draft,

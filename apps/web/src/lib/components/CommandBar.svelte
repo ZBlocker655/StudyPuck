@@ -7,6 +7,7 @@
   import { requestStructuredChatResponse } from '$lib/chat/client.js';
   import type { ChatSuggestion } from '$lib/chat.js';
   import { resolveCardEntryCommandResponse } from '$lib/command-bar/card-entry.js';
+  import { activeCardSuggestionActions } from '$lib/stores/activeCardSuggestionActions.js';
   import { cardEntrySuggestionActions } from '$lib/stores/cardEntrySuggestionActions.js';
   import { cardEntryShellCounts } from '$lib/stores/cardEntryShell.js';
   import { cardEntryUi } from '$lib/stores/cardEntryUi.js';
@@ -311,6 +312,8 @@
     switch (suggestion.type) {
       case 'append_example_sentence':
         return 'Add to examples';
+      case 'append_mnemonic':
+        return 'Add to mnemonics';
       default:
         return 'Apply';
     }
@@ -319,6 +322,7 @@
   function getSuggestionText(suggestion: ChatSuggestion): string {
     switch (suggestion.type) {
       case 'append_example_sentence':
+      case 'append_mnemonic':
         return suggestion.payload.text;
       default:
         return '';
@@ -330,18 +334,37 @@
    * it into the active draft-card editor's normal save path.
    */
   async function handleSuggestionClick(suggestion: ChatSuggestion) {
-    if (suggestion.type === 'append_example_sentence') {
+    if (suggestion.type === 'append_example_sentence' || suggestion.type === 'append_mnemonic') {
       const activeNoteId = $commandBar.activeNoteId;
 
-      if (!activeNoteId) {
+      if (activeNoteId) {
+        if (suggestion.type === 'append_mnemonic') {
+          cardEntrySuggestionActions.applyAppendMnemonic(
+            activeNoteId,
+            suggestion.payload.cardId,
+            suggestion.payload.text,
+          );
+        } else {
+          cardEntrySuggestionActions.applyAppendExampleSentence(
+            activeNoteId,
+            suggestion.payload.cardId,
+            suggestion.payload.text,
+          );
+        }
+
         return;
       }
 
-      cardEntrySuggestionActions.applyAppendExampleSentence(
-        activeNoteId,
-        suggestion.payload.cardId,
-        suggestion.payload.text,
-      );
+      if ($commandBar.surfaceContextHint?.surface === 'card_detail_drawer') {
+        if (suggestion.type === 'append_mnemonic') {
+          activeCardSuggestionActions.applyAppendMnemonic(suggestion.payload.cardId, suggestion.payload.text);
+        } else {
+          activeCardSuggestionActions.applyAppendExampleSentence(
+            suggestion.payload.cardId,
+            suggestion.payload.text,
+          );
+        }
+      }
     }
   }
 

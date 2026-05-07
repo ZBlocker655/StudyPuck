@@ -11,7 +11,7 @@ describe('buildStructuredChatPrompt', () => {
       noteContent: 'Travel vocabulary',
       likelyTargetCardId: 'card-2',
       likelyTargetFocusedField: 'examples',
-      allowedSuggestionTypes: ['append_example_sentence'],
+      allowedSuggestionTypes: ['append_example_sentence', 'append_mnemonic'],
       exampleSentenceFormat: 'sentence_translation',
       exampleSentenceFormatInstruction: 'Format every example as "<sentence> | <translation>". Do not add transliteration.',
       draftCards: [
@@ -37,11 +37,12 @@ describe('buildStructuredChatPrompt', () => {
     const prompt = buildStructuredChatPrompt({
       canonicalContext,
       userInput: 'Give me another example sentence',
-      allowedSuggestionTypes: ['append_example_sentence'],
+      allowedSuggestionTypes: ['append_example_sentence', 'append_mnemonic'],
     });
 
     expect(prompt.userPrompt).toContain('"contextType": "card_entry_note_workspace"');
     expect(prompt.userPrompt).toContain('"cardId":"string"');
+    expect(prompt.userPrompt).toContain('replace the type value with "append_mnemonic"');
     expect(prompt.userPrompt).toContain('"cardId": "card-1"');
     expect(prompt.userPrompt).toContain('"cardId": "card-2"');
     expect(prompt.userPrompt).toContain('ask a clarifying question instead of guessing');
