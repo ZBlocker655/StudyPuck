@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import { resolveRouteContext } from '$lib/command-bar/shared.js';
-import { getAllowedSuggestionTypes, resolveCanonicalChatContext } from './chat-context.js';
+import {
+  areChatSuggestionsValidForContext,
+  getAllowedSuggestionTypes,
+  resolveCanonicalChatContext,
+} from './chat-context.js';
 
 describe('resolveCanonicalChatContext', () => {
   it('returns a non-actionable context when no database is provided', async () => {
@@ -112,6 +116,7 @@ describe('resolveCanonicalChatContext', () => {
     expect(context).toMatchObject({
       contextType: 'card_library_list',
       languageId: 'es',
+      allowedSuggestionTypes: ['create_group'],
       listState: {
         searchText: 'tra',
         groupFilters: [{ groupId: 'group-1', groupName: 'Travel' }],
@@ -159,6 +164,7 @@ describe('resolveCanonicalChatContext', () => {
     expect(context).toMatchObject({
       contextType: 'groups_list',
       languageId: 'es',
+      allowedSuggestionTypes: ['create_group'],
       listState: {
         scope: 'all_groups_for_language',
         ordering: 'group_name_asc',
@@ -215,7 +221,7 @@ describe('resolveCanonicalChatContext', () => {
               groupIds: [],
               cardType: 'word',
             },
-            availableGroups: [],
+            availableGroups: [{ groupId: 'group-2', groupName: 'Favorites', activeCardCount: 3 }],
           },
           addableCards: {
             items: [],
@@ -228,10 +234,12 @@ describe('resolveCanonicalChatContext', () => {
     expect(context).toMatchObject({
       contextType: 'group_detail',
       languageId: 'es',
+      allowedSuggestionTypes: ['create_group', 'add_card_to_group', 'remove_card_from_group'],
       group: {
         groupId: 'group-1',
         groupName: 'Greetings',
       },
+      availableGroupsForAddition: [{ groupId: 'group-2', groupName: 'Favorites' }],
       listState: {
         searchText: 'hol',
         cardType: 'word',
@@ -308,6 +316,7 @@ describe('resolveCanonicalChatContext', () => {
     expect(context).toMatchObject({
       contextType: 'add_cards_to_group_drawer',
       languageId: 'es',
+      allowedSuggestionTypes: ['add_card_to_group'],
       group: {
         groupId: 'group-1',
         groupName: 'Greetings',
@@ -352,7 +361,10 @@ describe('resolveCanonicalChatContext', () => {
             updatedAtIso: null,
             groups: [{ groupId: 'group-1', groupName: 'Greetings' }],
           },
-          availableGroups: [{ groupId: 'group-1', groupName: 'Greetings' }],
+          availableGroups: [
+            { groupId: 'group-1', groupName: 'Greetings' },
+            { groupId: 'group-2', groupName: 'Favorites' },
+          ],
         }),
         loadCardLibraryData: vi.fn(),
         loadCardLibraryGroupsData: vi.fn(),
@@ -388,13 +400,20 @@ describe('resolveCanonicalChatContext', () => {
       sourceSurface: 'group_detail',
       likelyTargetCardId: 'card-1',
       likelyTargetFocusedField: 'mnemonics',
-      allowedSuggestionTypes: ['append_example_sentence', 'append_mnemonic'],
+      allowedSuggestionTypes: [
+        'append_example_sentence',
+        'append_mnemonic',
+        'add_card_to_group',
+        'remove_card_from_group',
+      ],
       card: {
         cardId: 'card-1',
         content: 'hola',
         examples: ['Hola, Marta.'],
         mnemonics: ['Think of waving hello in a hall.'],
       },
+      membershipGroups: [{ groupId: 'group-1', groupName: 'Greetings' }],
+      addableGroups: [{ groupId: 'group-2', groupName: 'Favorites' }],
       group: {
         groupId: 'group-1',
         groupName: 'Greetings',
@@ -404,7 +423,7 @@ describe('resolveCanonicalChatContext', () => {
 });
 
 describe('getAllowedSuggestionTypes', () => {
-  it('returns empty array for card-library contexts', async () => {
+  it('returns create-group suggestions for card-library contexts', async () => {
     const context = await resolveCanonicalChatContext(
       'user-1',
       {
@@ -439,10 +458,10 @@ describe('getAllowedSuggestionTypes', () => {
       },
     );
 
-    expect(getAllowedSuggestionTypes(context)).toEqual([]);
+    expect(getAllowedSuggestionTypes(context)).toEqual(['create_group']);
   });
 
-  it('returns mnemonic + example suggestion types for card-detail drawer context', async () => {
+  it('returns drawer suggestion types for card-detail drawer context', async () => {
     const context = await resolveCanonicalChatContext(
       'user-1',
       {
@@ -476,6 +495,73 @@ describe('getAllowedSuggestionTypes', () => {
       },
     );
 
-    expect(getAllowedSuggestionTypes(context)).toEqual(['append_example_sentence', 'append_mnemonic']);
+    expect(getAllowedSuggestionTypes(context)).toEqual([
+      'append_example_sentence',
+      'append_mnemonic',
+      'add_card_to_group',
+      'remove_card_from_group',
+    ]);
+  });
+});
+
+describe('areChatSuggestionsValidForContext', () => {
+  it('accepts only in-scope group-management suggestions for group detail context', () => {
+    const context = {
+      contextType: 'group_detail',
+      languageId: 'es',
+      allowedSuggestionTypes: ['create_group', 'add_card_to_group', 'remove_card_from_group'],
+      group: {
+        groupId: 'group-1',
+        groupName: 'Greetings',
+        description: 'Hello and goodbye',
+        activeCardCount: 1,
+      },
+      availableGroupsForAddition: [{ groupId: 'group-2', groupName: 'Favorites' }],
+      listState: {
+        searchText: '',
+        cardType: null,
+        scopeGroupId: 'group-1',
+        ordering: 'updated_desc',
+      },
+      resultCount: 1,
+      selectedCardIds: ['card-1'],
+      selectedCards: [
+        { cardId: 'card-1', content: 'hola', meaning: 'hello', cardType: 'word', groupNames: ['Greetings'] },
+      ],
+      visibleCards: [
+        { cardId: 'card-1', content: 'hola', meaning: 'hello', cardType: 'word', groupNames: ['Greetings'] },
+      ],
+    } as Awaited<ReturnType<typeof resolveCanonicalChatContext>>;
+
+    expect(
+      areChatSuggestionsValidForContext(context, [
+        {
+          type: 'add_card_to_group',
+          payload: { cardId: 'card-1', groupId: 'group-2' },
+        },
+        {
+          type: 'remove_card_from_group',
+          payload: { cardId: 'card-1', groupId: 'group-1' },
+        },
+      ]),
+    ).toBe(true);
+
+    expect(
+      areChatSuggestionsValidForContext(context, [
+        {
+          type: 'add_card_to_group',
+          payload: { cardId: 'card-999', groupId: 'group-2' },
+        },
+      ]),
+    ).toBe(false);
+
+    expect(
+      areChatSuggestionsValidForContext(context, [
+        {
+          type: 'remove_card_from_group',
+          payload: { cardId: 'card-1', groupId: 'group-999' },
+        },
+      ]),
+    ).toBe(false);
   });
 });

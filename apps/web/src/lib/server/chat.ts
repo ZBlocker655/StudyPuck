@@ -7,7 +7,12 @@ import {
 } from '$lib/command-bar/shared.js';
 import type { ChatSurfaceContext } from '$lib/chat.js';
 import { buildStructuredChatPrompt } from '$lib/server/ai-prompts/chat.js';
-import { resolveCanonicalChatContext, getAllowedSuggestionTypes, type CanonicalChatContext } from '$lib/server/chat-context.js';
+import {
+  areChatSuggestionsValidForContext,
+  resolveCanonicalChatContext,
+  getAllowedSuggestionTypes,
+  type CanonicalChatContext,
+} from '$lib/server/chat-context.js';
 import { createAiService } from '$lib/server/ai-service.js';
 import { z } from 'zod';
 
@@ -61,8 +66,21 @@ function parseSlashCommand(input: string) {
 function normalizeChatResponse(
   response: unknown,
   allowedSuggestionTypes: readonly ChatSuggestionType[],
+  canonicalContext?: CanonicalChatContext,
 ) {
-  return createChatResponseSchema(allowedSuggestionTypes).parse(response);
+  const responseSchema = createChatResponseSchema(allowedSuggestionTypes).superRefine((value, refinementContext) => {
+    if (!canonicalContext || areChatSuggestionsValidForContext(canonicalContext, value.suggestions)) {
+      return;
+    }
+
+    refinementContext.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['suggestions'],
+      message: 'One or more suggestions reference cards or groups outside the canonical context.',
+    });
+  });
+
+  return responseSchema.parse(response);
 }
 
 function formatCommandList(commands: string[]) {
@@ -185,7 +203,19 @@ export async function handleStudyPuckChatRequest(
   );
 
   const allowedSuggestionTypes = getAllowedSuggestionTypes(canonicalContext);
-  const responseSchema = createChatResponseSchema(allowedSuggestionTypes);
+  const responseSchema = createChatResponseSchema(allowedSuggestionTypes).superRefine(
+    (value, refinementContext) => {
+      if (areChatSuggestionsValidForContext(canonicalContext, value.suggestions)) {
+        return;
+      }
+
+      refinementContext.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['suggestions'],
+        message: 'One or more suggestions reference cards or groups outside the canonical context.',
+      });
+    },
+  );
   const prompt = buildStructuredChatPrompt({
     canonicalContext,
     userInput: input.input,
@@ -211,5 +241,5 @@ export async function handleStudyPuckChatRequest(
     responseSchema,
   });
 
-  return normalizeChatResponse(response, allowedSuggestionTypes);
+  return normalizeChatResponse(response, allowedSuggestionTypes, canonicalContext);
 }

@@ -6,8 +6,15 @@ import {
   cardLibraryFiltersSchema,
   cardLibrarySearchSchema,
 } from '$lib/schemas/cards.js';
+import { editableCardOptionalTextSchema, editableGroupNameSchema } from '$lib/schemas/card-entry.js';
 
-export const CHAT_SUGGESTION_TYPES = ['append_example_sentence', 'append_mnemonic'] as const;
+export const CHAT_SUGGESTION_TYPES = [
+  'append_example_sentence',
+  'append_mnemonic',
+  'create_group',
+  'add_card_to_group',
+  'remove_card_from_group',
+] as const;
 
 export const PROMPT_HISTORY_CAP = 10;
 
@@ -90,9 +97,36 @@ export const appendMnemonicSuggestionSchema = z.object({
   }),
 });
 
+export const createGroupSuggestionSchema = z.object({
+  type: z.literal('create_group'),
+  payload: z.object({
+    name: editableGroupNameSchema,
+    description: editableCardOptionalTextSchema,
+  }),
+});
+
+export const addCardToGroupSuggestionSchema = z.object({
+  type: z.literal('add_card_to_group'),
+  payload: z.object({
+    cardId: activeCardIdSchema,
+    groupId: activeGroupIdSchema,
+  }),
+});
+
+export const removeCardFromGroupSuggestionSchema = z.object({
+  type: z.literal('remove_card_from_group'),
+  payload: z.object({
+    cardId: activeCardIdSchema,
+    groupId: activeGroupIdSchema,
+  }),
+});
+
 export const chatSuggestionSchema = z.discriminatedUnion('type', [
   appendExampleSentenceSuggestionSchema,
   appendMnemonicSuggestionSchema,
+  createGroupSuggestionSchema,
+  addCardToGroupSuggestionSchema,
+  removeCardFromGroupSuggestionSchema,
 ]);
 
 export type ChatRequest = z.infer<typeof chatRequestSchema>;

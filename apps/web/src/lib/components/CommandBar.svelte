@@ -314,6 +314,12 @@
         return 'Add to examples';
       case 'append_mnemonic':
         return 'Add to mnemonics';
+      case 'create_group':
+        return 'Create group';
+      case 'add_card_to_group':
+        return 'Add card to group';
+      case 'remove_card_from_group':
+        return 'Remove from group';
       default:
         return 'Apply';
     }
@@ -324,8 +330,30 @@
       case 'append_example_sentence':
       case 'append_mnemonic':
         return suggestion.payload.text;
+      case 'create_group':
+        return suggestion.payload.name;
+      case 'add_card_to_group':
+        return `Card ${suggestion.payload.cardId} -> Group ${suggestion.payload.groupId}`;
+      case 'remove_card_from_group':
+        return `Card ${suggestion.payload.cardId} <- Group ${suggestion.payload.groupId}`;
       default:
         return '';
+    }
+  }
+
+  async function postSuggestionAction(path: string, body: unknown) {
+    const response = await fetch(path, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    const responseBody = (await response.json().catch(() => null)) as { message?: string } | null;
+
+    if (!response.ok) {
+      throw new Error(responseBody?.message ?? 'The suggested action could not be completed right now.');
     }
   }
 
@@ -334,37 +362,97 @@
    * it into the active draft-card editor's normal save path.
    */
   async function handleSuggestionClick(suggestion: ChatSuggestion) {
-    if (suggestion.type === 'append_example_sentence' || suggestion.type === 'append_mnemonic') {
-      const activeNoteId = $commandBar.activeNoteId;
+    const currentLang = $page.params.lang;
 
-      if (activeNoteId) {
-        if (suggestion.type === 'append_mnemonic') {
-          cardEntrySuggestionActions.applyAppendMnemonic(
-            activeNoteId,
-            suggestion.payload.cardId,
-            suggestion.payload.text,
-          );
-        } else {
-          cardEntrySuggestionActions.applyAppendExampleSentence(
-            activeNoteId,
-            suggestion.payload.cardId,
-            suggestion.payload.text,
-          );
+    try {
+      if (suggestion.type === 'append_example_sentence' || suggestion.type === 'append_mnemonic') {
+        const activeNoteId = $commandBar.activeNoteId;
+
+        if (activeNoteId) {
+          if (suggestion.type === 'append_mnemonic') {
+            cardEntrySuggestionActions.applyAppendMnemonic(
+              activeNoteId,
+              suggestion.payload.cardId,
+              suggestion.payload.text,
+            );
+          } else {
+            cardEntrySuggestionActions.applyAppendExampleSentence(
+              activeNoteId,
+              suggestion.payload.cardId,
+              suggestion.payload.text,
+            );
+          }
+
+          return;
+        }
+
+        if ($commandBar.surfaceContextHint?.surface === 'card_detail_drawer') {
+          if (suggestion.type === 'append_mnemonic') {
+            activeCardSuggestionActions.applyAppendMnemonic(suggestion.payload.cardId, suggestion.payload.text);
+          } else {
+            activeCardSuggestionActions.applyAppendExampleSentence(
+              suggestion.payload.cardId,
+              suggestion.payload.text,
+            );
+          }
         }
 
         return;
       }
 
-      if ($commandBar.surfaceContextHint?.surface === 'card_detail_drawer') {
-        if (suggestion.type === 'append_mnemonic') {
-          activeCardSuggestionActions.applyAppendMnemonic(suggestion.payload.cardId, suggestion.payload.text);
-        } else {
-          activeCardSuggestionActions.applyAppendExampleSentence(
-            suggestion.payload.cardId,
-            suggestion.payload.text,
-          );
-        }
+      if (!currentLang) {
+        return;
       }
+
+      if (suggestion.type === 'create_group') {
+        await postSuggestionAction(`/${currentLang}/cards/groups/actions`, {
+          action: 'create',
+          groupName: suggestion.payload.name,
+          description: suggestion.payload.description,
+        });
+        await invalidateAll();
+        commandBar.pushAssistantMessage(`Created group "${suggestion.payload.name}".`);
+        return;
+      }
+
+      if (suggestion.type === 'add_card_to_group') {
+        if ($commandBar.surfaceContextHint?.surface === 'card_detail_drawer') {
+          activeCardSuggestionActions.applyAddCardToGroup(
+            suggestion.payload.cardId,
+            suggestion.payload.groupId,
+          );
+          return;
+        }
+
+        await postSuggestionAction(`/${currentLang}/cards/groups/${suggestion.payload.groupId}/actions`, {
+          action: 'add-cards',
+          cardIds: [suggestion.payload.cardId],
+        });
+        await invalidateAll();
+        commandBar.pushAssistantMessage('Added the card to the suggested group.');
+        return;
+      }
+
+      if (suggestion.type === 'remove_card_from_group') {
+        if ($commandBar.surfaceContextHint?.surface === 'card_detail_drawer') {
+          activeCardSuggestionActions.applyRemoveCardFromGroup(
+            suggestion.payload.cardId,
+            suggestion.payload.groupId,
+          );
+          return;
+        }
+
+        await postSuggestionAction(`/${currentLang}/cards/groups/${suggestion.payload.groupId}/actions`, {
+          action: 'remove-cards',
+          cardIds: [suggestion.payload.cardId],
+        });
+        await invalidateAll();
+        commandBar.pushAssistantMessage('Removed the card from the suggested group.');
+      }
+    } catch (error) {
+      commandBar.pushAssistantMessage(
+        error instanceof Error ? error.message : 'The suggested action could not be completed right now.',
+      );
     }
   }
 
