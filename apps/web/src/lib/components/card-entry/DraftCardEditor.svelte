@@ -1,6 +1,19 @@
 <script lang="ts">
   import { createEventDispatcher, onDestroy, tick } from 'svelte';
   import { get } from 'svelte/store';
+  import {
+    addEditableGroup,
+    addEditableListValue,
+    appendEditableListValue,
+    buildEditableCardPayload,
+    canCreateEditorGroup,
+    createEditableGroupFromQuery,
+    filterAvailableEditorGroups,
+    removeEditableGroup,
+    removeEditableListValue,
+    type EditableListField,
+    updateEditableListValue,
+  } from '$lib/card-editor/shared.js';
   import type {
     CardEntryGroupData,
     CardEntryNoteDraftCardData,
@@ -9,7 +22,6 @@
   import { commandBar } from '$lib/stores/commandBar.js';
   import { cardEntrySuggestionActions } from '$lib/stores/cardEntrySuggestionActions.js';
 
-  type EditableListField = 'examples' | 'mnemonics';
   type DraftCardFocusedField =
     | 'content'
     | 'meaning'
@@ -70,16 +82,8 @@
     }
   }
 
-  $: normalizedGroupQuery = groupQuery.trim().toLocaleLowerCase();
-  $: selectedGroupIds = new Set(draft.groups.map((group) => group.groupId));
-  $: filteredGroups = availableGroups.filter(
-    (group) =>
-      !selectedGroupIds.has(group.groupId) &&
-      group.groupName.toLocaleLowerCase().includes(normalizedGroupQuery)
-  );
-  $: canCreateGroup =
-    normalizedGroupQuery.length > 0 &&
-    !availableGroups.some((group) => group.groupName.trim().toLocaleLowerCase() === normalizedGroupQuery);
+  $: filteredGroups = filterAvailableEditorGroups(availableGroups, draft.groups, groupQuery);
+  $: canCreateGroup = canCreateEditorGroup(availableGroups, groupQuery);
   $: signpostLabel =
     saveState === 'saving'
       ? 'Saving...'
@@ -103,10 +107,6 @@
     savedIndicatorTimer = setTimeout(() => {
       saveState = 'idle';
     }, 2_000);
-  }
-
-  function normalizeList(values: string[]) {
-    return values.map((value) => value.trim()).filter(Boolean);
   }
 
   function closeGroupMenu() {
@@ -140,17 +140,7 @@
   }
 
   function buildPayload() {
-    return {
-      content: draft.content,
-      meaning: draft.meaning ?? '',
-      examples: normalizeList(draft.examples),
-      mnemonics: normalizeList(draft.mnemonics),
-      llmInstructions: draft.llmInstructions ?? '',
-      groups: draft.groups.map((group) => ({
-        groupId: group.groupId?.trim() ? group.groupId : null,
-        groupName: group.groupName,
-      })),
-    };
+    return buildEditableCardPayload(draft);
   }
 
   async function persistDraft() {
@@ -207,12 +197,7 @@
   }
 
   function updateListValue(field: EditableListField, index: number, value: string) {
-    const nextValues = [...draft[field]];
-    nextValues[index] = value;
-    draft = {
-      ...draft,
-      [field]: nextValues,
-    };
+    draft = updateEditableListValue(draft, field, index, value);
   }
 
   function addListValue(field: EditableListField) {
@@ -220,17 +205,11 @@
     // user clicked "+").  Without this, a stale save response can overwrite the
     // newly-added empty item before the user has a chance to type into it.
     saveToken++;
-    draft = {
-      ...draft,
-      [field]: [...draft[field], ''],
-    };
+    draft = addEditableListValue(draft, field);
   }
 
   async function removeListValue(field: EditableListField, index: number) {
-    draft = {
-      ...draft,
-      [field]: draft[field].filter((_, currentIndex) => currentIndex !== index),
-    };
+    draft = removeEditableListValue(draft, field, index);
 
     await persistDraft();
   }
@@ -248,17 +227,14 @@
       return;
     }
 
-    const trimmedText = text.trim();
+    const nextDraft = appendEditableListValue(draft, field, text);
 
-    if (!trimmedText) {
+    if (nextDraft === draft) {
       return;
     }
 
     saveToken++;
-    draft = {
-      ...draft,
-      [field]: [...draft[field], trimmedText],
-    };
+    draft = nextDraft;
     commandBar.setTargetHint(card.cardId, field);
 
     await persistDraft();
@@ -283,10 +259,7 @@
       return;
     }
 
-    draft = {
-      ...draft,
-      groups: [...draft.groups, group].sort((left, right) => left.groupName.localeCompare(right.groupName)),
-    };
+    draft = addEditableGroup(draft, group);
 
     closeGroupMenu();
     await persistDraft();
@@ -297,16 +270,7 @@
       return;
     }
 
-    draft = {
-      ...draft,
-      groups: [
-        ...draft.groups,
-        {
-          groupId: '',
-          groupName: groupQuery.trim(),
-        },
-      ],
-    };
+    draft = createEditableGroupFromQuery(draft, groupQuery);
 
     closeGroupMenu();
     await persistDraft();
@@ -317,10 +281,7 @@
       return;
     }
 
-    draft = {
-      ...draft,
-      groups: draft.groups.filter((group) => group.groupId !== groupId),
-    };
+    draft = removeEditableGroup(draft, groupId);
 
     await persistDraft();
   }

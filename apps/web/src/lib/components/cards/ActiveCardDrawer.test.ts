@@ -246,4 +246,49 @@ describe('ActiveCardDrawer', () => {
       });
     });
   });
+
+  it('creates a group from the typed query through the active-card PATCH endpoint', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        card: createCard({ groups: [{ groupId: 'group-9', groupName: 'Travel' }] }),
+        availableGroups: [{ groupId: 'group-9', groupName: 'Travel' }],
+      }),
+    });
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(ActiveCardDrawer, {
+      props: {
+        lang: 'zh',
+        card: createCard(),
+        availableGroups: [],
+        selectedIndex: 0,
+        totalCount: 1,
+      },
+    });
+
+    await fireEvent.click(screen.getByRole('button', { name: '+ Add group' }));
+    await fireEvent.input(screen.getByPlaceholderText('Search groups...'), {
+      target: { value: 'Travel' },
+    });
+    await fireEvent.click(screen.getByRole('button', { name: '+ Create "Travel"' }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/zh/cards/card-1', {
+        method: 'PATCH',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: '谈论',
+          meaning: 'to discuss',
+          examples: [],
+          mnemonics: [],
+          llmInstructions: '',
+          groups: [{ groupId: null, groupName: 'Travel' }],
+        }),
+      });
+    });
+  });
 });
