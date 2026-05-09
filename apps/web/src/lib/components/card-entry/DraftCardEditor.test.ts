@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { render, screen, waitFor } from '@testing-library/svelte';
+import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import DraftCardEditor from './DraftCardEditor.svelte';
 import { cardEntrySuggestionActions } from '$lib/stores/cardEntrySuggestionActions.js';
@@ -139,5 +139,49 @@ describe('DraftCardEditor suggestion application', () => {
     });
 
     expect(await screen.findByDisplayValue('Train tracks look like parallel rails carrying the word forward.')).toBeTruthy();
+  });
+
+  it('creates a group from the typed query through the normal draft-card save endpoint', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        card: createCard({ groups: [{ groupId: 'group-9', groupName: 'Travel' }] }),
+        availableGroups: [{ groupId: 'group-9', groupName: 'Travel' }],
+      }),
+    });
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(DraftCardEditor, {
+      props: {
+        lang: 'zh',
+        noteId: 'note-1',
+        card: createCard(),
+        availableGroups: [],
+      },
+    });
+
+    await fireEvent.click(screen.getByRole('button', { name: '+ Add group' }));
+    await fireEvent.input(screen.getByPlaceholderText('Search groups...'), {
+      target: { value: 'Travel' },
+    });
+    await fireEvent.click(screen.getByRole('button', { name: '+ Create "Travel"' }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/zh/card-entry/notes/note-1/draft-cards/card-1', {
+        method: 'PATCH',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: '火车',
+          meaning: 'train',
+          examples: [],
+          mnemonics: [],
+          llmInstructions: '',
+          groups: [{ groupId: null, groupName: 'Travel' }],
+        }),
+      });
+    });
   });
 });
