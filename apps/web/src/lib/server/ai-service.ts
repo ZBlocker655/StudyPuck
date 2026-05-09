@@ -95,14 +95,54 @@ export class AiServiceConfigurationError extends Error {
 export class AiServiceRequestError extends Error {
   providerName: AiProviderName;
   cause: unknown;
+  attempts: AiProviderAttemptFailure[];
 
-  constructor(providerName: AiProviderName, message: string, cause?: unknown) {
+  constructor(
+    providerName: AiProviderName,
+    message: string,
+    cause?: unknown,
+    attempts: AiProviderAttemptFailure[] = [],
+  ) {
     super(message);
     this.name = 'AiServiceRequestError';
     this.providerName = providerName;
     this.cause = cause;
+    this.attempts = attempts;
   }
 }
+
+export type AiStructuredResponseFailureStage = 'json_extract' | 'json_parse' | 'schema_validation';
+
+export class AiStructuredResponseError extends Error {
+  stage: AiStructuredResponseFailureStage;
+  cause: unknown;
+  rawTextPreview: string | null;
+  issues: z.ZodIssue[];
+
+  constructor(input: {
+    stage: AiStructuredResponseFailureStage;
+    message: string;
+    cause?: unknown;
+    rawTextPreview?: string | null;
+    issues?: z.ZodIssue[];
+  }) {
+    super(input.message);
+    this.name = 'AiStructuredResponseError';
+    this.stage = input.stage;
+    this.cause = input.cause;
+    this.rawTextPreview = input.rawTextPreview ?? null;
+    this.issues = input.issues ?? [];
+  }
+}
+
+export type AiProviderAttemptFailure = {
+  provider: AiProviderName;
+  model: string;
+  message: string;
+  stage: AiStructuredResponseFailureStage | 'provider_request';
+  rawTextPreview: string | null;
+  issues: z.ZodIssue[];
+};
 
 function normalizeProviderOrder(primaryProvider: AiProviderName): AiProviderName[] {
   return primaryProvider === 'openai' ? ['openai', 'gemini'] : ['gemini', 'openai'];
@@ -159,9 +199,50 @@ function extractJsonText(rawText: string): string {
   throw new Error('The AI response did not contain valid JSON.');
 }
 
+function buildRawTextPreview(rawText: string): string {
+  const normalized = rawText.replace(/\s+/g, ' ').trim();
+  return normalized.length > 400 ? `${normalized.slice(0, 400)}…` : normalized;
+}
+
 async function parseStructuredResponse<T>(rawText: string, responseSchema: z.ZodType<T>): Promise<T> {
-  const parsedJson = JSON.parse(extractJsonText(rawText));
-  return responseSchema.parse(parsedJson);
+  let jsonText = '';
+
+  try {
+    jsonText = extractJsonText(rawText);
+  } catch (error) {
+    throw new AiStructuredResponseError({
+      stage: 'json_extract',
+      message: 'The AI response did not contain valid JSON.',
+      cause: error,
+      rawTextPreview: buildRawTextPreview(rawText),
+    });
+  }
+
+  let parsedJson: unknown;
+
+  try {
+    parsedJson = JSON.parse(jsonText);
+  } catch (error) {
+    throw new AiStructuredResponseError({
+      stage: 'json_parse',
+      message: 'The AI response contained malformed JSON.',
+      cause: error,
+      rawTextPreview: buildRawTextPreview(jsonText),
+    });
+  }
+
+  const parsed = responseSchema.safeParse(parsedJson);
+
+  if (!parsed.success) {
+    throw new AiStructuredResponseError({
+      stage: 'schema_validation',
+      message: 'The AI response did not match the expected schema.',
+      rawTextPreview: buildRawTextPreview(jsonText),
+      issues: parsed.error.issues,
+    });
+  }
+
+  return parsed.data;
 }
 
 async function callGemini(request: ProviderRequest): Promise<string> {
@@ -271,7 +352,8 @@ async function callOpenAi(request: ProviderRequest): Promise<string> {
   });
 
   if (!response.ok) {
-    throw new Error(`OpenAI request failed with status ${response.status}`);
+    const errorText = await response.text().catch(() => '');
+    throw new Error(`OpenAI request failed with status ${response.status}${errorText ? `: ${errorText}` : ''}`);
   }
 
   const body = await response.json();
@@ -325,6 +407,32 @@ const DEFAULT_EMBEDDING_GENERATORS: Record<AiProviderName, ProviderGenerateEmbed
   openai: callOpenAiEmbedding,
 };
 
+function summarizeAttemptFailure(
+  provider: AiProviderName,
+  model: string,
+  error: unknown,
+): AiProviderAttemptFailure {
+  if (error instanceof AiStructuredResponseError) {
+    return {
+      provider,
+      model,
+      message: error.message,
+      stage: error.stage,
+      rawTextPreview: error.rawTextPreview,
+      issues: error.issues,
+    };
+  }
+
+  return {
+    provider,
+    model,
+    message: error instanceof Error ? error.message : String(error),
+    stage: 'provider_request',
+    rawTextPreview: null,
+    issues: [],
+  };
+}
+
 export function createAiService(options: {
   privateEnv: Record<string, string | undefined>;
   hooks?: Partial<AiRequestHooks>;
@@ -364,6 +472,7 @@ export function createAiService(options: {
       }
 
       let lastError: unknown;
+      const attempts: AiProviderAttemptFailure[] = [];
 
       for (const provider of providers) {
         try {
@@ -394,6 +503,7 @@ export function createAiService(options: {
           return parsed;
         } catch (error) {
           lastError = error;
+          attempts.push(summarizeAttemptFailure(provider.name, provider.textModel, error));
           await hooks.onRequestFailure({
             provider: provider.name,
             metadata: request.metadata,
@@ -406,7 +516,8 @@ export function createAiService(options: {
       throw new AiServiceRequestError(
         providers[0]!.name,
         'All configured AI providers failed to return a valid response.',
-        lastError
+        lastError,
+        attempts,
       );
     },
 

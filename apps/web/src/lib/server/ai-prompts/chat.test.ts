@@ -147,4 +147,27 @@ describe('buildStructuredChatPrompt', () => {
     expect(prompt.userPrompt).toContain('Use exact cardId and groupId values from the machine context');
     expect(prompt.userPrompt).toContain('set description to null when no description is needed');
   });
+
+  it('makes clear that study-language help is still allowed when no suggestions are available', () => {
+    const canonicalContext: CanonicalChatContext = {
+      contextType: 'non_actionable',
+      routeContextType: 'card-review',
+      languageId: 'zh',
+      allowedSuggestionTypes: [],
+    };
+
+    const prompt = buildStructuredChatPrompt({
+      canonicalContext,
+      userInput: 'Why is 了 used here?',
+      allowedSuggestionTypes: [],
+    });
+
+    expect(prompt.systemPrompt).toContain(
+      'You should still answer study-language questions, explain vocabulary or grammar, give practice ideas, and discuss the visible study content even when no app action is available.',
+    );
+    expect(prompt.userPrompt).toContain(
+      'Suggestions are only for typed app actions. They do not limit normal study-language help.',
+    );
+    expect(prompt.userPrompt).toContain('Allowed suggestion types: none.');
+  });
 });

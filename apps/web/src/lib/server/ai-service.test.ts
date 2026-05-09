@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
-import { AiServiceConfigurationError, createAiService } from './ai-service.js';
+import { AiServiceConfigurationError, AiServiceRequestError, createAiService } from './ai-service.js';
 
 const responseSchema = z.object({
   draftCards: z.array(z.object({ content: z.string() })),
@@ -142,6 +142,44 @@ describe('createAiService', () => {
       userPrompt: 'user',
       responseSchema,
     })).rejects.toBeInstanceOf(AiServiceConfigurationError);
+  });
+
+  it('captures structured failure details when all providers fail to return a valid response', async () => {
+    const geminiGenerator = vi.fn(async () => 'I can help with that.');
+    const service = createAiService({
+      privateEnv: {
+        GEMINI_API_KEY: 'test-gemini-key',
+      },
+      hooks: silentHooks,
+      providerGenerators: {
+        gemini: geminiGenerator,
+      },
+    });
+
+    await expect(
+      service.generateStructured({
+        metadata: {
+          feature: 'chat',
+          operation: 'conversation',
+          userId: 'user-1',
+          languageId: 'zh',
+          routeContextType: 'card-entry',
+        },
+        systemPrompt: 'system',
+        userPrompt: 'user',
+        responseSchema,
+      }),
+    ).rejects.toMatchObject({
+      providerName: 'gemini',
+      attempts: [
+        expect.objectContaining({
+          provider: 'gemini',
+          stage: 'json_extract',
+          message: 'The AI response did not contain valid JSON.',
+          rawTextPreview: 'I can help with that.',
+        }),
+      ],
+    });
   });
 
   it('generates embeddings from the configured primary provider', async () => {
