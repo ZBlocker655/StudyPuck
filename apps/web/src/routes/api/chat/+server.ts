@@ -3,6 +3,7 @@ import { getDb, withTransactionDb } from '@studypuck/database';
 import { env } from '$env/dynamic/private';
 import { chatRequestSchema } from '$lib/chat.js';
 import { resolveRouteContext } from '$lib/command-bar/shared.js';
+import { AiServiceRequestError } from '$lib/server/ai-service.js';
 import { CardEntryRequestError, createCardEntryNoteForLanguage } from '$lib/server/card-entry.js';
 import { CardLibraryRequestError } from '$lib/server/cards.js';
 import { handleStudyPuckChatRequest } from '$lib/server/chat.js';
@@ -54,6 +55,25 @@ export const POST: RequestHandler = async (event) => {
   } catch (requestError) {
     if (requestError instanceof CardEntryRequestError || requestError instanceof CardLibraryRequestError) {
       throw error(requestError.status, requestError.message);
+    }
+
+    if (requestError instanceof AiServiceRequestError) {
+      console.error('StudyPuck chat AI request failed:', {
+        routeContextType: routeContext.routeContextType,
+        languageId: parsedBody.data.languageId ?? null,
+        noteIdPresent: Boolean(parsedBody.data.noteId),
+        cardIdPresent: Boolean(parsedBody.data.cardId),
+        surface: parsedBody.data.surfaceContext?.surface ?? null,
+        attempts: requestError.attempts.map((attempt) => ({
+          provider: attempt.provider,
+          model: attempt.model,
+          stage: attempt.stage,
+          message: attempt.message,
+          rawTextPreview: attempt.rawTextPreview,
+          issues: attempt.issues,
+        })),
+      });
+      throw error(500, 'The chat assistant could not respond right now.');
     }
 
     console.error('StudyPuck chat request failed:', requestError);

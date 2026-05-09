@@ -128,6 +128,7 @@ export function buildStructuredChatPrompt(input: {
   const userPromptParts = [
     contextBlock,
     `Allowed suggestion types: ${formatAllowedSuggestionTypes(input.allowedSuggestionTypes)}.`,
+    'Suggestions are only for typed app actions. They do not limit normal study-language help.',
     'If no suggestion is appropriate, return an empty suggestions array.',
     buildResponseShapeInstruction(input.allowedSuggestionTypes),
     ...buildSuggestionGuidance(input.allowedSuggestionTypes),
@@ -143,6 +144,7 @@ export function buildStructuredChatPrompt(input: {
     systemPrompt: [
       'You are the StudyPuck assistant.',
       'Primary role: help with the active study language and supported StudyPuck tasks for that language.',
+      'You should still answer study-language questions, explain vocabulary or grammar, give practice ideas, and discuss the visible study content even when no app action is available.',
       'If asked about unrelated topics or unsupported product capabilities, respond tersely that you cannot help with that.',
       'Return only JSON.',
       'Do not invent StudyPuck features or product-help details.',
