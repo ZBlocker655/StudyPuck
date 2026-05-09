@@ -41,8 +41,8 @@ describe('buildStructuredChatPrompt', () => {
     });
 
     expect(prompt.userPrompt).toContain('"contextType": "card_entry_note_workspace"');
-    expect(prompt.userPrompt).toContain('"cardId":"string"');
-    expect(prompt.userPrompt).toContain('replace the type value with "append_mnemonic"');
+    expect(prompt.userPrompt).toContain('{"type":"append_example_sentence","payload":{"cardId":"string","text":"string"}}');
+    expect(prompt.userPrompt).toContain('{"type":"append_mnemonic","payload":{"cardId":"string","text":"string"}}');
     expect(prompt.userPrompt).toContain('"cardId": "card-1"');
     expect(prompt.userPrompt).toContain('"cardId": "card-2"');
     expect(prompt.userPrompt).toContain('ask a clarifying question instead of guessing');
@@ -53,7 +53,7 @@ describe('buildStructuredChatPrompt', () => {
     const canonicalContext: CanonicalChatContext = {
       contextType: 'card_library_list',
       languageId: 'zh',
-      allowedSuggestionTypes: [],
+      allowedSuggestionTypes: ['create_group'],
       listState: {
         searchText: 'train',
         groupFilters: [{ groupId: 'group-1', groupName: 'Travel' }],
@@ -85,7 +85,7 @@ describe('buildStructuredChatPrompt', () => {
     const prompt = buildStructuredChatPrompt({
       canonicalContext,
       userInput: 'What should I study first from this list?',
-      allowedSuggestionTypes: [],
+      allowedSuggestionTypes: ['create_group'],
     });
 
     expect(prompt.userPrompt).toContain('"contextType": "card_library_list"');
@@ -93,5 +93,58 @@ describe('buildStructuredChatPrompt', () => {
     expect(prompt.userPrompt).toContain('"groupName": "Travel"');
     expect(prompt.userPrompt).toContain('"selectedCardIds": [');
     expect(prompt.userPrompt).toContain('"content": "火车"');
+  });
+
+  it('includes exact ID guidance for group-management suggestion types', () => {
+    const canonicalContext: CanonicalChatContext = {
+      contextType: 'group_detail',
+      languageId: 'zh',
+      allowedSuggestionTypes: ['create_group', 'add_card_to_group', 'remove_card_from_group'],
+      group: {
+        groupId: 'group-current',
+        groupName: 'Travel',
+        description: 'Trips and transit',
+        activeCardCount: 2,
+      },
+      availableGroupsForAddition: [{ groupId: 'group-other', groupName: 'Favorites' }],
+      listState: {
+        searchText: '',
+        cardType: null,
+        scopeGroupId: 'group-current',
+        ordering: 'updated_desc',
+      },
+      resultCount: 2,
+      selectedCardIds: ['card-1'],
+      selectedCards: [
+        {
+          cardId: 'card-1',
+          content: '火车',
+          meaning: 'train',
+          cardType: 'word',
+          groupNames: ['Travel'],
+        },
+      ],
+      visibleCards: [
+        {
+          cardId: 'card-1',
+          content: '火车',
+          meaning: 'train',
+          cardType: 'word',
+          groupNames: ['Travel'],
+        },
+      ],
+    };
+
+    const prompt = buildStructuredChatPrompt({
+      canonicalContext,
+      userInput: 'Put this card into Favorites too',
+      allowedSuggestionTypes: ['create_group', 'add_card_to_group', 'remove_card_from_group'],
+    });
+
+    expect(prompt.userPrompt).toContain('{"type":"create_group","payload":{"name":"string","description":"string | null"}}');
+    expect(prompt.userPrompt).toContain('{"type":"add_card_to_group","payload":{"cardId":"string","groupId":"string"}}');
+    expect(prompt.userPrompt).toContain('{"type":"remove_card_from_group","payload":{"cardId":"string","groupId":"string"}}');
+    expect(prompt.userPrompt).toContain('Use exact cardId and groupId values from the machine context');
+    expect(prompt.userPrompt).toContain('set description to null when no description is needed');
   });
 });

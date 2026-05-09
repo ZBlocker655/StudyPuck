@@ -43,6 +43,7 @@ vi.mock('$lib/chat/client.js', () => ({
 describe('CommandBar component behavior', () => {
   beforeEach(() => {
     vi.useRealTimers();
+    vi.unstubAllGlobals();
     document.body.innerHTML = '';
     pageStore.set({
       params: { lang: 'zh' },
@@ -202,5 +203,121 @@ describe('CommandBar component behavior', () => {
       'card-1',
       'Imagine talking while a memory hook keeps the phrase anchored.',
     );
+  });
+
+  it('posts create-group suggestions through the existing group action endpoint', async () => {
+    pageStore.set({
+      params: { lang: 'zh' },
+      route: { id: '/[lang]/cards/groups' },
+      status: 200,
+      error: null,
+      data: {},
+      form: undefined,
+      state: {},
+      url: new URL('https://studypuck.test/zh/cards/groups'),
+    });
+
+    requestStructuredChatResponse.mockResolvedValue({
+      message: 'I can create that group for you.',
+      suggestions: [
+        {
+          type: 'create_group',
+          payload: { name: 'Travel', description: 'Trips and transit' },
+        },
+      ],
+    });
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ group: { groupId: 'group-1', groupName: 'Travel', description: 'Trips and transit' } }),
+    });
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { default: CommandBar } = await import('./CommandBar.svelte');
+    const snippet = createRawSnippet(() => ({
+      render: () => '<section>context content</section>',
+    }));
+
+    render(CommandBar, {
+      props: {
+        children: snippet,
+      },
+    });
+
+    commandBar.setPathname('/zh/cards/groups');
+    commandBar.setWorkspaceContext('zh', null);
+    commandBar.setSurfaceContext({ surface: 'groups_list' });
+
+    const textbox = screen.getByLabelText('Command bar');
+    await fireEvent.input(textbox, { target: { value: 'Create a travel group' } });
+    await fireEvent.keyDown(textbox, { key: 'Enter' });
+
+    await screen.findAllByText('Travel');
+    await fireEvent.click(screen.getAllByRole('button', { name: /Travel/ })[0]);
+
+    expect(fetchMock).toHaveBeenCalledWith('/zh/cards/groups/actions', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        action: 'create',
+        groupName: 'Travel',
+        description: 'Trips and transit',
+      }),
+    });
+  });
+
+  it('forwards drawer add-to-group suggestions to the active card action store', async () => {
+    pageStore.set({
+      params: { lang: 'zh' },
+      route: { id: '/[lang]/cards' },
+      status: 200,
+      error: null,
+      data: {},
+      form: undefined,
+      state: {},
+      url: new URL('https://studypuck.test/zh/cards'),
+    });
+
+    requestStructuredChatResponse.mockResolvedValue({
+      message: 'I can add this card to Favorites.',
+      suggestions: [
+        {
+          type: 'add_card_to_group',
+          payload: { cardId: 'card-1', groupId: 'group-2' },
+        },
+      ],
+    });
+
+    const applySpy = vi.spyOn(activeCardSuggestionActions, 'applyAddCardToGroup');
+    const { default: CommandBar } = await import('./CommandBar.svelte');
+    const snippet = createRawSnippet(() => ({
+      render: () => '<section>context content</section>',
+    }));
+
+    render(CommandBar, {
+      props: {
+        children: snippet,
+      },
+    });
+
+    commandBar.setPathname('/zh/cards');
+    commandBar.setWorkspaceContext('zh', null);
+    commandBar.setSurfaceContext({
+      surface: 'card_detail_drawer',
+      sourceSurface: 'card_library_list',
+      cardId: 'card-1',
+    });
+
+    const textbox = screen.getByLabelText('Command bar');
+    await fireEvent.input(textbox, { target: { value: 'Add this card to Favorites too' } });
+    await fireEvent.keyDown(textbox, { key: 'Enter' });
+
+    expect(await screen.findAllByText('Card card-1 -> Group group-2')).toHaveLength(2);
+    await fireEvent.click(screen.getAllByRole('button', { name: /Card card-1 -> Group group-2/ })[0]);
+
+    expect(applySpy).toHaveBeenCalledWith('card-1', 'group-2');
   });
 });

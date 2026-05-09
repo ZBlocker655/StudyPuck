@@ -5,7 +5,7 @@ import {
   type CardEntryExampleSentenceFormat,
 } from '$lib/card-entry/example-sentence-format.js';
 import { filterAddableGroupCards } from '$lib/cards/group-detail.js';
-import type { ChatSuggestionType, ChatSurfaceContext } from '$lib/chat.js';
+import type { ChatSuggestion, ChatSuggestionType, ChatSurfaceContext } from '$lib/chat.js';
 import type { RouteContext } from '$lib/command-bar/shared.js';
 import { CardEntryRequestError } from '$lib/server/card-entry.js';
 import {
@@ -68,10 +68,15 @@ export type ChatGroupSnapshot = {
   activeCardCount: number;
 };
 
+export type ChatGroupReference = {
+  groupId: string;
+  groupName: string;
+};
+
 export type CardLibraryListContext = {
   contextType: 'card_library_list';
   languageId: string;
-  allowedSuggestionTypes: readonly [];
+  allowedSuggestionTypes: readonly ['create_group'];
   listState: {
     searchText: string;
     groupFilters: CardLibraryGroupData[];
@@ -87,7 +92,7 @@ export type CardLibraryListContext = {
 export type GroupsListContext = {
   contextType: 'groups_list';
   languageId: string;
-  allowedSuggestionTypes: readonly [];
+  allowedSuggestionTypes: readonly ['create_group'];
   listState: {
     scope: 'all_groups_for_language';
     ordering: 'group_name_asc';
@@ -99,8 +104,9 @@ export type GroupsListContext = {
 export type GroupDetailContext = {
   contextType: 'group_detail';
   languageId: string;
-  allowedSuggestionTypes: readonly [];
+  allowedSuggestionTypes: readonly ['create_group', 'add_card_to_group', 'remove_card_from_group'];
   group: ChatGroupSnapshot;
+  availableGroupsForAddition: ChatGroupReference[];
   listState: {
     searchText: string;
     cardType: string | null;
@@ -116,7 +122,7 @@ export type GroupDetailContext = {
 export type AddCardsToGroupDrawerContext = {
   contextType: 'add_cards_to_group_drawer';
   languageId: string;
-  allowedSuggestionTypes: readonly [];
+  allowedSuggestionTypes: readonly ['add_card_to_group'];
   group: ChatGroupSnapshot;
   listState: {
     searchText: string;
@@ -133,11 +139,18 @@ export type AddCardsToGroupDrawerContext = {
 export type CardDetailDrawerContext = {
   contextType: 'card_detail_drawer';
   languageId: string;
-  allowedSuggestionTypes: readonly ['append_example_sentence', 'append_mnemonic'];
+  allowedSuggestionTypes: readonly [
+    'append_example_sentence',
+    'append_mnemonic',
+    'add_card_to_group',
+    'remove_card_from_group',
+  ];
   sourceSurface: 'card_library_list' | 'group_detail';
   likelyTargetCardId: string;
   likelyTargetFocusedField: string | null;
   card: ChatCardDetailSnapshot;
+  membershipGroups: ChatGroupReference[];
+  addableGroups: ChatGroupReference[];
   group: ChatGroupSnapshot | null;
 };
 
@@ -265,6 +278,13 @@ function buildGroupSnapshot(item: CardLibraryGroupListItemData): ChatGroupSnapsh
   };
 }
 
+function buildGroupReference(item: Pick<CardLibraryGroupData, 'groupId' | 'groupName'>): ChatGroupReference {
+  return {
+    groupId: item.groupId,
+    groupName: item.groupName,
+  };
+}
+
 function selectCardSnapshots(items: CardLibraryCardListItemData[], selectedCardIds: string[]) {
   const itemsById = new Map(items.map((item) => [item.cardId, item]));
 
@@ -350,7 +370,7 @@ async function resolveCardLibraryListContext(
   return {
     contextType: 'card_library_list',
     languageId,
-    allowedSuggestionTypes: [],
+    allowedSuggestionTypes: ['create_group'],
     listState: {
       searchText: library.filters.searchText,
       groupFilters,
@@ -375,7 +395,7 @@ async function resolveGroupsListContext(
   return {
     contextType: 'groups_list',
     languageId,
-    allowedSuggestionTypes: [],
+    allowedSuggestionTypes: ['create_group'],
     listState: {
       scope: 'all_groups_for_language',
       ordering: 'group_name_asc',
@@ -404,8 +424,11 @@ async function resolveGroupDetailContext(
   return {
     contextType: 'group_detail',
     languageId,
-    allowedSuggestionTypes: [],
+    allowedSuggestionTypes: ['create_group', 'add_card_to_group', 'remove_card_from_group'],
     group: buildGroupSnapshot(groupDetail.group),
+    availableGroupsForAddition: groupDetail.cards.availableGroups
+      .filter((group) => group.groupId !== groupDetail.group.groupId)
+      .map((group) => buildGroupReference(group)),
     listState: {
       searchText: groupDetail.cards.filters.searchText,
       cardType: groupDetail.cards.filters.cardType,
@@ -439,7 +462,7 @@ async function resolveAddCardsToGroupDrawerContext(
   return {
     contextType: 'add_cards_to_group_drawer',
     languageId,
-    allowedSuggestionTypes: [],
+    allowedSuggestionTypes: ['add_card_to_group'],
     group: buildGroupSnapshot(groupDetail.group),
     listState: {
       searchText: surfaceContext.searchText.trim(),
@@ -498,11 +521,20 @@ async function resolveCardDetailDrawerContext(
   return {
     contextType: 'card_detail_drawer',
     languageId,
-    allowedSuggestionTypes: ['append_example_sentence', 'append_mnemonic'],
+    allowedSuggestionTypes: [
+      'append_example_sentence',
+      'append_mnemonic',
+      'add_card_to_group',
+      'remove_card_from_group',
+    ],
     sourceSurface: surfaceContext.sourceSurface,
     likelyTargetCardId: activeCard.card.cardId,
     likelyTargetFocusedField: hint.focusedField ?? null,
     card: buildCardDetailSnapshot(activeCard.card),
+    membershipGroups: activeCard.card.groups.map((item) => buildGroupReference(item)),
+    addableGroups: activeCard.availableGroups
+      .filter((availableGroup) => !activeCard.card.groups.some((groupItem) => groupItem.groupId === availableGroup.groupId))
+      .map((item) => buildGroupReference(item)),
     group,
   };
 }
@@ -638,4 +670,105 @@ export function getAllowedSuggestionTypes(
   context: CanonicalChatContext,
 ): readonly ChatSuggestionType[] {
   return context.allowedSuggestionTypes as readonly ChatSuggestionType[];
+}
+
+function getSuggestionCardIds(
+  cards: readonly Pick<ChatCardSnapshot, 'cardId'>[],
+) {
+  return new Set(cards.map((card) => card.cardId));
+}
+
+function getSuggestionGroupIds(
+  groups: readonly Pick<ChatGroupReference, 'groupId'>[],
+) {
+  return new Set(groups.map((group) => group.groupId));
+}
+
+function isCreateGroupSuggestionValid(context: CanonicalChatContext) {
+  return (
+    context.contextType === 'card_library_list' ||
+    context.contextType === 'groups_list' ||
+    context.contextType === 'group_detail'
+  );
+}
+
+function isAddCardToGroupSuggestionValid(
+  context: CanonicalChatContext,
+  payload: Extract<ChatSuggestion, { type: 'add_card_to_group' }>['payload'],
+) {
+  switch (context.contextType) {
+    case 'card_detail_drawer':
+      return (
+        payload.cardId === context.card.cardId &&
+        getSuggestionGroupIds(context.addableGroups).has(payload.groupId)
+      );
+    case 'group_detail':
+      return (
+        getSuggestionCardIds([...context.selectedCards, ...context.visibleCards]).has(payload.cardId) &&
+        getSuggestionGroupIds(context.availableGroupsForAddition).has(payload.groupId)
+      );
+    case 'add_cards_to_group_drawer':
+      return (
+        payload.groupId === context.group.groupId &&
+        getSuggestionCardIds([...context.selectedCards, ...context.visibleCards]).has(payload.cardId)
+      );
+    default:
+      return false;
+  }
+}
+
+function isRemoveCardFromGroupSuggestionValid(
+  context: CanonicalChatContext,
+  payload: Extract<ChatSuggestion, { type: 'remove_card_from_group' }>['payload'],
+) {
+  switch (context.contextType) {
+    case 'card_detail_drawer':
+      return (
+        payload.cardId === context.card.cardId &&
+        getSuggestionGroupIds(context.membershipGroups).has(payload.groupId)
+      );
+    case 'group_detail':
+      return (
+        payload.groupId === context.group.groupId &&
+        getSuggestionCardIds([...context.selectedCards, ...context.visibleCards]).has(payload.cardId)
+      );
+    default:
+      return false;
+  }
+}
+
+export function areChatSuggestionsValidForContext(
+  context: CanonicalChatContext,
+  suggestions: readonly ChatSuggestion[],
+) {
+  return suggestions.every((suggestion) => {
+    switch (suggestion.type) {
+      case 'append_example_sentence':
+        if (context.contextType === 'card_entry_note_workspace') {
+          return context.draftCards.some((card) => card.cardId === suggestion.payload.cardId);
+        }
+
+        if (context.contextType === 'card_detail_drawer') {
+          return context.card.cardId === suggestion.payload.cardId;
+        }
+
+        return false;
+      case 'append_mnemonic':
+        if (context.contextType === 'card_entry_note_workspace') {
+          return context.draftCards.some((card) => card.cardId === suggestion.payload.cardId);
+        }
+
+        if (context.contextType === 'card_detail_drawer') {
+          return context.card.cardId === suggestion.payload.cardId;
+        }
+
+        return false;
+      case 'create_group':
+        return isCreateGroupSuggestionValid(context);
+      case 'add_card_to_group':
+        return isAddCardToGroupSuggestionValid(context, suggestion.payload);
+      case 'remove_card_from_group':
+        return isRemoveCardFromGroupSuggestionValid(context, suggestion.payload);
+    }
+  });
 }

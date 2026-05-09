@@ -164,4 +164,86 @@ describe('ActiveCardDrawer', () => {
 
     expect(await screen.findByDisplayValue('Imagine two people talking while a memory hook keeps the phrase anchored.')).toBeTruthy();
   });
+
+  it('applies add-card-to-group suggestions through the active-card PATCH endpoint', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        card: createCard({ groups: [createGroup()] }),
+        availableGroups: [createGroup(), createGroup({ groupId: 'group-2', groupName: 'Favorites' })],
+      }),
+    });
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(ActiveCardDrawer, {
+      props: {
+        lang: 'zh',
+        card: createCard(),
+        availableGroups: [createGroup(), createGroup({ groupId: 'group-2', groupName: 'Favorites' })],
+        selectedIndex: 0,
+        totalCount: 1,
+      },
+    });
+
+    activeCardSuggestionActions.applyAddCardToGroup('card-1', 'group-1');
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/zh/cards/card-1', {
+        method: 'PATCH',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: '谈论',
+          meaning: 'to discuss',
+          examples: [],
+          mnemonics: [],
+          llmInstructions: '',
+          groups: [{ groupId: 'group-1', groupName: 'Conversation' }],
+        }),
+      });
+    });
+  });
+
+  it('applies remove-card-from-group suggestions through the active-card PATCH endpoint', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        card: createCard({ groups: [] }),
+        availableGroups: [createGroup()],
+      }),
+    });
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(ActiveCardDrawer, {
+      props: {
+        lang: 'zh',
+        card: createCard({ groups: [createGroup()] }),
+        availableGroups: [createGroup()],
+        selectedIndex: 0,
+        totalCount: 1,
+      },
+    });
+
+    activeCardSuggestionActions.applyRemoveCardFromGroup('card-1', 'group-1');
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/zh/cards/card-1', {
+        method: 'PATCH',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: '谈论',
+          meaning: 'to discuss',
+          examples: [],
+          mnemonics: [],
+          llmInstructions: '',
+          groups: [],
+        }),
+      });
+    });
+  });
 });

@@ -6,18 +6,64 @@ function formatAllowedSuggestionTypes(allowedSuggestionTypes: readonly ChatSugge
 }
 
 function buildResponseShapeInstruction(allowedSuggestionTypes: readonly ChatSuggestionType[]) {
+  if (allowedSuggestionTypes.length === 0) {
+    return ['Return this JSON shape exactly:', '{"message":"string","suggestions":[]}'].join('\n');
+  }
+
+  const suggestionExamples: string[] = [];
+
+  if (allowedSuggestionTypes.includes('append_example_sentence')) {
+    suggestionExamples.push(
+      '{"type":"append_example_sentence","payload":{"cardId":"string","text":"string"}}',
+    );
+  }
+
+  if (allowedSuggestionTypes.includes('append_mnemonic')) {
+    suggestionExamples.push('{"type":"append_mnemonic","payload":{"cardId":"string","text":"string"}}');
+  }
+
+  if (allowedSuggestionTypes.includes('create_group')) {
+    suggestionExamples.push('{"type":"create_group","payload":{"name":"string","description":"string | null"}}');
+  }
+
+  if (allowedSuggestionTypes.includes('add_card_to_group')) {
+    suggestionExamples.push('{"type":"add_card_to_group","payload":{"cardId":"string","groupId":"string"}}');
+  }
+
+  if (allowedSuggestionTypes.includes('remove_card_from_group')) {
+    suggestionExamples.push('{"type":"remove_card_from_group","payload":{"cardId":"string","groupId":"string"}}');
+  }
+
+  return [
+    'Return this JSON shape exactly:',
+    '{"message":"string","suggestions":[{"type":"...","payload":{...}}]}',
+    'Each suggestion object must match one of these exact shapes:',
+    ...suggestionExamples,
+  ].join('\n');
+}
+
+function buildSuggestionGuidance(allowedSuggestionTypes: readonly ChatSuggestionType[]) {
+  const guidance: string[] = [];
+
   if (
     allowedSuggestionTypes.includes('append_example_sentence') ||
     allowedSuggestionTypes.includes('append_mnemonic')
   ) {
-    return [
-      'Return this JSON shape exactly:',
-      '{"message":"string","suggestions":[{"type":"append_example_sentence","payload":{"cardId":"string","text":"string"}}]}',
-      'If returning a mnemonic suggestion, replace the type value with "append_mnemonic".',
-    ].join('\n');
+    guidance.push('Use the exact cardId from the machine context when returning example or mnemonic suggestions.');
   }
 
-  return ['Return this JSON shape exactly:', '{"message":"string","suggestions":[]}'].join('\n');
+  if (
+    allowedSuggestionTypes.includes('add_card_to_group') ||
+    allowedSuggestionTypes.includes('remove_card_from_group')
+  ) {
+    guidance.push('Use exact cardId and groupId values from the machine context. Never substitute names for IDs.');
+  }
+
+  if (allowedSuggestionTypes.includes('create_group')) {
+    guidance.push('For create_group suggestions, set description to null when no description is needed.');
+  }
+
+  return guidance;
 }
 
 function buildCardEntryNoteWorkspaceContextBlock(context: CardEntryNoteWorkspaceContext): string {
@@ -84,6 +130,7 @@ export function buildStructuredChatPrompt(input: {
     `Allowed suggestion types: ${formatAllowedSuggestionTypes(input.allowedSuggestionTypes)}.`,
     'If no suggestion is appropriate, return an empty suggestions array.',
     buildResponseShapeInstruction(input.allowedSuggestionTypes),
+    ...buildSuggestionGuidance(input.allowedSuggestionTypes),
   ];
 
   if (historyBlock) {

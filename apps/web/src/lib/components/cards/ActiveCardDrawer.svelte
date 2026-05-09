@@ -310,22 +310,8 @@
     await persistDraft();
   }
 
-  $: if (
-    $activeCardSuggestionActions &&
-    $activeCardSuggestionActions.actionId !== lastHandledSuggestionActionId &&
-    $activeCardSuggestionActions.cardId === card.cardId
-  ) {
-    lastHandledSuggestionActionId = $activeCardSuggestionActions.actionId;
-
-    if ($activeCardSuggestionActions.suggestionType === 'append_mnemonic') {
-      void applySuggestedListValue('mnemonics', $activeCardSuggestionActions.text);
-    } else {
-      void applySuggestedListValue('examples', $activeCardSuggestionActions.text);
-    }
-  }
-
-  async function toggleGroup(group: CardLibraryGroupData) {
-    if (disabled) {
+  async function addExistingGroup(group: CardLibraryGroupData) {
+    if (disabled || draft.groups.some((item) => item.groupId === group.groupId)) {
       return;
     }
 
@@ -336,6 +322,32 @@
 
     closeGroupMenu();
     await persistDraft();
+  }
+
+  $: if (
+    $activeCardSuggestionActions &&
+    $activeCardSuggestionActions.actionId !== lastHandledSuggestionActionId &&
+    $activeCardSuggestionActions.cardId === card.cardId
+  ) {
+    lastHandledSuggestionActionId = $activeCardSuggestionActions.actionId;
+
+    if ($activeCardSuggestionActions.suggestionType === 'append_mnemonic') {
+      void applySuggestedListValue('mnemonics', $activeCardSuggestionActions.text);
+    } else if ($activeCardSuggestionActions.suggestionType === 'append_example_sentence') {
+      void applySuggestedListValue('examples', $activeCardSuggestionActions.text);
+    } else if ($activeCardSuggestionActions.suggestionType === 'add_card_to_group') {
+      const matchingGroup = availableGroups.find((group) => group.groupId === $activeCardSuggestionActions.groupId);
+
+      if (matchingGroup) {
+        void addExistingGroup(matchingGroup);
+      }
+    } else if ($activeCardSuggestionActions.suggestionType === 'remove_card_from_group') {
+      void removeGroup($activeCardSuggestionActions.groupId);
+    }
+  }
+
+  async function toggleGroup(group: CardLibraryGroupData) {
+    await addExistingGroup(group);
   }
 
   async function createGroupFromQuery() {
