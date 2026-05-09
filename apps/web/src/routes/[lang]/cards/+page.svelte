@@ -3,6 +3,7 @@
   import { page } from '$app/stores';
   import { onDestroy, onMount } from 'svelte';
   import ActiveCardDrawer from '$lib/components/cards/ActiveCardDrawer.svelte';
+  import CardsSubnav from '$lib/components/cards/CardsSubnav.svelte';
   import CardListBulkActionBar from '$lib/components/card-list/CardListBulkActionBar.svelte';
   import CardListColumns from '$lib/components/card-list/CardListColumns.svelte';
   import CardListFilterBar from '$lib/components/card-list/CardListFilterBar.svelte';
@@ -358,6 +359,7 @@
   <header class="cards-page__header stack" style="--stack-space: var(--space-2)">
     <p class="cards-page__eyebrow">Cards</p>
     <h1>Cards</h1>
+    <CardsSubnav lang={currentLang} activeSection="cards" />
   </header>
 
   <CardListFilterBar
