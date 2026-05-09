@@ -3,6 +3,7 @@
   import { page } from '$app/stores';
   import { onMount, tick } from 'svelte';
   import { buildDeleteGroupMessage, sortCardLibraryGroupItems } from '$lib/cards/groups.js';
+  import CardsSubnav from '$lib/components/cards/CardsSubnav.svelte';
   import { commandBar } from '$lib/stores/commandBar.js';
   import type { CardLibraryGroupListItemData, CardLibraryGroupsData } from '$lib/server/cards.js';
   import type { PageData } from './$types.js';
@@ -275,6 +276,7 @@
     <div class="stack" style="--stack-space: var(--space-2)">
       <p class="groups-page__eyebrow">Cards</p>
       <h1>Groups</h1>
+      <CardsSubnav lang={currentLang} activeSection="groups" />
     </div>
 
     <button type="button" class="groups-page__new-button" on:click={openCreateDrawer}>

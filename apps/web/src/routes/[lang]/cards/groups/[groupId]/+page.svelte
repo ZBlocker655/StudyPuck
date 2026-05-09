@@ -3,6 +3,7 @@
   import { page } from '$app/stores';
   import { onDestroy, onMount, tick } from 'svelte';
   import ActiveCardDrawer from '$lib/components/cards/ActiveCardDrawer.svelte';
+  import CardsSubnav from '$lib/components/cards/CardsSubnav.svelte';
   import CardListBulkActionBar from '$lib/components/card-list/CardListBulkActionBar.svelte';
   import CardListColumns from '$lib/components/card-list/CardListColumns.svelte';
   import CardListFilterBar from '$lib/components/card-list/CardListFilterBar.svelte';
@@ -726,6 +727,7 @@
 <section class="group-detail-page stack" style="--stack-space: var(--space-5)">
   <header class="group-detail-page__header stack" style="--stack-space: var(--space-3)">
     <a class="group-detail-page__back-link" href={`/${currentLang}/cards/groups`}>← Back to Groups</a>
+    <CardsSubnav lang={currentLang} activeSection="groups" />
 
     <div class="group-detail-page__header-main">
       <div class="stack" style="--stack-space: var(--space-2)">
