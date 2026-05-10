@@ -20,7 +20,7 @@ describe('resolveCanonicalChatContext', () => {
     );
 
     expect(context.contextType).toBe('non_actionable');
-    expect(context.allowedSuggestionTypes).toEqual([]);
+    expect(context.allowedSuggestionTypes).toEqual(['add_inbox_note']);
   });
 
   it('includes the languageId and routeContextType in non-actionable context', async () => {
@@ -37,6 +37,7 @@ describe('resolveCanonicalChatContext', () => {
     if (context.contextType === 'non_actionable') {
       expect(context.languageId).toBe('zh');
       expect(context.routeContextType).toBe('translation-drills');
+      expect(context.allowedSuggestionTypes).toEqual(['add_inbox_note']);
     }
   });
 
@@ -116,7 +117,7 @@ describe('resolveCanonicalChatContext', () => {
     expect(context).toMatchObject({
       contextType: 'card_library_list',
       languageId: 'es',
-      allowedSuggestionTypes: ['create_group'],
+      allowedSuggestionTypes: ['add_inbox_note', 'create_group'],
       listState: {
         searchText: 'tra',
         groupFilters: [{ groupId: 'group-1', groupName: 'Travel' }],
@@ -164,7 +165,7 @@ describe('resolveCanonicalChatContext', () => {
     expect(context).toMatchObject({
       contextType: 'groups_list',
       languageId: 'es',
-      allowedSuggestionTypes: ['create_group'],
+      allowedSuggestionTypes: ['add_inbox_note', 'create_group'],
       listState: {
         scope: 'all_groups_for_language',
         ordering: 'group_name_asc',
@@ -234,7 +235,7 @@ describe('resolveCanonicalChatContext', () => {
     expect(context).toMatchObject({
       contextType: 'group_detail',
       languageId: 'es',
-      allowedSuggestionTypes: ['create_group', 'add_card_to_group', 'remove_card_from_group'],
+      allowedSuggestionTypes: ['add_inbox_note', 'create_group', 'add_card_to_group', 'remove_card_from_group'],
       group: {
         groupId: 'group-1',
         groupName: 'Greetings',
@@ -316,7 +317,7 @@ describe('resolveCanonicalChatContext', () => {
     expect(context).toMatchObject({
       contextType: 'add_cards_to_group_drawer',
       languageId: 'es',
-      allowedSuggestionTypes: ['add_card_to_group'],
+      allowedSuggestionTypes: ['add_inbox_note', 'add_card_to_group'],
       group: {
         groupId: 'group-1',
         groupName: 'Greetings',
@@ -403,6 +404,7 @@ describe('resolveCanonicalChatContext', () => {
       allowedSuggestionTypes: [
         'append_example_sentence',
         'append_mnemonic',
+        'add_inbox_note',
         'add_card_to_group',
         'remove_card_from_group',
       ],
@@ -458,7 +460,7 @@ describe('getAllowedSuggestionTypes', () => {
       },
     );
 
-    expect(getAllowedSuggestionTypes(context)).toEqual(['create_group']);
+    expect(getAllowedSuggestionTypes(context)).toEqual(['add_inbox_note', 'create_group']);
   });
 
   it('returns drawer suggestion types for card-detail drawer context', async () => {
@@ -498,6 +500,7 @@ describe('getAllowedSuggestionTypes', () => {
     expect(getAllowedSuggestionTypes(context)).toEqual([
       'append_example_sentence',
       'append_mnemonic',
+      'add_inbox_note',
       'add_card_to_group',
       'remove_card_from_group',
     ]);
@@ -505,11 +508,45 @@ describe('getAllowedSuggestionTypes', () => {
 });
 
 describe('areChatSuggestionsValidForContext', () => {
+  it('accepts add_inbox_note suggestions whenever the active language is known', () => {
+    const actionableContext = {
+      contextType: 'non_actionable',
+      routeContextType: 'card-review',
+      languageId: 'es',
+      allowedSuggestionTypes: ['add_inbox_note'],
+    } as Awaited<ReturnType<typeof resolveCanonicalChatContext>>;
+
+    expect(
+      areChatSuggestionsValidForContext(actionableContext, [
+        {
+          type: 'add_inbox_note',
+          payload: { text: 'Know when to use hablar vs conversar' },
+        },
+      ]),
+    ).toBe(true);
+
+    const noLanguageContext = {
+      contextType: 'non_actionable',
+      routeContextType: 'settings',
+      languageId: null,
+      allowedSuggestionTypes: [],
+    } as Awaited<ReturnType<typeof resolveCanonicalChatContext>>;
+
+    expect(
+      areChatSuggestionsValidForContext(noLanguageContext, [
+        {
+          type: 'add_inbox_note',
+          payload: { text: 'Review a future point' },
+        },
+      ]),
+    ).toBe(false);
+  });
+
   it('accepts only in-scope group-management suggestions for group detail context', () => {
     const context = {
       contextType: 'group_detail',
       languageId: 'es',
-      allowedSuggestionTypes: ['create_group', 'add_card_to_group', 'remove_card_from_group'],
+      allowedSuggestionTypes: ['add_inbox_note', 'create_group', 'add_card_to_group', 'remove_card_from_group'],
       group: {
         groupId: 'group-1',
         groupName: 'Greetings',

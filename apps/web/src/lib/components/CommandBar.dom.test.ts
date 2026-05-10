@@ -40,6 +40,12 @@ vi.mock('$lib/chat/client.js', () => ({
   requestStructuredChatResponse,
 }));
 
+const createInboxNoteRequest = vi.fn();
+
+vi.mock('$lib/card-entry/client.js', () => ({
+  createInboxNoteRequest,
+}));
+
 describe('CommandBar component behavior', () => {
   beforeEach(() => {
     vi.useRealTimers();
@@ -60,6 +66,7 @@ describe('CommandBar component behavior', () => {
     commandBar.setTargetHint(null, null);
     commandBar.setSurfaceContext(null);
     requestStructuredChatResponse.mockReset();
+    createInboxNoteRequest.mockReset();
   });
 
   it('opens command autocomplete for slash input and shows the current context', async () => {
@@ -266,6 +273,58 @@ describe('CommandBar component behavior', () => {
         groupName: 'Travel',
         description: 'Trips and transit',
       }),
+    });
+  });
+
+  it('creates active-language inbox notes through the existing note request helper', async () => {
+    pageStore.set({
+      params: { lang: 'zh' },
+      route: { id: '/[lang]/card-review' },
+      status: 200,
+      error: null,
+      data: {},
+      form: undefined,
+      state: {},
+      url: new URL('https://studypuck.test/zh/card-review'),
+    });
+
+    requestStructuredChatResponse.mockResolvedValue({
+      message: 'That belongs in your inbox.',
+      suggestions: [
+        {
+          type: 'add_inbox_note',
+          payload: { text: 'Know when to use 谈论 vs 聊天' },
+        },
+      ],
+    });
+    createInboxNoteRequest.mockResolvedValue({ noteId: 'note-1' });
+
+    const { default: CommandBar } = await import('./CommandBar.svelte');
+    const snippet = createRawSnippet(() => ({
+      render: () => '<section>context content</section>',
+    }));
+
+    render(CommandBar, {
+      props: {
+        children: snippet,
+      },
+    });
+
+    commandBar.setPathname('/zh/card-review');
+    commandBar.setWorkspaceContext('zh', null);
+
+    const textbox = screen.getByLabelText('Command bar');
+    await fireEvent.input(textbox, { target: { value: 'When would I use 谈论 vs 聊天?' } });
+    await fireEvent.keyDown(textbox, { key: 'Enter' });
+
+    expect(await screen.findAllByText('Know when to use 谈论 vs 聊天')).toHaveLength(2);
+    expect(screen.getAllByText('Add inbox note')).toHaveLength(2);
+
+    await fireEvent.click(screen.getAllByRole('button', { name: /Know when to use 谈论 vs 聊天/ })[0]);
+
+    expect(createInboxNoteRequest).toHaveBeenCalledWith({
+      languageId: 'zh',
+      content: 'Know when to use 谈论 vs 聊天',
     });
   });
 

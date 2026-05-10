@@ -314,6 +314,8 @@
         return 'Add to examples';
       case 'append_mnemonic':
         return 'Add to mnemonics';
+      case 'add_inbox_note':
+        return 'Add inbox note';
       case 'create_group':
         return 'Create group';
       case 'add_card_to_group':
@@ -329,6 +331,7 @@
     switch (suggestion.type) {
       case 'append_example_sentence':
       case 'append_mnemonic':
+      case 'add_inbox_note':
         return suggestion.payload.text;
       case 'create_group':
         return suggestion.payload.name;
@@ -401,6 +404,16 @@
       }
 
       if (!currentLang) {
+        return;
+      }
+
+      if (suggestion.type === 'add_inbox_note') {
+        await createInboxNoteRequest({
+          languageId: currentLang,
+          content: suggestion.payload.text,
+        });
+        await invalidateAll();
+        commandBar.pushAssistantMessage('Added the suggested inbox note.');
         return;
       }
 

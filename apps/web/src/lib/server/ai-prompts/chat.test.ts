@@ -11,7 +11,7 @@ describe('buildStructuredChatPrompt', () => {
       noteContent: 'Travel vocabulary',
       likelyTargetCardId: 'card-2',
       likelyTargetFocusedField: 'examples',
-      allowedSuggestionTypes: ['append_example_sentence', 'append_mnemonic'],
+      allowedSuggestionTypes: ['append_example_sentence', 'append_mnemonic', 'add_inbox_note'],
       exampleSentenceFormat: 'sentence_translation',
       exampleSentenceFormatInstruction: 'Format every example as "<sentence> | <translation>". Do not add transliteration.',
       draftCards: [
@@ -37,23 +37,25 @@ describe('buildStructuredChatPrompt', () => {
     const prompt = buildStructuredChatPrompt({
       canonicalContext,
       userInput: 'Give me another example sentence',
-      allowedSuggestionTypes: ['append_example_sentence', 'append_mnemonic'],
+      allowedSuggestionTypes: ['append_example_sentence', 'append_mnemonic', 'add_inbox_note'],
     });
 
     expect(prompt.userPrompt).toContain('"contextType": "card_entry_note_workspace"');
     expect(prompt.userPrompt).toContain('{"type":"append_example_sentence","payload":{"cardId":"string","text":"string"}}');
     expect(prompt.userPrompt).toContain('{"type":"append_mnemonic","payload":{"cardId":"string","text":"string"}}');
+    expect(prompt.userPrompt).toContain('{"type":"add_inbox_note","payload":{"text":"string"}}');
     expect(prompt.userPrompt).toContain('"cardId": "card-1"');
     expect(prompt.userPrompt).toContain('"cardId": "card-2"');
     expect(prompt.userPrompt).toContain('ask a clarifying question instead of guessing');
     expect(prompt.userPrompt).toContain('Use the exact cardId from the workspace data');
+    expect(prompt.userPrompt).toContain('Keep payload.text short, note-like');
   });
 
   it('includes card-library list state and snapshot data for card-library chat contexts', () => {
     const canonicalContext: CanonicalChatContext = {
       contextType: 'card_library_list',
       languageId: 'zh',
-      allowedSuggestionTypes: ['create_group'],
+      allowedSuggestionTypes: ['add_inbox_note', 'create_group'],
       listState: {
         searchText: 'train',
         groupFilters: [{ groupId: 'group-1', groupName: 'Travel' }],
@@ -85,7 +87,7 @@ describe('buildStructuredChatPrompt', () => {
     const prompt = buildStructuredChatPrompt({
       canonicalContext,
       userInput: 'What should I study first from this list?',
-      allowedSuggestionTypes: ['create_group'],
+      allowedSuggestionTypes: ['add_inbox_note', 'create_group'],
     });
 
     expect(prompt.userPrompt).toContain('"contextType": "card_library_list"');
@@ -93,13 +95,14 @@ describe('buildStructuredChatPrompt', () => {
     expect(prompt.userPrompt).toContain('"groupName": "Travel"');
     expect(prompt.userPrompt).toContain('"selectedCardIds": [');
     expect(prompt.userPrompt).toContain('"content": "火车"');
+    expect(prompt.userPrompt).toContain('{"type":"add_inbox_note","payload":{"text":"string"}}');
   });
 
   it('includes exact ID guidance for group-management suggestion types', () => {
     const canonicalContext: CanonicalChatContext = {
       contextType: 'group_detail',
       languageId: 'zh',
-      allowedSuggestionTypes: ['create_group', 'add_card_to_group', 'remove_card_from_group'],
+      allowedSuggestionTypes: ['add_inbox_note', 'create_group', 'add_card_to_group', 'remove_card_from_group'],
       group: {
         groupId: 'group-current',
         groupName: 'Travel',
@@ -138,9 +141,10 @@ describe('buildStructuredChatPrompt', () => {
     const prompt = buildStructuredChatPrompt({
       canonicalContext,
       userInput: 'Put this card into Favorites too',
-      allowedSuggestionTypes: ['create_group', 'add_card_to_group', 'remove_card_from_group'],
+      allowedSuggestionTypes: ['add_inbox_note', 'create_group', 'add_card_to_group', 'remove_card_from_group'],
     });
 
+    expect(prompt.userPrompt).toContain('{"type":"add_inbox_note","payload":{"text":"string"}}');
     expect(prompt.userPrompt).toContain('{"type":"create_group","payload":{"name":"string","description":"string | null"}}');
     expect(prompt.userPrompt).toContain('{"type":"add_card_to_group","payload":{"cardId":"string","groupId":"string"}}');
     expect(prompt.userPrompt).toContain('{"type":"remove_card_from_group","payload":{"cardId":"string","groupId":"string"}}');
@@ -148,18 +152,18 @@ describe('buildStructuredChatPrompt', () => {
     expect(prompt.userPrompt).toContain('set description to null when no description is needed');
   });
 
-  it('makes clear that study-language help is still allowed when no suggestions are available', () => {
+  it('makes clear that study-language help is still allowed when only inbox-note suggestions are available', () => {
     const canonicalContext: CanonicalChatContext = {
       contextType: 'non_actionable',
       routeContextType: 'card-review',
       languageId: 'zh',
-      allowedSuggestionTypes: [],
+      allowedSuggestionTypes: ['add_inbox_note'],
     };
 
     const prompt = buildStructuredChatPrompt({
       canonicalContext,
       userInput: 'Why is 了 used here?',
-      allowedSuggestionTypes: [],
+      allowedSuggestionTypes: ['add_inbox_note'],
     });
 
     expect(prompt.systemPrompt).toContain(
@@ -168,6 +172,7 @@ describe('buildStructuredChatPrompt', () => {
     expect(prompt.userPrompt).toContain(
       'Suggestions are only for typed app actions. They do not limit normal study-language help.',
     );
-    expect(prompt.userPrompt).toContain('Allowed suggestion types: none.');
+    expect(prompt.userPrompt).toContain('Allowed suggestion types: add_inbox_note.');
+    expect(prompt.userPrompt).toContain('Never assume add_inbox_note creates anything automatically');
   });
 });
