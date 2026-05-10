@@ -7,7 +7,7 @@ import * as schema from './schema.js';
 import { users, studyLanguages } from './schema/users.js';
 import { groups, cards, cardGroups } from './schema/cards.js';
 import { inboxNotes, noteCardLinks, cardEntryDailyStats } from './schema/card-entry.js';
-import { cardReviewSrs, cardReviewDailyStats } from './schema/card-review.js';
+import { cardReviewSrs, cardReviewEvents, cardReviewDailyStats } from './schema/card-review.js';
 import {
   translationDrillSrs,
   translationDrillDrawPiles,
@@ -57,6 +57,7 @@ export async function resetTestTables(db: TestDb) {
   // Delete in reverse FK dependency order (leaf tables first, then parents)
   await db.delete(cardEntryDailyStats);
   await db.delete(cardReviewDailyStats);
+  await db.delete(cardReviewEvents);
   await db.delete(translationDrillDailyStats);
   await db.delete(translationDrillContext);
   await db.delete(translationDrillSrs);

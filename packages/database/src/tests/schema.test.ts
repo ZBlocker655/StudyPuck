@@ -5,7 +5,7 @@ import { eq, and } from 'drizzle-orm';
 import { users, studyLanguages } from '../schema/users.js';
 import { cards, groups } from '../schema/cards.js';
 import { inboxNotes, noteCardLinks, cardEntryDailyStats } from '../schema/card-entry.js';
-import { cardReviewSrs, cardReviewDailyStats } from '../schema/card-review.js';
+import { cardReviewSrs, cardReviewEvents, cardReviewDailyStats } from '../schema/card-review.js';
 import {
   translationDrillSrs,
   translationDrillDrawPiles,
@@ -56,7 +56,7 @@ describe('Full schema — Card Entry tables', () => {
     expect(retrieved).toBeDefined();
     expect(retrieved.content).toBe(note.content);
     expect(retrieved.state).toBe('unprocessed');
-    expect(retrieved.aiState).toBe('complete');
+    expect(retrieved.aiState).toBe('queued');
     expect(retrieved.sourceType).toBe('manual');
   });
 
@@ -133,6 +133,7 @@ describe('Full schema — Card Review tables', () => {
   });
 
   beforeEach(async () => {
+    await db.delete(cardReviewEvents);
     await db.delete(cardReviewDailyStats);
     await db.delete(cardReviewSrs);
   });
@@ -169,6 +170,7 @@ describe('Full schema — Card Review tables', () => {
     const [retrieved] = await db.select().from(cardReviewSrs);
     expect(retrieved.easeFactor).toBeCloseTo(2.5, 1);
     expect(retrieved.reviewCount).toBe(0);
+    expect(retrieved.state).toBe('active');
   });
 
   it('should record card review daily stats', async () => {
@@ -188,6 +190,32 @@ describe('Full schema — Card Review tables', () => {
     expect(retrieved.cardsReviewed).toBe(20);
     expect(retrieved.cardsRatedEasy).toBe(10);
     expect(retrieved.cardsSnoozed).toBe(0);
+  });
+
+  it('should store card review events', async () => {
+    await db.insert(cardReviewEvents).values({
+      eventId: 'review-event-001',
+      userId: TEST_USER.userId,
+      languageId: 'zh',
+      cardId: TEST_CARD.cardId,
+      eventType: 'rated',
+      rating: 'easy',
+      previousState: 'active',
+      nextState: 'active',
+      previousIntervalDays: 1,
+      nextIntervalDays: 3,
+      previousDue: 0,
+      nextDue: 1000000,
+    });
+
+    const [retrieved] = await db
+      .select()
+      .from(cardReviewEvents)
+      .where(eq(cardReviewEvents.eventId, 'review-event-001'));
+
+    expect(retrieved.eventType).toBe('rated');
+    expect(retrieved.rating).toBe('easy');
+    expect(retrieved.nextIntervalDays).toBe(3);
   });
 });
 
