@@ -41,7 +41,7 @@ export type CardEntryNoteWorkspaceContext = {
   noteContent: string;
   likelyTargetCardId: string | null;
   likelyTargetFocusedField: string | null;
-  allowedSuggestionTypes: readonly ChatSuggestionType[];
+  allowedSuggestionTypes: readonly ['append_example_sentence', 'append_mnemonic', 'add_inbox_note'];
   exampleSentenceFormat: CardEntryExampleSentenceFormat;
   exampleSentenceFormatInstruction: string;
   draftCards: NoteWorkspaceDraftCardSummary[];
@@ -76,7 +76,7 @@ export type ChatGroupReference = {
 export type CardLibraryListContext = {
   contextType: 'card_library_list';
   languageId: string;
-  allowedSuggestionTypes: readonly ['create_group'];
+  allowedSuggestionTypes: readonly ['add_inbox_note', 'create_group'];
   listState: {
     searchText: string;
     groupFilters: CardLibraryGroupData[];
@@ -92,7 +92,7 @@ export type CardLibraryListContext = {
 export type GroupsListContext = {
   contextType: 'groups_list';
   languageId: string;
-  allowedSuggestionTypes: readonly ['create_group'];
+  allowedSuggestionTypes: readonly ['add_inbox_note', 'create_group'];
   listState: {
     scope: 'all_groups_for_language';
     ordering: 'group_name_asc';
@@ -104,7 +104,7 @@ export type GroupsListContext = {
 export type GroupDetailContext = {
   contextType: 'group_detail';
   languageId: string;
-  allowedSuggestionTypes: readonly ['create_group', 'add_card_to_group', 'remove_card_from_group'];
+  allowedSuggestionTypes: readonly ['add_inbox_note', 'create_group', 'add_card_to_group', 'remove_card_from_group'];
   group: ChatGroupSnapshot;
   availableGroupsForAddition: ChatGroupReference[];
   listState: {
@@ -122,7 +122,7 @@ export type GroupDetailContext = {
 export type AddCardsToGroupDrawerContext = {
   contextType: 'add_cards_to_group_drawer';
   languageId: string;
-  allowedSuggestionTypes: readonly ['add_card_to_group'];
+  allowedSuggestionTypes: readonly ['add_inbox_note', 'add_card_to_group'];
   group: ChatGroupSnapshot;
   listState: {
     searchText: string;
@@ -142,6 +142,7 @@ export type CardDetailDrawerContext = {
   allowedSuggestionTypes: readonly [
     'append_example_sentence',
     'append_mnemonic',
+    'add_inbox_note',
     'add_card_to_group',
     'remove_card_from_group',
   ];
@@ -158,7 +159,7 @@ export type NonActionableContext = {
   contextType: 'non_actionable';
   routeContextType: RouteContext['routeContextType'];
   languageId: string | null;
-  allowedSuggestionTypes: readonly [];
+  allowedSuggestionTypes: readonly ['add_inbox_note'] | readonly [];
 };
 
 export type CanonicalChatContext =
@@ -336,7 +337,7 @@ async function resolveCardEntryNoteWorkspaceContext(
     noteContent: workspace.note.content,
     likelyTargetCardId,
     likelyTargetFocusedField: likelyTargetCardId ? hint.focusedField ?? null : null,
-    allowedSuggestionTypes: ['append_example_sentence', 'append_mnemonic'],
+    allowedSuggestionTypes: ['append_example_sentence', 'append_mnemonic', 'add_inbox_note'],
     exampleSentenceFormat,
     exampleSentenceFormatInstruction: buildCardEntryExampleSentenceFormatInstruction({
       exampleSentenceFormat,
@@ -370,7 +371,7 @@ async function resolveCardLibraryListContext(
   return {
     contextType: 'card_library_list',
     languageId,
-    allowedSuggestionTypes: ['create_group'],
+    allowedSuggestionTypes: ['add_inbox_note', 'create_group'],
     listState: {
       searchText: library.filters.searchText,
       groupFilters,
@@ -395,7 +396,7 @@ async function resolveGroupsListContext(
   return {
     contextType: 'groups_list',
     languageId,
-    allowedSuggestionTypes: ['create_group'],
+    allowedSuggestionTypes: ['add_inbox_note', 'create_group'],
     listState: {
       scope: 'all_groups_for_language',
       ordering: 'group_name_asc',
@@ -424,7 +425,7 @@ async function resolveGroupDetailContext(
   return {
     contextType: 'group_detail',
     languageId,
-    allowedSuggestionTypes: ['create_group', 'add_card_to_group', 'remove_card_from_group'],
+    allowedSuggestionTypes: ['add_inbox_note', 'create_group', 'add_card_to_group', 'remove_card_from_group'],
     group: buildGroupSnapshot(groupDetail.group),
     availableGroupsForAddition: groupDetail.cards.availableGroups
       .filter((group) => group.groupId !== groupDetail.group.groupId)
@@ -462,7 +463,7 @@ async function resolveAddCardsToGroupDrawerContext(
   return {
     contextType: 'add_cards_to_group_drawer',
     languageId,
-    allowedSuggestionTypes: ['add_card_to_group'],
+    allowedSuggestionTypes: ['add_inbox_note', 'add_card_to_group'],
     group: buildGroupSnapshot(groupDetail.group),
     listState: {
       searchText: surfaceContext.searchText.trim(),
@@ -521,12 +522,13 @@ async function resolveCardDetailDrawerContext(
   return {
     contextType: 'card_detail_drawer',
     languageId,
-    allowedSuggestionTypes: [
-      'append_example_sentence',
-      'append_mnemonic',
-      'add_card_to_group',
-      'remove_card_from_group',
-    ],
+      allowedSuggestionTypes: [
+        'append_example_sentence',
+        'append_mnemonic',
+        'add_inbox_note',
+        'add_card_to_group',
+        'remove_card_from_group',
+      ],
     sourceSurface: surfaceContext.sourceSurface,
     likelyTargetCardId: activeCard.card.cardId,
     likelyTargetFocusedField: hint.focusedField ?? null,
@@ -548,7 +550,7 @@ function resolveNonActionableContext(
     contextType: 'non_actionable',
     routeContextType: hint.routeContext.routeContextType,
     languageId: hint.languageId ?? null,
-    allowedSuggestionTypes: [],
+    allowedSuggestionTypes: hint.languageId ? ['add_inbox_note'] : [],
   };
 }
 
@@ -763,6 +765,8 @@ export function areChatSuggestionsValidForContext(
         }
 
         return false;
+      case 'add_inbox_note':
+        return context.languageId !== null;
       case 'create_group':
         return isCreateGroupSuggestionValid(context);
       case 'add_card_to_group':

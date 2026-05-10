@@ -22,6 +22,10 @@ function buildResponseShapeInstruction(allowedSuggestionTypes: readonly ChatSugg
     suggestionExamples.push('{"type":"append_mnemonic","payload":{"cardId":"string","text":"string"}}');
   }
 
+  if (allowedSuggestionTypes.includes('add_inbox_note')) {
+    suggestionExamples.push('{"type":"add_inbox_note","payload":{"text":"string"}}');
+  }
+
   if (allowedSuggestionTypes.includes('create_group')) {
     suggestionExamples.push('{"type":"create_group","payload":{"name":"string","description":"string | null"}}');
   }
@@ -61,6 +65,13 @@ function buildSuggestionGuidance(allowedSuggestionTypes: readonly ChatSuggestion
 
   if (allowedSuggestionTypes.includes('create_group')) {
     guidance.push('For create_group suggestions, set description to null when no description is needed.');
+  }
+
+  if (allowedSuggestionTypes.includes('add_inbox_note')) {
+    guidance.push(
+      'Use add_inbox_note only for durable, study-worthy future review items. Keep payload.text short, note-like, and ready to save directly to the active language inbox.',
+    );
+    guidance.push('Never assume add_inbox_note creates anything automatically; it is only a suggestion until the user accepts it.');
   }
 
   return guidance;

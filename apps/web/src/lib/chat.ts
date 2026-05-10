@@ -6,11 +6,16 @@ import {
   cardLibraryFiltersSchema,
   cardLibrarySearchSchema,
 } from '$lib/schemas/cards.js';
-import { editableCardOptionalTextSchema, editableGroupNameSchema } from '$lib/schemas/card-entry.js';
+import {
+  cardEntryNoteContentSchema,
+  editableCardOptionalTextSchema,
+  editableGroupNameSchema,
+} from '$lib/schemas/card-entry.js';
 
 export const CHAT_SUGGESTION_TYPES = [
   'append_example_sentence',
   'append_mnemonic',
+  'add_inbox_note',
   'create_group',
   'add_card_to_group',
   'remove_card_from_group',
@@ -105,6 +110,13 @@ export const createGroupSuggestionSchema = z.object({
   }),
 });
 
+export const addInboxNoteSuggestionSchema = z.object({
+  type: z.literal('add_inbox_note'),
+  payload: z.object({
+    text: cardEntryNoteContentSchema,
+  }),
+});
+
 export const addCardToGroupSuggestionSchema = z.object({
   type: z.literal('add_card_to_group'),
   payload: z.object({
@@ -124,6 +136,7 @@ export const removeCardFromGroupSuggestionSchema = z.object({
 export const chatSuggestionSchema = z.discriminatedUnion('type', [
   appendExampleSentenceSuggestionSchema,
   appendMnemonicSuggestionSchema,
+  addInboxNoteSuggestionSchema,
   createGroupSuggestionSchema,
   addCardToGroupSuggestionSchema,
   removeCardFromGroupSuggestionSchema,

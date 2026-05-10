@@ -108,9 +108,12 @@ describe('handleStudyPuckChatRequest', () => {
     expect(generateStructured).not.toHaveBeenCalled();
   });
 
-  it('passes no allowed suggestion types for non-actionable card review context', async () => {
+  it('passes inbox-note suggestion allowance for non-actionable card review context', async () => {
     const generateStructured = vi.fn(async (request: { responseSchema: { parse: (value: unknown) => unknown } }) =>
-      request.responseSchema.parse({ message: 'Hello from card review.' }),
+      request.responseSchema.parse({
+        message: 'That is worth revisiting later.',
+        suggestions: [{ type: 'add_inbox_note', payload: { text: 'Review ser vs estar triggers' } }],
+      }),
     );
 
     const response = await handleStudyPuckChatRequest({
@@ -122,8 +125,9 @@ describe('handleStudyPuckChatRequest', () => {
       generateStructured,
     });
 
-    // Card Review is non-actionable in the current implementation – no suggestions
-    expect(response.suggestions).toEqual([]);
+    expect(response.suggestions).toEqual([
+      { type: 'add_inbox_note', payload: { text: 'Review ser vs estar triggers' } },
+    ]);
     expect(generateStructured).toHaveBeenCalledWith(
       expect.objectContaining({
         userPrompt: expect.stringContaining('"contextType": "non_actionable"'),
@@ -145,13 +149,13 @@ describe('handleStudyPuckChatRequest', () => {
       routeContext: resolveRouteContext('/es/card-entry'),
       languageId: 'es',
       noteId: 'note-1',
-        cardId: 'card-1',
-        privateEnv: {},
-        generateStructured,
-      });
+      cardId: 'card-1',
+      privateEnv: {},
+      generateStructured,
+    });
 
-    // Without a database the context resolver cannot load the note workspace, so no
-    // actionable suggestion types are allowed.
+    // Without a database the context resolver cannot load the note workspace, but
+    // the active language still allows inbox-note suggestions.
     expect(response.suggestions).toEqual([]);
     expect(generateStructured).toHaveBeenCalledWith(
       expect.objectContaining({
