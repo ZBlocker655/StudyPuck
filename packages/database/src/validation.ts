@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { users, studyLanguages } from './schema/users.js';
 import { groups, cards, cardGroups } from './schema/cards.js';
 import { inboxNotes, noteCardLinks, cardEntryDailyStats } from './schema/card-entry.js';
-import { cardReviewSrs, cardReviewDailyStats } from './schema/card-review.js';
+import { cardReviewSrs, cardReviewEvents, cardReviewDailyStats } from './schema/card-review.js';
 import {
   translationDrillSrs,
   translationDrillDrawPiles,
@@ -19,6 +19,9 @@ export const inboxNoteStateSchema = z.enum(['unprocessed', 'deferred', 'processe
 export const inboxNoteAiStateSchema = z.enum(['queued', 'processing', 'complete', 'failed']);
 export const inboxSourceTypeSchema = z.enum(['manual', 'api', 'browser_extension', 'ifttt', 'zapier', 'n8n']);
 export const drillContextStateSchema = z.enum(['active', 'snoozed', 'dismissed']);
+export const cardReviewStateSchema = z.enum(['active', 'snoozed', 'disabled']);
+export const cardReviewRatingSchema = z.enum(['easy', 'medium', 'hard']);
+export const cardReviewEventTypeSchema = z.enum(['rated', 'snoozed', 'disabled', 'reactivated', 'pinned_to_drills']);
 
 // === Users ===
 export const insertUserSchema = createInsertSchema(users);
@@ -62,6 +65,14 @@ export const selectCardEntryDailyStatsSchema = createSelectSchema(cardEntryDaily
 // === Card Review ===
 export const insertCardReviewSrsSchema = createInsertSchema(cardReviewSrs);
 export const selectCardReviewSrsSchema = createSelectSchema(cardReviewSrs);
+
+export const insertCardReviewEventSchema = createInsertSchema(cardReviewEvents).extend({
+  eventType: cardReviewEventTypeSchema,
+  rating: cardReviewRatingSchema.nullable().optional(),
+  previousState: cardReviewStateSchema.nullable().optional(),
+  nextState: cardReviewStateSchema.nullable().optional(),
+});
+export const selectCardReviewEventSchema = createSelectSchema(cardReviewEvents);
 
 export const insertCardReviewDailyStatsSchema = createInsertSchema(cardReviewDailyStats);
 export const selectCardReviewDailyStatsSchema = createSelectSchema(cardReviewDailyStats);

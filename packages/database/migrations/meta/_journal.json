@@ -57,6 +57,13 @@
       "when": 1776486900000,
       "tag": "0007_repair_cards_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1778384492627,
+      "tag": "0008_oval_metal_master",
+      "breakpoints": true
     }
   ]
 }
