@@ -8,7 +8,7 @@ import {
 } from './support/database';
 import { signInAs } from './support/session';
 
-test('configures a Card Review session from the home screen and loads the queued cards', async ({ page }) => {
+async function seedReviewFixture() {
 	await resetDatabase();
 
 	const user = await seedUser({
@@ -63,9 +63,23 @@ test('configures a Card Review session from the home screen and loads the queued
 	await seedCardReviewCard({
 		userId: user.userId,
 		languageId: 'zh',
-		cardId: 'card-review-future',
+		cardId: 'card-review-due-3',
 		cardContent: '逐渐',
 		meaning: 'gradually',
+		llmInstructions: 'Prefer examples about steady progress.',
+		groupId: coreGroup.groupId,
+		dueAt: new Date('2026-05-07T12:00:00.000Z'),
+		lastReviewedAt: new Date('2026-05-05T12:00:00.000Z'),
+		reviewCount: 2,
+		intervalDays: 3
+	});
+
+	await seedCardReviewCard({
+		userId: user.userId,
+		languageId: 'zh',
+		cardId: 'card-review-future',
+		cardContent: '预习',
+		meaning: 'to preview a lesson',
 		groupId: futureGroup.groupId,
 		dueAt: new Date('2026-05-12T12:00:00.000Z'),
 		lastReviewedAt: new Date('2026-05-08T12:00:00.000Z'),
@@ -87,6 +101,12 @@ test('configures a Card Review session from the home screen and loads the queued
 		cardsReviewed: 4
 	});
 
+	return { user, coreGroup };
+}
+
+test('configures a Card Review session from the home screen and loads the real session UI', async ({ page }) => {
+	const { user, coreGroup } = await seedReviewFixture();
+
 	await signInAs(page, user);
 	await page.goto('/zh/card-review');
 
@@ -94,8 +114,6 @@ test('configures a Card Review session from the home screen and loads the queued
 	await expect(contextView.getByRole('heading', { name: 'Card Review' })).toBeVisible();
 	await expect(contextView.getByText('Core Review')).toBeVisible();
 	await expect(contextView.getByText('Future Review')).toBeVisible();
-	await expect(contextView.getByText('2 cards in rotation')).toBeVisible();
-	await expect(contextView.getByText('1 card in rotation')).toBeVisible();
 
 	const startButton = contextView.getByRole('button', { name: 'Start Session' });
 	await expect(startButton).toBeDisabled();
@@ -104,12 +122,54 @@ test('configures a Card Review session from the home screen and loads the queued
 	await expect(startButton).toBeEnabled();
 
 	await contextView.getByRole('radio', { name: /Limit to N cards/i }).check();
-	await contextView.getByRole('spinbutton', { name: 'Session size' }).fill('1');
+	await contextView.getByRole('spinbutton', { name: 'Session size' }).fill('2');
 	await startButton.click();
 
-	await page.waitForURL(/\/zh\/card-review\/session\?.*group=group-core-review.*limit=1/);
-	await expect(contextView.getByText('Session ready with 1 card from 1 group.')).toBeVisible();
-	await expect(contextView.getByText('First queued card')).toBeVisible();
+	await page.waitForURL(new RegExp(`/zh/card-review/session\\?.*group=${coreGroup.groupId}.*limit=2`));
+	await expect(contextView.getByText('Card 1 of 2')).toBeVisible();
+	await expect(contextView.getByRole('heading', { name: '逐渐' })).toBeVisible();
+	await expect(contextView.getByRole('button', { name: 'Easy 1' })).toBeVisible();
+	await expect(contextView.getByRole('button', { name: 'Pin to Drills' })).toBeVisible();
+	await expect(contextView.getByRole('heading', { name: 'Up next' })).toBeVisible();
+	await expect(contextView.getByText('巩固')).toBeVisible();
+});
+
+test('advances through session actions, supports drawer navigation, and shows the completion CTAs', async ({ page }) => {
+	const { user, coreGroup } = await seedReviewFixture();
+
+	await signInAs(page, user);
+	await page.goto(`/zh/card-review/session?group=${coreGroup.groupId}`);
+
+	const contextView = page.getByLabel('Context view', { exact: true });
+	await expect(contextView.getByText('Card 1 of 3')).toBeVisible();
+	await expect(contextView.getByRole('heading', { name: '逐渐' })).toBeVisible();
+
+	await contextView.getByRole('button', { name: 'Card details' }).click();
+	const drawer = page.getByRole('dialog');
+	await expect(drawer.locator('textarea').first()).toHaveValue('逐渐');
+	await drawer.getByRole('button', { name: 'Next card' }).click();
+	await expect(drawer.locator('textarea').first()).toHaveValue('巩固');
+	await drawer.getByRole('button', { name: 'Previous card' }).click();
+	await expect(drawer.locator('textarea').first()).toHaveValue('逐渐');
+	await drawer.getByRole('button', { name: 'Close drawer' }).click();
+
+	await contextView.getByRole('button', { name: 'Easy 1' }).click();
+	await expect(contextView.getByText('Easy recorded.')).toBeVisible();
+	await expect(contextView.getByText('Card 2 of 3')).toBeVisible();
 	await expect(contextView.getByRole('heading', { name: '巩固' })).toBeVisible();
-	await expect(contextView.getByText('Core Review')).toBeVisible();
+
+	await page.keyboard.press('P');
+	await expect(contextView.getByText('Card pinned to Translation Drills.')).toBeVisible();
+	await expect(contextView.getByText('Card 3 of 3')).toBeVisible();
+	await expect(contextView.getByRole('heading', { name: '补偿' })).toBeVisible();
+
+	await page.keyboard.press('3');
+	await expect(contextView.getByRole('heading', { name: 'Session complete' })).toBeVisible();
+	await expect(contextView.getByText('Cards reviewed')).toBeVisible();
+	await expect(contextView.getByText(/^2$/)).toBeVisible();
+	await expect(contextView.getByText('Easy 1')).toBeVisible();
+	await expect(contextView.getByText('Hard 1')).toBeVisible();
+	await expect(contextView.getByRole('link', { name: 'Review more' })).toBeVisible();
+	await expect(contextView.getByRole('link', { name: 'Go to Translation Drills →' })).toBeVisible();
+	await expect(contextView.getByRole('link', { name: 'Back to home' })).toBeVisible();
 });

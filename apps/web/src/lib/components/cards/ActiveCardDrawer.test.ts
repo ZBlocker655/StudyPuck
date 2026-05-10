@@ -119,6 +119,21 @@ describe('ActiveCardDrawer', () => {
     });
   });
 
+  it('hides delete controls when delete is not allowed', () => {
+    render(ActiveCardDrawer, {
+      props: {
+        lang: 'zh',
+        card: createCard(),
+        availableGroups: [],
+        selectedIndex: 0,
+        totalCount: 1,
+        allowDelete: false,
+      },
+    });
+
+    expect(screen.queryByRole('button', { name: 'Delete card' })).toBeNull();
+  });
+
   it('applies append-mnemonic suggestions through the active-card PATCH endpoint', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
