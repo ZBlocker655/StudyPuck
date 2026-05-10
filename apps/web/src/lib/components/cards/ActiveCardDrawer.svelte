@@ -49,6 +49,7 @@
   export let hasPrevious = false;
   export let hasNext = false;
   export let disabled = false;
+  export let allowDelete = true;
 
   let draft = structuredClone(card);
   let previousCard = card;
@@ -361,7 +362,7 @@
   }
 
   async function confirmDelete() {
-    if (disabled || removePending) {
+    if (disabled || removePending || !allowDelete) {
       return;
     }
 
@@ -760,20 +761,22 @@
     </details>
   </div>
 
-  <footer class="active-card-drawer__footer">
-    <button
-      type="button"
-      class="active-card-drawer__delete"
-      disabled={disabled || removePending}
-      on:click={() => {
-        deleteConfirmOpen = true;
-      }}
-    >
-      {removePending ? 'Deleting…' : 'Delete card'}
-    </button>
-  </footer>
+  {#if allowDelete}
+    <footer class="active-card-drawer__footer">
+      <button
+        type="button"
+        class="active-card-drawer__delete"
+        disabled={disabled || removePending}
+        on:click={() => {
+          deleteConfirmOpen = true;
+        }}
+      >
+        {removePending ? 'Deleting…' : 'Delete card'}
+      </button>
+    </footer>
+  {/if}
 
-  {#if deleteConfirmOpen}
+  {#if allowDelete && deleteConfirmOpen}
     <div class="active-card-drawer__confirm-backdrop">
       <div class="active-card-drawer__confirm stack" style="--stack-space: var(--space-3)" role="alertdialog" aria-modal="true">
         <h2>Delete "{draft.content}"?</h2>

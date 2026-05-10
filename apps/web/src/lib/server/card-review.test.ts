@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  applyCardReviewSessionAction,
   CardReviewRequestError,
+  type CardReviewActionDeps,
   type CardReviewLoaderDeps,
   loadCardReviewHomeData,
   loadCardReviewSessionData,
@@ -62,6 +64,10 @@ describe('Card Review server helpers', () => {
         snoozedUntil: null,
       },
     ]),
+    getGroups: vi.fn(async () => [
+      { groupId: 'group-extended', groupName: 'Extended' },
+      { groupId: 'group-core', groupName: 'Core' },
+    ]),
   };
   const deps = baseDeps as unknown as CardReviewLoaderDeps;
 
@@ -107,6 +113,10 @@ describe('Card Review server helpers', () => {
       cardId: 'card-1',
       nextDueAtIso: '2026-05-09T12:00:00.000Z',
     });
+    expect(result.availableGroups).toEqual([
+      { groupId: 'group-core', groupName: 'Core' },
+      { groupId: 'group-extended', groupName: 'Extended' },
+    ]);
   });
 
   it('rejects invalid session input before hitting the data layer', async () => {
@@ -132,6 +142,142 @@ describe('Card Review server helpers', () => {
 
     await expect(loadCardReviewHomeData('user-1', 'ja', url, database, deps)).rejects.toMatchObject({
       status: 404,
+    } satisfies Partial<CardReviewRequestError>);
+  });
+});
+
+describe('applyCardReviewSessionAction', () => {
+  const database = {} as never;
+  const now = new Date('2026-05-10T12:00:00.000Z');
+  const baseResult = {
+    eventId: 'event-1',
+    cardId: 'card-1',
+    rating: null,
+    occurredAt: now,
+    state: 'active' as const,
+    snoozedUntil: null,
+    nextDueAt: new Date('2026-05-12T12:00:00.000Z'),
+    intervalDays: 2,
+    easeFactor: 2.5,
+    reviewCount: 4,
+  };
+
+  const actionDeps = {
+    getActiveUserLanguages: vi.fn(async () => [{
+      userId: 'user-1',
+      languageId: 'zh',
+      languageName: 'Chinese',
+      isActive: true,
+      cefrLevel: null,
+      settings: null,
+      createdAt: null,
+    }]),
+    recordCardReviewRating: vi.fn(async () => ({
+      ...baseResult,
+      eventType: 'rated' as const,
+      rating: 'easy' as const,
+    })),
+    recordCardReviewPinToDrills: vi.fn(async () => ({
+      ...baseResult,
+      eventType: 'pinned_to_drills' as const,
+    })),
+    snoozeCardForReview: vi.fn(async () => ({
+      ...baseResult,
+      eventType: 'snoozed' as const,
+      state: 'snoozed' as const,
+      snoozedUntil: new Date('2026-05-11T12:00:00.000Z'),
+    })),
+    disableCardForReview: vi.fn(async () => ({
+      ...baseResult,
+      eventType: 'disabled' as const,
+      state: 'disabled' as const,
+    })),
+    now: vi.fn(() => now),
+  };
+  const deps = actionDeps as unknown as CardReviewActionDeps;
+
+  it('records a rating action and returns a UI-friendly response', async () => {
+    const result = await applyCardReviewSessionAction(
+      'user-1',
+      'zh',
+      {
+        action: 'rate',
+        cardId: 'card-1',
+        rating: 'easy',
+      },
+      database,
+      deps,
+    );
+
+    expect(actionDeps.recordCardReviewRating).toHaveBeenCalledWith(
+      'user-1',
+      'zh',
+      'card-1',
+      'easy',
+      { reviewedAt: now },
+      database,
+    );
+    expect(result).toMatchObject({
+      action: 'rate',
+      cardId: 'card-1',
+      rating: 'easy',
+      occurredAtIso: '2026-05-10T12:00:00.000Z',
+      message: 'Easy recorded.',
+    });
+  });
+
+  it('uses the default 24-hour snooze duration for snooze actions', async () => {
+    await applyCardReviewSessionAction(
+      'user-1',
+      'zh',
+      {
+        action: 'snooze',
+        cardId: 'card-1',
+      },
+      database,
+      deps,
+    );
+
+    expect(actionDeps.snoozeCardForReview).toHaveBeenCalledWith(
+      'user-1',
+      'zh',
+      'card-1',
+      new Date('2026-05-11T12:00:00.000Z'),
+      { occurredAt: now },
+      database,
+    );
+  });
+
+  it('rejects invalid review action payloads', async () => {
+    await expect(applyCardReviewSessionAction(
+      'user-1',
+      'zh',
+      {
+        action: 'rate',
+        cardId: 'card-1',
+      },
+      database,
+      deps,
+    )).rejects.toMatchObject({
+      status: 400,
+    } satisfies Partial<CardReviewRequestError>);
+  });
+
+  it('converts missing-card mutation errors into request errors', async () => {
+    actionDeps.disableCardForReview.mockRejectedValueOnce(new Error('That card is not available for review.'));
+
+    await expect(applyCardReviewSessionAction(
+      'user-1',
+      'zh',
+      {
+        action: 'disable',
+        cardId: 'card-1',
+      },
+      database,
+      deps,
+    )).rejects.toMatchObject({
+      status: 404,
+      message: 'That card is not available for review.',
     } satisfies Partial<CardReviewRequestError>);
   });
 });
