@@ -2,6 +2,8 @@ import {
 	addCardToGroup,
 	addStudyLanguage,
 	cardEntryDailyStats,
+	cardReviewDailyStats,
+	cardReviewSrs,
 	createDraftCardFromNote,
 	createGroup,
 	createInboxNote,
@@ -56,6 +58,35 @@ type SeedActiveCardOptions = {
 	cardType?: 'word' | 'pattern' | 'complex_prompt';
 	groupName?: string;
 	groupId?: string;
+	examples?: string[];
+	mnemonics?: string[];
+	llmInstructions?: string | null;
+	createdAt?: Date;
+	updatedAt?: Date;
+};
+
+type SeedCardReviewCardOptions = SeedActiveCardOptions & {
+	dueAt?: Date | null;
+	intervalDays?: number;
+	easeFactor?: number;
+	reviewCount?: number;
+	lastReviewedAt?: Date | null;
+	state?: 'active' | 'snoozed' | 'disabled';
+	snoozedUntil?: Date | null;
+};
+
+type SeedCardReviewDailyStatOptions = {
+	userId: string;
+	languageId: string;
+	date: string;
+	cardsReviewed?: number;
+	cardsRatedEasy?: number;
+	cardsRatedMedium?: number;
+	cardsRatedHard?: number;
+	cardsSnoozed?: number;
+	cardsDisabled?: number;
+	cardsPinnedToDrills?: number;
+	totalReviewTimeMinutes?: number;
 };
 
 type SeedGroupOptions = {
@@ -183,7 +214,8 @@ export async function seedActiveCard(options: SeedActiveCardOptions) {
 	const database = getDb(testDatabaseUrl);
 	const cardId = options.cardId ?? `card-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 	const groupId = options.groupId ?? `group-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-	const now = new Date();
+	const createdAt = options.createdAt ?? new Date();
+	const updatedAt = options.updatedAt ?? createdAt;
 
 	const [card] = await database
 		.insert(cards)
@@ -194,9 +226,12 @@ export async function seedActiveCard(options: SeedActiveCardOptions) {
 			content: options.cardContent,
 			meaning: options.meaning ?? null,
 			cardType: options.cardType ?? 'word',
+			examples: options.examples ?? [],
+			mnemonics: options.mnemonics ?? [],
+			llmInstructions: options.llmInstructions ?? null,
 			status: 'active',
-			createdAt: now,
-			updatedAt: now,
+			createdAt,
+			updatedAt,
 		})
 		.returning();
 
@@ -224,6 +259,17 @@ export async function seedActiveCard(options: SeedActiveCardOptions) {
 				languageId: options.languageId,
 				cardId: card.cardId,
 				groupId: group.groupId,
+			},
+			database as never
+		);
+	} else if (options.groupId) {
+		createdGroupId = options.groupId;
+		await addCardToGroup(
+			{
+				userId: options.userId,
+				languageId: options.languageId,
+				cardId: card.cardId,
+				groupId: options.groupId,
 			},
 			database as never
 		);
@@ -275,4 +321,47 @@ export async function getTodayCardEntryStats(userId: string, languageId: string)
 		.limit(1);
 
 	return stats ?? null;
+}
+
+export async function seedCardReviewCard(options: SeedCardReviewCardOptions) {
+	const database = getDb(testDatabaseUrl);
+	const { card, groupId } = await seedActiveCard(options);
+
+	await database.insert(cardReviewSrs).values({
+		userId: options.userId,
+		languageId: options.languageId,
+		cardId: card.cardId,
+		nextDue: options.dueAt ? Math.floor(options.dueAt.getTime() / 1_000) : null,
+		intervalDays: options.intervalDays ?? 1,
+		easeFactor: options.easeFactor ?? 2.5,
+		reviewCount: options.reviewCount ?? 0,
+		lastReviewed: options.lastReviewedAt ? Math.floor(options.lastReviewedAt.getTime() / 1_000) : null,
+		state: options.state ?? 'active',
+		snoozedUntil: options.snoozedUntil ?? null,
+	});
+
+	return { card, groupId };
+}
+
+export async function seedCardReviewDailyStat(options: SeedCardReviewDailyStatOptions) {
+	const database = getDb(testDatabaseUrl);
+
+	const [stat] = await database
+		.insert(cardReviewDailyStats)
+		.values({
+			userId: options.userId,
+			languageId: options.languageId,
+			date: options.date,
+			cardsReviewed: options.cardsReviewed ?? 0,
+			cardsRatedEasy: options.cardsRatedEasy ?? 0,
+			cardsRatedMedium: options.cardsRatedMedium ?? 0,
+			cardsRatedHard: options.cardsRatedHard ?? 0,
+			cardsSnoozed: options.cardsSnoozed ?? 0,
+			cardsDisabled: options.cardsDisabled ?? 0,
+			cardsPinnedToDrills: options.cardsPinnedToDrills ?? 0,
+			totalReviewTimeMinutes: options.totalReviewTimeMinutes ?? 0,
+		})
+		.returning();
+
+	return stat ?? null;
 }
