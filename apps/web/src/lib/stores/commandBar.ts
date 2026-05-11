@@ -112,12 +112,15 @@ function getSurfaceContextScopeKey(surfaceContext: ChatSurfaceContext | null) {
   switch (surfaceContext.surface) {
     case 'card_library_list':
     case 'groups_list':
+    case 'card_review_setup':
       return surfaceContext.surface;
     case 'group_detail':
     case 'add_cards_to_group_drawer':
       return `${surfaceContext.surface}:${surfaceContext.groupId}`;
     case 'card_detail_drawer':
       return `${surfaceContext.surface}:${surfaceContext.sourceSurface}:${surfaceContext.groupId ?? 'none'}:${surfaceContext.cardId}`;
+    case 'card_review_session':
+      return `${surfaceContext.surface}:${surfaceContext.selection.groupIds.join(',')}:${surfaceContext.selection.limit ?? 'all'}:${surfaceContext.currentCardId}`;
   }
 }
 

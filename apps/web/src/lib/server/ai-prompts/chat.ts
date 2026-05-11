@@ -38,6 +38,18 @@ function buildResponseShapeInstruction(allowedSuggestionTypes: readonly ChatSugg
     suggestionExamples.push('{"type":"remove_card_from_group","payload":{"cardId":"string","groupId":"string"}}');
   }
 
+  if (allowedSuggestionTypes.includes('pin_review_card')) {
+    suggestionExamples.push('{"type":"pin_review_card","payload":{"cardId":"string"}}');
+  }
+
+  if (allowedSuggestionTypes.includes('snooze_review_card')) {
+    suggestionExamples.push('{"type":"snooze_review_card","payload":{"cardId":"string"}}');
+  }
+
+  if (allowedSuggestionTypes.includes('next_review_card')) {
+    suggestionExamples.push('{"type":"next_review_card","payload":{"cardId":"string"}}');
+  }
+
   return [
     'Return this JSON shape exactly:',
     '{"message":"string","suggestions":[{"type":"...","payload":{...}}]}',
@@ -61,6 +73,15 @@ function buildSuggestionGuidance(allowedSuggestionTypes: readonly ChatSuggestion
     allowedSuggestionTypes.includes('remove_card_from_group')
   ) {
     guidance.push('Use exact cardId and groupId values from the machine context. Never substitute names for IDs.');
+  }
+
+  if (
+    allowedSuggestionTypes.includes('pin_review_card') ||
+    allowedSuggestionTypes.includes('snooze_review_card') ||
+    allowedSuggestionTypes.includes('next_review_card')
+  ) {
+    guidance.push('Use the exact current review cardId from the machine context for Card Review suggestions.');
+    guidance.push('Only suggest Card Review actions that are valid for the current session card and queue state.');
   }
 
   if (allowedSuggestionTypes.includes('create_group')) {

@@ -111,6 +111,8 @@ describe('resolveCanonicalChatContext', () => {
         }),
         loadCardLibraryGroupsData: vi.fn(),
         loadGroupDetailData: vi.fn(),
+        loadCardReviewHomeData: vi.fn(),
+        loadCardReviewSessionData: vi.fn(),
       },
     );
 
@@ -159,6 +161,8 @@ describe('resolveCanonicalChatContext', () => {
           totalCount: 1,
         }),
         loadGroupDetailData: vi.fn(),
+        loadCardReviewHomeData: vi.fn(),
+        loadCardReviewSessionData: vi.fn(),
       },
     );
 
@@ -229,6 +233,8 @@ describe('resolveCanonicalChatContext', () => {
             totalCount: 0,
           },
         }),
+        loadCardReviewHomeData: vi.fn(),
+        loadCardReviewSessionData: vi.fn(),
       },
     );
 
@@ -311,6 +317,8 @@ describe('resolveCanonicalChatContext', () => {
             totalCount: 2,
           },
         }),
+        loadCardReviewHomeData: vi.fn(),
+        loadCardReviewSessionData: vi.fn(),
       },
     );
 
@@ -392,6 +400,8 @@ describe('resolveCanonicalChatContext', () => {
             totalCount: 0,
           },
         }),
+        loadCardReviewHomeData: vi.fn(),
+        loadCardReviewSessionData: vi.fn(),
       },
     );
 
@@ -420,6 +430,168 @@ describe('resolveCanonicalChatContext', () => {
         groupId: 'group-1',
         groupName: 'Greetings',
       },
+    });
+  });
+
+  it('resolves card-review setup context from validated selection hints', async () => {
+    const context = await resolveCanonicalChatContext(
+      'user-1',
+      {
+        routeContext: resolveRouteContext('/es/card-review'),
+        languageId: 'es',
+        surfaceContext: {
+          surface: 'card_review_setup',
+          selection: {
+            groupIds: ['group-1'],
+            limit: 10,
+            countMode: 'limit',
+          },
+        },
+      },
+      {} as Parameters<typeof resolveCanonicalChatContext>[2],
+      {
+        loadActiveCardDetailData: vi.fn(),
+        loadCardLibraryData: vi.fn(),
+        loadCardLibraryGroupsData: vi.fn(),
+        loadGroupDetailData: vi.fn(),
+        loadCardReviewHomeData: vi.fn().mockResolvedValue({
+          stats: {
+            cardsInRotation: 12,
+            dueNowCount: 5,
+            reviewedTodayCount: 2,
+            currentStreakDays: 3,
+            lastReviewedAtIso: '2026-05-10T12:00:00.000Z',
+          },
+          groups: [
+            {
+              groupId: 'group-1',
+              groupName: 'Core',
+              activeCardCount: 8,
+              dueCardCount: 5,
+              nextDueAtIso: '2026-05-11T12:00:00.000Z',
+            },
+          ],
+          selection: {
+            groupIds: ['group-1'],
+            limit: 10,
+            countMode: 'limit',
+          },
+          sessionPreview: {
+            selectedGroupCount: 1,
+            selectedDueCount: 5,
+            nextDueAtIso: '2026-05-11T12:00:00.000Z',
+          },
+        }),
+        loadCardReviewSessionData: vi.fn(),
+      },
+    );
+
+    expect(context).toMatchObject({
+      contextType: 'card_review_setup',
+      languageId: 'es',
+      allowedSuggestionTypes: ['add_inbox_note'],
+      selection: {
+        groupIds: ['group-1'],
+        limit: 10,
+        countMode: 'limit',
+      },
+      selectedGroups: [{ groupId: 'group-1', groupName: 'Core' }],
+      sessionPreview: {
+        selectedGroupCount: 1,
+        selectedDueCount: 5,
+      },
+    });
+  });
+
+  it('resolves card-review session context with current card and upcoming queue snapshots', async () => {
+    const context = await resolveCanonicalChatContext(
+      'user-1',
+      {
+        routeContext: resolveRouteContext('/es/card-review/session'),
+        languageId: 'es',
+        surfaceContext: {
+          surface: 'card_review_session',
+          selection: {
+            groupIds: ['group-1'],
+            limit: 10,
+            countMode: 'limit',
+          },
+          queueCardIds: ['card-1', 'card-2'],
+          currentCardId: 'card-1',
+          initialTotalCount: 3,
+          completedCount: 1,
+        },
+      },
+      {} as Parameters<typeof resolveCanonicalChatContext>[2],
+      {
+        loadActiveCardDetailData: vi.fn(),
+        loadCardLibraryData: vi.fn(),
+        loadCardLibraryGroupsData: vi.fn(),
+        loadGroupDetailData: vi.fn(),
+        loadCardReviewHomeData: vi.fn(),
+        loadCardReviewSessionData: vi.fn().mockResolvedValue({
+          selection: {
+            groupIds: ['group-1'],
+            limit: 10,
+            countMode: 'limit',
+          },
+          totalCount: 3,
+          availableGroups: [],
+          items: [
+            {
+              cardId: 'card-1',
+              content: 'hablar',
+              meaning: 'to speak',
+              cardType: 'word',
+              examples: ['Quiero hablar contigo.'],
+              mnemonics: ['Think of habitual speaking.'],
+              llmInstructions: null,
+              updatedAtIso: null,
+              groups: [{ groupId: 'group-1', groupName: 'Core' }],
+              nextDueAtIso: '2026-05-10T12:00:00.000Z',
+              intervalDays: 2,
+              easeFactor: 2.5,
+              reviewCount: 3,
+              lastReviewedAtIso: null,
+              state: 'active',
+              snoozedUntilIso: null,
+            },
+            {
+              cardId: 'card-2',
+              content: 'conversar',
+              meaning: 'to converse',
+              cardType: 'word',
+              examples: [],
+              mnemonics: [],
+              llmInstructions: 'Prefer spoken-register examples.',
+              updatedAtIso: null,
+              groups: [{ groupId: 'group-1', groupName: 'Core' }],
+              nextDueAtIso: '2026-05-10T13:00:00.000Z',
+              intervalDays: 1,
+              easeFactor: 2.3,
+              reviewCount: 2,
+              lastReviewedAtIso: null,
+              state: 'active',
+              snoozedUntilIso: null,
+            },
+          ],
+        }),
+      },
+    );
+
+    expect(context).toMatchObject({
+      contextType: 'card_review_session',
+      languageId: 'es',
+      allowedSuggestionTypes: ['add_inbox_note', 'pin_review_card', 'snooze_review_card', 'next_review_card'],
+      initialTotalCount: 3,
+      completedCount: 1,
+      remainingCount: 2,
+      currentCardNumber: 2,
+      currentCard: {
+        cardId: 'card-1',
+        content: 'hablar',
+      },
+      upcomingCards: [{ cardId: 'card-2', content: 'conversar' }],
     });
   });
 });
@@ -457,6 +629,8 @@ describe('getAllowedSuggestionTypes', () => {
         }),
         loadCardLibraryGroupsData: vi.fn(),
         loadGroupDetailData: vi.fn(),
+        loadCardReviewHomeData: vi.fn(),
+        loadCardReviewSessionData: vi.fn(),
       },
     );
 
@@ -494,6 +668,8 @@ describe('getAllowedSuggestionTypes', () => {
         loadCardLibraryData: vi.fn(),
         loadCardLibraryGroupsData: vi.fn(),
         loadGroupDetailData: vi.fn(),
+        loadCardReviewHomeData: vi.fn(),
+        loadCardReviewSessionData: vi.fn(),
       },
     );
 
@@ -503,6 +679,72 @@ describe('getAllowedSuggestionTypes', () => {
       'add_inbox_note',
       'add_card_to_group',
       'remove_card_from_group',
+    ]);
+  });
+
+  it('returns review session suggestion types for card-review session context', async () => {
+    const context = await resolveCanonicalChatContext(
+      'user-1',
+      {
+        routeContext: resolveRouteContext('/es/card-review/session'),
+        languageId: 'es',
+        surfaceContext: {
+          surface: 'card_review_session',
+          selection: {
+            groupIds: ['group-1'],
+            limit: null,
+            countMode: 'all_due',
+          },
+          queueCardIds: ['card-1'],
+          currentCardId: 'card-1',
+          initialTotalCount: 1,
+          completedCount: 0,
+        },
+      },
+      {} as Parameters<typeof resolveCanonicalChatContext>[2],
+      {
+        loadActiveCardDetailData: vi.fn(),
+        loadCardLibraryData: vi.fn(),
+        loadCardLibraryGroupsData: vi.fn(),
+        loadGroupDetailData: vi.fn(),
+        loadCardReviewHomeData: vi.fn(),
+        loadCardReviewSessionData: vi.fn().mockResolvedValue({
+          selection: {
+            groupIds: ['group-1'],
+            limit: null,
+            countMode: 'all_due',
+          },
+          totalCount: 1,
+          availableGroups: [],
+          items: [
+            {
+              cardId: 'card-1',
+              content: 'hablar',
+              meaning: 'to speak',
+              cardType: 'word',
+              examples: [],
+              mnemonics: [],
+              llmInstructions: null,
+              updatedAtIso: null,
+              groups: [{ groupId: 'group-1', groupName: 'Core' }],
+              nextDueAtIso: null,
+              intervalDays: 1,
+              easeFactor: 2.5,
+              reviewCount: 0,
+              lastReviewedAtIso: null,
+              state: 'active',
+              snoozedUntilIso: null,
+            },
+          ],
+        }),
+      },
+    );
+
+    expect(getAllowedSuggestionTypes(context)).toEqual([
+      'add_inbox_note',
+      'pin_review_card',
+      'snooze_review_card',
+      'next_review_card',
     ]);
   });
 });
@@ -598,6 +840,50 @@ describe('areChatSuggestionsValidForContext', () => {
           type: 'remove_card_from_group',
           payload: { cardId: 'card-1', groupId: 'group-999' },
         },
+      ]),
+    ).toBe(false);
+  });
+
+  it('accepts Card Review action suggestions only for the current session card', () => {
+    const context = {
+      contextType: 'card_review_session',
+      languageId: 'es',
+      allowedSuggestionTypes: ['add_inbox_note', 'pin_review_card', 'snooze_review_card', 'next_review_card'],
+      selection: {
+        groupIds: ['group-1'],
+        limit: null,
+        countMode: 'all_due',
+      },
+      initialTotalCount: 2,
+      completedCount: 0,
+      remainingCount: 2,
+      currentCardNumber: 1,
+      currentCard: {
+        cardId: 'card-1',
+        content: 'hablar',
+        meaning: 'to speak',
+        cardType: 'word',
+        groupNames: ['Core'],
+        examples: [],
+        mnemonics: [],
+        llmInstructions: null,
+        nextDueAtIso: null,
+        reviewCount: 2,
+      },
+      upcomingCards: [],
+    } as Awaited<ReturnType<typeof resolveCanonicalChatContext>>;
+
+    expect(
+      areChatSuggestionsValidForContext(context, [
+        { type: 'pin_review_card', payload: { cardId: 'card-1' } },
+        { type: 'snooze_review_card', payload: { cardId: 'card-1' } },
+        { type: 'next_review_card', payload: { cardId: 'card-1' } },
+      ]),
+    ).toBe(true);
+
+    expect(
+      areChatSuggestionsValidForContext(context, [
+        { type: 'pin_review_card', payload: { cardId: 'card-2' } },
       ]),
     ).toBe(false);
   });

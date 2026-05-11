@@ -175,4 +175,61 @@ describe('buildStructuredChatPrompt', () => {
     expect(prompt.userPrompt).toContain('Allowed suggestion types: add_inbox_note.');
     expect(prompt.userPrompt).toContain('Never assume add_inbox_note creates anything automatically');
   });
+
+  it('includes Card Review action suggestion shapes and current-card guidance for active sessions', () => {
+    const canonicalContext: CanonicalChatContext = {
+      contextType: 'card_review_session',
+      languageId: 'zh',
+      allowedSuggestionTypes: ['add_inbox_note', 'pin_review_card', 'snooze_review_card', 'next_review_card'],
+      selection: {
+        groupIds: ['group-1'],
+        limit: 10,
+        countMode: 'limit',
+      },
+      initialTotalCount: 4,
+      completedCount: 1,
+      remainingCount: 3,
+      currentCardNumber: 2,
+      currentCard: {
+        cardId: 'card-1',
+        content: '谈论',
+        meaning: 'to discuss',
+        cardType: 'word',
+        groupNames: ['Conversation'],
+        examples: ['我们以后再谈论这个问题。'],
+        mnemonics: ['Think of a discussion turning in loops.'],
+        llmInstructions: null,
+        nextDueAtIso: '2026-05-10T12:00:00.000Z',
+        reviewCount: 2,
+      },
+      upcomingCards: [
+        {
+          cardId: 'card-2',
+          content: '聊天',
+          meaning: 'to chat',
+          cardType: 'word',
+          groupNames: ['Conversation'],
+          examples: [],
+          mnemonics: [],
+          llmInstructions: null,
+          nextDueAtIso: '2026-05-10T12:05:00.000Z',
+          reviewCount: 1,
+        },
+      ],
+    };
+
+    const prompt = buildStructuredChatPrompt({
+      canonicalContext,
+      userInput: 'I know this one already, move on.',
+      allowedSuggestionTypes: ['add_inbox_note', 'pin_review_card', 'snooze_review_card', 'next_review_card'],
+    });
+
+    expect(prompt.userPrompt).toContain('"contextType": "card_review_session"');
+    expect(prompt.userPrompt).toContain('"currentCardNumber": 2');
+    expect(prompt.userPrompt).toContain('{"type":"pin_review_card","payload":{"cardId":"string"}}');
+    expect(prompt.userPrompt).toContain('{"type":"snooze_review_card","payload":{"cardId":"string"}}');
+    expect(prompt.userPrompt).toContain('{"type":"next_review_card","payload":{"cardId":"string"}}');
+    expect(prompt.userPrompt).toContain('Use the exact current review cardId from the machine context');
+    expect(prompt.userPrompt).toContain('"cardId": "card-1"');
+  });
 });

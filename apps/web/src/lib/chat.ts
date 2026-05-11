@@ -19,6 +19,9 @@ export const CHAT_SUGGESTION_TYPES = [
   'create_group',
   'add_card_to_group',
   'remove_card_from_group',
+  'pin_review_card',
+  'snooze_review_card',
+  'next_review_card',
 ] as const;
 
 export const PROMPT_HISTORY_CAP = 10;
@@ -29,6 +32,11 @@ export const conversationHistoryTurnSchema = z.object({
 });
 
 const selectedChatCardIdsSchema = z.array(activeCardIdSchema).max(100).default([]);
+const cardReviewSelectionSchema = z.object({
+  groupIds: z.array(activeGroupIdSchema).max(100).default([]),
+  limit: z.number().int().min(1).max(100).nullable(),
+  countMode: z.enum(['all_due', 'limit']),
+});
 
 export const cardLibraryListSurfaceContextSchema = z.object({
   surface: z.literal('card_library_list'),
@@ -64,12 +72,30 @@ export const cardDetailDrawerSurfaceContextSchema = z.object({
   groupId: activeGroupIdSchema.optional(),
 });
 
+export const cardReviewSetupSurfaceContextSchema = z.object({
+  surface: z.literal('card_review_setup'),
+  selection: cardReviewSelectionSchema,
+});
+
+export const cardReviewSessionSurfaceContextSchema = z.object({
+  surface: z.literal('card_review_session'),
+  selection: cardReviewSelectionSchema.extend({
+    groupIds: z.array(activeGroupIdSchema).min(1).max(100),
+  }),
+  queueCardIds: z.array(activeCardIdSchema).min(1).max(100),
+  currentCardId: activeCardIdSchema,
+  initialTotalCount: z.number().int().min(1).max(100),
+  completedCount: z.number().int().min(0).max(100),
+});
+
 export const chatSurfaceContextSchema = z.discriminatedUnion('surface', [
   cardLibraryListSurfaceContextSchema,
   groupsListSurfaceContextSchema,
   groupDetailSurfaceContextSchema,
   addCardsToGroupDrawerSurfaceContextSchema,
   cardDetailDrawerSurfaceContextSchema,
+  cardReviewSetupSurfaceContextSchema,
+  cardReviewSessionSurfaceContextSchema,
 ]);
 
 export type ConversationHistoryTurn = z.infer<typeof conversationHistoryTurnSchema>;
@@ -133,6 +159,25 @@ export const removeCardFromGroupSuggestionSchema = z.object({
   }),
 });
 
+const cardReviewActionSuggestionPayloadSchema = z.object({
+  cardId: activeCardIdSchema,
+});
+
+export const pinReviewCardSuggestionSchema = z.object({
+  type: z.literal('pin_review_card'),
+  payload: cardReviewActionSuggestionPayloadSchema,
+});
+
+export const snoozeReviewCardSuggestionSchema = z.object({
+  type: z.literal('snooze_review_card'),
+  payload: cardReviewActionSuggestionPayloadSchema,
+});
+
+export const nextReviewCardSuggestionSchema = z.object({
+  type: z.literal('next_review_card'),
+  payload: cardReviewActionSuggestionPayloadSchema,
+});
+
 export const chatSuggestionSchema = z.discriminatedUnion('type', [
   appendExampleSentenceSuggestionSchema,
   appendMnemonicSuggestionSchema,
@@ -140,6 +185,9 @@ export const chatSuggestionSchema = z.discriminatedUnion('type', [
   createGroupSuggestionSchema,
   addCardToGroupSuggestionSchema,
   removeCardFromGroupSuggestionSchema,
+  pinReviewCardSuggestionSchema,
+  snoozeReviewCardSuggestionSchema,
+  nextReviewCardSuggestionSchema,
 ]);
 
 export type ChatRequest = z.infer<typeof chatRequestSchema>;
