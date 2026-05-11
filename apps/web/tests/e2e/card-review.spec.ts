@@ -173,3 +173,28 @@ test('advances through session actions, supports drawer navigation, and shows th
 	await expect(contextView.getByRole('link', { name: 'Go to Translation Drills →' })).toBeVisible();
 	await expect(contextView.getByRole('link', { name: 'Back to home' })).toBeVisible();
 });
+
+test('supports keyboard access for the end-session dialog and restores focus when dismissed', async ({ page }) => {
+	const { user, coreGroup } = await seedReviewFixture();
+
+	await signInAs(page, user);
+	await page.goto(`/zh/card-review/session?group=${coreGroup.groupId}`);
+
+	const contextView = page.getByLabel('Context view', { exact: true });
+	const openDialogButton = contextView.getByRole('button', { name: 'End session' });
+	await openDialogButton.click();
+
+	const dialog = page.getByRole('alertdialog', { name: 'End session?' });
+	const keepReviewingButton = dialog.getByRole('button', { name: 'Keep reviewing' });
+	const endSessionButton = dialog.getByRole('button', { name: 'End session' });
+
+	await expect(keepReviewingButton).toBeFocused();
+	await page.keyboard.press('Shift+Tab');
+	await expect(endSessionButton).toBeFocused();
+	await page.keyboard.press('Tab');
+	await expect(keepReviewingButton).toBeFocused();
+	await page.keyboard.press('Escape');
+
+	await expect(dialog).toHaveCount(0);
+	await expect(openDialogButton).toBeFocused();
+});

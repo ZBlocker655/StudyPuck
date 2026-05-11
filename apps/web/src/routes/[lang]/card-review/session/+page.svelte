@@ -49,6 +49,8 @@
   let drawerCardId: string | null = null;
   let endSessionOpen = false;
   let endSessionDialog: HTMLElement | null = null;
+  let endSessionButton: HTMLButtonElement | null = null;
+  let sessionOutcomeHeading: HTMLHeadingElement | null = null;
   let previousReviewSession = data.reviewSession;
   let lastHandledSessionActionId = get(cardReviewSessionActions)?.actionId ?? 0;
 
@@ -221,6 +223,7 @@
 
     if (queueItems.length === 0) {
       completionAtMs = Date.now();
+      void tick().then(() => sessionOutcomeHeading?.focus());
     }
   }
 
@@ -388,6 +391,7 @@
 
   function closeEndSessionDialog() {
     endSessionOpen = false;
+    void tick().then(() => endSessionButton?.focus());
   }
 
   function completeSessionEarly() {
@@ -395,6 +399,7 @@
     endedEarly = true;
     completionAtMs = Date.now();
     drawerCardId = null;
+    void tick().then(() => sessionOutcomeHeading?.focus());
   }
 
   function handleEndSessionDialogKeydown(event: KeyboardEvent) {
@@ -515,7 +520,7 @@
     {:else if sessionComplete}
       <header class="review-session__header stack" style="--stack-space: var(--space-2)">
         <p class="review-session__eyebrow">Session</p>
-        <h1>{endedEarly ? 'Session ended' : 'Session complete'}</h1>
+        <h1 bind:this={sessionOutcomeHeading} tabindex="-1">{endedEarly ? 'Session ended' : 'Session complete'}</h1>
         <p class="review-session__copy">
           {#if endedEarly}
             You stopped with {formatCardLabel(queueItems.length)} remaining.
@@ -571,7 +576,12 @@
           <h1>Card Review</h1>
           <div class="review-session__header-actions cluster">
             <p class="review-session__counter">Card {currentCardNumber} of {initialTotalCount}</p>
-            <button type="button" class="review-session__end-button" on:click={() => void openEndSessionDialog()}>
+            <button
+              bind:this={endSessionButton}
+              type="button"
+              class="review-session__end-button"
+              on:click={() => void openEndSessionDialog()}
+            >
               End session
             </button>
           </div>
