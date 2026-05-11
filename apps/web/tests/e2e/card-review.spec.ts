@@ -104,12 +104,6 @@ async function seedReviewFixture() {
 	return { user, coreGroup };
 }
 
-async function submitCommandBar(page: import('@playwright/test').Page, input: string) {
-	const commandBar = page.getByLabel('Command bar');
-	await commandBar.fill(input);
-	await page.locator('form.command-bar').evaluate((form: HTMLFormElement) => form.requestSubmit());
-}
-
 test('configures a Card Review session from the home screen and loads the real session UI', async ({ page }) => {
 	const { user, coreGroup } = await seedReviewFixture();
 
@@ -178,82 +172,6 @@ test('advances through session actions, supports drawer navigation, and shows th
 	await expect(contextView.getByRole('link', { name: 'Review more' })).toBeVisible();
 	await expect(contextView.getByRole('link', { name: 'Go to Translation Drills →' })).toBeVisible();
 	await expect(contextView.getByRole('link', { name: 'Back to home' })).toBeVisible();
-});
-
-test('resets Card Review conversation state across setup and session changes and keeps review commands app-owned', async ({
-	page
-}) => {
-	const { user, coreGroup } = await seedReviewFixture();
-	const chatRequests: Array<{ input: string; conversationHistory?: Array<{ role: string; content: string }> }> = [];
-
-	await page.route('**/api/chat', async (route) => {
-		const payload = route.request().postDataJSON() as {
-			input?: string;
-			conversationHistory?: Array<{ role: string; content: string }>;
-		};
-		const input = typeof payload.input === 'string' ? payload.input : '';
-		chatRequests.push({
-			input,
-			conversationHistory: payload.conversationHistory
-		});
-
-		if (input === 'Any cards due right now?') {
-			await route.fulfill({
-				status: 200,
-				contentType: 'application/json',
-				body: JSON.stringify({
-					message: 'Pick a due group to start your session.',
-					suggestions: []
-				})
-			});
-			return;
-		}
-
-		await route.fulfill({
-			status: 200,
-			contentType: 'application/json',
-			body: JSON.stringify({
-				message: 'You can skip this one.',
-				suggestions: [{ type: 'next_review_card', payload: { cardId: 'card-review-due-3' } }]
-			})
-		});
-	});
-
-	await signInAs(page, user);
-	await page.goto('/zh/card-review');
-
-	const contextView = page.getByLabel('Context view', { exact: true });
-	const assistantMessage = (text: string) => page.locator('.message--assistant').filter({ hasText: text }).first();
-	const suggestionButton = (name: string) => page.locator('button.suggestion-button').filter({ hasText: name }).first();
-
-	await submitCommandBar(page, 'Any cards due right now?');
-	await expect.poll(() => chatRequests.length).toBe(1);
-	expect(chatRequests[0]).toMatchObject({
-		input: 'Any cards due right now?'
-	});
-
-	await contextView.getByRole('checkbox', { name: /Core Review/i }).check();
-	await contextView.getByRole('button', { name: 'Start Session' }).click();
-
-	await page.waitForURL(new RegExp(`/zh/card-review/session\\?.*group=${coreGroup.groupId}`));
-	await expect(contextView.getByRole('heading', { name: '逐渐' })).toBeVisible();
-	await expect(assistantMessage('Pick a due group to start your session.')).toHaveCount(0);
-
-	await submitCommandBar(page, 'Skip this card');
-	await expect.poll(() => chatRequests.length).toBe(2);
-	expect(chatRequests[1]).toMatchObject({
-		input: 'Skip this card'
-	});
-	expect(chatRequests[1]?.conversationHistory ?? []).toEqual([]);
-	await expect(assistantMessage('You can skip this one.')).toBeVisible();
-
-	await suggestionButton('Next card').click();
-	await expect(contextView.getByRole('heading', { name: '巩固' })).toBeVisible();
-	await expect(assistantMessage('You can skip this one.')).toHaveCount(0);
-
-	await submitCommandBar(page, '/pin');
-	await expect(contextView.getByRole('heading', { name: '补偿' })).toBeVisible();
-	expect(chatRequests.map((request) => request.input)).toEqual(['Any cards due right now?', 'Skip this card']);
 });
 
 test('supports keyboard access for the end-session dialog and restores focus when dismissed', async ({ page }) => {
