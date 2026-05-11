@@ -300,7 +300,7 @@ async function loadContextRows(
       ...(normalizedCardIds.length > 0 ? [inArray(translationDrillContext.cardId, normalizedCardIds)] : []),
     ))
     .orderBy(
-      asc(sql`${translationDrillContext.lastUsed} ASC NULLS FIRST`),
+      sql`${translationDrillContext.lastUsed} ASC NULLS FIRST`,
       asc(translationDrillContext.usageCount),
       desc(cards.updatedAt),
     );
