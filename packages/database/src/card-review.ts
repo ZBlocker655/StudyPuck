@@ -2,6 +2,7 @@ import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import { db, type TransactionCapableDatabaseConnection } from './index.js';
 import { cards, cardGroups, groups, cardReviewDailyStats, cardReviewEvents, cardReviewSrs } from './schema.js';
+import { pinCardToTranslationDrillsContext } from './translation-drills.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyDb = PgDatabase<any, any, any>;
@@ -890,6 +891,7 @@ export async function recordCardReviewPinToDrills(
     await upsertDailyStats(userId, languageId, occurredAt, {
       cardsPinnedToDrills: 1,
     }, tx);
+    await pinCardToTranslationDrillsContext(userId, languageId, cardId, { occurredAt }, tx);
 
     return {
       eventId,
