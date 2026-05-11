@@ -184,12 +184,18 @@ test('resets Card Review conversation state across setup and session changes and
 	page
 }) => {
 	const { user, coreGroup } = await seedReviewFixture();
-	const chatInputs: string[] = [];
+	const chatRequests: Array<{ input: string; conversationHistory?: Array<{ role: string; content: string }> }> = [];
 
 	await page.route('**/api/chat', async (route) => {
-		const payload = route.request().postDataJSON() as { input?: string };
+		const payload = route.request().postDataJSON() as {
+			input?: string;
+			conversationHistory?: Array<{ role: string; content: string }>;
+		};
 		const input = typeof payload.input === 'string' ? payload.input : '';
-		chatInputs.push(input);
+		chatRequests.push({
+			input,
+			conversationHistory: payload.conversationHistory
+		});
 
 		if (input === 'Any cards due right now?') {
 			await route.fulfill({
@@ -221,7 +227,10 @@ test('resets Card Review conversation state across setup and session changes and
 	const suggestionButton = (name: string) => page.locator('button.suggestion-button').filter({ hasText: name }).first();
 
 	await submitCommandBar(page, 'Any cards due right now?');
-	await expect(assistantMessage('Pick a due group to start your session.')).toBeVisible();
+	await expect.poll(() => chatRequests.length).toBe(1);
+	expect(chatRequests[0]).toMatchObject({
+		input: 'Any cards due right now?'
+	});
 
 	await contextView.getByRole('checkbox', { name: /Core Review/i }).check();
 	await contextView.getByRole('button', { name: 'Start Session' }).click();
@@ -231,6 +240,11 @@ test('resets Card Review conversation state across setup and session changes and
 	await expect(assistantMessage('Pick a due group to start your session.')).toHaveCount(0);
 
 	await submitCommandBar(page, 'Skip this card');
+	await expect.poll(() => chatRequests.length).toBe(2);
+	expect(chatRequests[1]).toMatchObject({
+		input: 'Skip this card'
+	});
+	expect(chatRequests[1]?.conversationHistory ?? []).toEqual([]);
 	await expect(assistantMessage('You can skip this one.')).toBeVisible();
 
 	await suggestionButton('Next card').click();
@@ -239,7 +253,7 @@ test('resets Card Review conversation state across setup and session changes and
 
 	await submitCommandBar(page, '/pin');
 	await expect(contextView.getByRole('heading', { name: '补偿' })).toBeVisible();
-	expect(chatInputs).toEqual(['Any cards due right now?', 'Skip this card']);
+	expect(chatRequests.map((request) => request.input)).toEqual(['Any cards due right now?', 'Skip this card']);
 });
 
 test('supports keyboard access for the end-session dialog and restores focus when dismissed', async ({ page }) => {
