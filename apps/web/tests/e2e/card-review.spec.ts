@@ -217,24 +217,25 @@ test('resets Card Review conversation state across setup and session changes and
 	await page.goto('/zh/card-review');
 
 	const contextView = page.getByLabel('Context view', { exact: true });
-	const conversationView = page.getByLabel('Conversation view', { exact: true });
+	const assistantMessage = (text: string) => page.locator('.message--assistant').filter({ hasText: text }).first();
+	const suggestionButton = (name: string) => page.locator('button.suggestion-button').filter({ hasText: name }).first();
 
 	await submitCommandBar(page, 'Any cards due right now?');
-	await expect(conversationView.getByText('Pick a due group to start your session.')).toBeVisible();
+	await expect(assistantMessage('Pick a due group to start your session.')).toBeVisible();
 
 	await contextView.getByRole('checkbox', { name: /Core Review/i }).check();
 	await contextView.getByRole('button', { name: 'Start Session' }).click();
 
 	await page.waitForURL(new RegExp(`/zh/card-review/session\\?.*group=${coreGroup.groupId}`));
 	await expect(contextView.getByRole('heading', { name: '逐渐' })).toBeVisible();
-	await expect(conversationView.getByText('Pick a due group to start your session.')).toHaveCount(0);
+	await expect(assistantMessage('Pick a due group to start your session.')).toHaveCount(0);
 
 	await submitCommandBar(page, 'Skip this card');
-	await expect(conversationView.getByText('You can skip this one.')).toBeVisible();
+	await expect(assistantMessage('You can skip this one.')).toBeVisible();
 
-	await conversationView.locator('button.suggestion-button').filter({ hasText: 'Next card' }).first().click();
+	await suggestionButton('Next card').click();
 	await expect(contextView.getByRole('heading', { name: '巩固' })).toBeVisible();
-	await expect(conversationView.getByText('You can skip this one.')).toHaveCount(0);
+	await expect(assistantMessage('You can skip this one.')).toHaveCount(0);
 
 	await submitCommandBar(page, '/pin');
 	await expect(contextView.getByRole('heading', { name: '补偿' })).toBeVisible();
