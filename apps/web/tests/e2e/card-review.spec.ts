@@ -104,6 +104,12 @@ async function seedReviewFixture() {
 	return { user, coreGroup };
 }
 
+async function submitCommandBar(page: import('@playwright/test').Page, input: string) {
+	const commandBar = page.getByLabel('Command bar');
+	await commandBar.fill(input);
+	await commandBar.press('Enter');
+}
+
 test('configures a Card Review session from the home screen and loads the real session UI', async ({ page }) => {
 	const { user, coreGroup } = await seedReviewFixture();
 
@@ -172,4 +178,90 @@ test('advances through session actions, supports drawer navigation, and shows th
 	await expect(contextView.getByRole('link', { name: 'Review more' })).toBeVisible();
 	await expect(contextView.getByRole('link', { name: 'Go to Translation Drills →' })).toBeVisible();
 	await expect(contextView.getByRole('link', { name: 'Back to home' })).toBeVisible();
+});
+
+test('resets Card Review conversation state across setup and session changes and keeps review commands app-owned', async ({
+	page
+}) => {
+	const { user, coreGroup } = await seedReviewFixture();
+	const chatInputs: string[] = [];
+
+	await page.route('**/api/chat', async (route) => {
+		const payload = route.request().postDataJSON() as { input?: string };
+		const input = typeof payload.input === 'string' ? payload.input : '';
+		chatInputs.push(input);
+
+		if (input === 'Any cards due right now?') {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					message: 'Pick a due group to start your session.',
+					suggestions: []
+				})
+			});
+			return;
+		}
+
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				message: 'You can skip this one.',
+				suggestions: [{ type: 'next_review_card', payload: { cardId: 'card-review-due-3' } }]
+			})
+		});
+	});
+
+	await signInAs(page, user);
+	await page.goto('/zh/card-review');
+
+	const contextView = page.getByLabel('Context view', { exact: true });
+	const conversationView = page.getByLabel('Conversation view', { exact: true });
+
+	await submitCommandBar(page, 'Any cards due right now?');
+	await expect(conversationView.getByText('Pick a due group to start your session.')).toBeVisible();
+
+	await contextView.getByRole('checkbox', { name: /Core Review/i }).check();
+	await contextView.getByRole('button', { name: 'Start Session' }).click();
+
+	await page.waitForURL(new RegExp(`/zh/card-review/session\\?.*group=${coreGroup.groupId}`));
+	await expect(contextView.getByRole('heading', { name: '逐渐' })).toBeVisible();
+	await expect(conversationView.getByText('Pick a due group to start your session.')).toHaveCount(0);
+
+	await submitCommandBar(page, 'Skip this card');
+	await expect(conversationView.getByText('You can skip this one.')).toBeVisible();
+
+	await conversationView.locator('button.suggestion-button').filter({ hasText: 'Next card' }).first().click();
+	await expect(contextView.getByRole('heading', { name: '巩固' })).toBeVisible();
+	await expect(conversationView.getByText('You can skip this one.')).toHaveCount(0);
+
+	await submitCommandBar(page, '/pin');
+	await expect(contextView.getByRole('heading', { name: '补偿' })).toBeVisible();
+	expect(chatInputs).toEqual(['Any cards due right now?', 'Skip this card']);
+});
+
+test('supports keyboard access for the end-session dialog and restores focus when dismissed', async ({ page }) => {
+	const { user, coreGroup } = await seedReviewFixture();
+
+	await signInAs(page, user);
+	await page.goto(`/zh/card-review/session?group=${coreGroup.groupId}`);
+
+	const contextView = page.getByLabel('Context view', { exact: true });
+	const openDialogButton = contextView.getByRole('button', { name: 'End session' });
+	await openDialogButton.click();
+
+	const dialog = page.getByRole('alertdialog', { name: 'End session?' });
+	const keepReviewingButton = dialog.getByRole('button', { name: 'Keep reviewing' });
+	const endSessionButton = dialog.getByRole('button', { name: 'End session' });
+
+	await expect(keepReviewingButton).toBeFocused();
+	await page.keyboard.press('Shift+Tab');
+	await expect(endSessionButton).toBeFocused();
+	await page.keyboard.press('Tab');
+	await expect(keepReviewingButton).toBeFocused();
+	await page.keyboard.press('Escape');
+
+	await expect(dialog).toHaveCount(0);
+	await expect(openDialogButton).toBeFocused();
 });

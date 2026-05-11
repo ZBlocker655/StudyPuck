@@ -253,7 +253,7 @@
           <button class="review-start-button" type="submit" disabled={startDisabled}>Start Session</button>
 
           {#if setupHint}
-            <p class="review-setup__hint">{setupHint}</p>
+            <p class="review-setup__hint" aria-live="polite">{setupHint}</p>
           {/if}
 
           <p class="review-setup__supporting">
