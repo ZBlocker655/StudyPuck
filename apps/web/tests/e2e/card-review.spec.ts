@@ -107,7 +107,7 @@ async function seedReviewFixture() {
 async function submitCommandBar(page: import('@playwright/test').Page, input: string) {
 	const commandBar = page.getByLabel('Command bar');
 	await commandBar.fill(input);
-	await commandBar.press('Enter');
+	await page.getByRole('button', { name: 'Submit command' }).click();
 }
 
 test('configures a Card Review session from the home screen and loads the real session UI', async ({ page }) => {
