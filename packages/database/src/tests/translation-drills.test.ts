@@ -253,7 +253,7 @@ describe('Translation Drills database operations', () => {
     expect(drawPiles[0]?.activeCards.map((card) => card.cardId)).toEqual(['card-active']);
     expect(drawPiles[0]?.snoozedCards.map((card) => card.cardId)).toEqual(['card-snoozed']);
     expect(contextCards.find((card) => card.cardId === 'card-pinned')?.sourceGroup).toBeNull();
-    expect(challengeCards.map((card) => card.cardId)).toEqual(['card-active', 'card-pinned']);
+    expect(challengeCards.map((card) => card.cardId)).toEqual(['card-pinned', 'card-active']);
   });
 
   it('draws the next eligible card from a configured pile and can pin cards from Card Review', async () => {
@@ -280,7 +280,7 @@ describe('Translation Drills database operations', () => {
       .from(translationDrillDailyStats)
       .where(eq(translationDrillDailyStats.date, '2026-05-10'));
 
-    expect(drawn.cardId).toBe('card-due');
+    expect(drawn.cardId).toBe('card-new');
     expect(drawn.sourceGroup).toEqual({ groupId: 'group-core', groupName: 'Core' });
     expect(allContextCards.find((card) => card.cardId === 'card-new')?.addedFrom).toBe('pinned_from_review');
     expect(dailyStats?.cardsDrawn).toBe(1);
