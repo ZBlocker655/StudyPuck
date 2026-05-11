@@ -29,6 +29,7 @@
     "clean": "turbo clean"
   },
   "devDependencies": {
+    "prettier": "^3.8.3",
     "turbo": "^2.7.2",
     "varlock": "^0.6.2"
   },

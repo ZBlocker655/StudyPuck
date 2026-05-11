@@ -14,6 +14,13 @@ pnpm --version
 echo "Installing workspace dependencies..."
 pnpm install --frozen-lockfile
 
+expected_prettier_version="$(pnpm exec prettier --version)"
+
+if ! command -v prettier >/dev/null 2>&1 || [ "$(prettier --version)" != "$expected_prettier_version" ]; then
+	echo "Installing Prettier CLI..."
+	npm install --global "prettier@$expected_prettier_version"
+fi
+
 if ! command -v bw >/dev/null 2>&1; then
 	echo "Installing Bitwarden CLI..."
 	npm install --global @bitwarden/cli
