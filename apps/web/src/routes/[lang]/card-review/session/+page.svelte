@@ -1,7 +1,10 @@
 <script lang="ts">
   import { page } from '$app/stores';
+  import { get } from 'svelte/store';
   import { tick } from 'svelte';
   import ActiveCardDrawer from '$lib/components/cards/ActiveCardDrawer.svelte';
+  import { commandBar } from '$lib/stores/commandBar.js';
+  import { cardReviewSessionActions, type CardReviewSessionActionRequest } from '$lib/stores/cardReviewSessionActions.js';
   import type { CardLibraryCardDetailData, CardLibraryGroupData } from '$lib/server/cards.js';
   import type { PageData } from './$types.js';
 
@@ -47,9 +50,11 @@
   let endSessionOpen = false;
   let endSessionDialog: HTMLElement | null = null;
   let previousReviewSession = data.reviewSession;
+  let lastHandledSessionActionId = get(cardReviewSessionActions)?.actionId ?? 0;
 
   $: reviewSession = data.reviewSession;
   $: currentLanguage = $page.params.lang ?? '';
+  $: commandBar.setWorkspaceContext(currentLanguage || null, null);
   $: currentItem = queueItems[0] ?? null;
   $: completedCount = initialTotalCount - queueItems.length;
   $: currentCardNumber = currentItem ? completedCount + 1 : initialTotalCount;
@@ -64,10 +69,28 @@
   $: drawerCard = drawerItem ? toDrawerCard(drawerItem) : null;
   $: queuePreview = queueItems.slice(1, 6);
   $: completionDurationLabel = formatDuration((completionAtMs ?? Date.now()) - startedAtMs);
+  $: commandBar.setSurfaceContext(
+    currentItem && reviewSession
+      ? {
+          surface: 'card_review_session',
+          selection: reviewSession.selection,
+          queueCardIds: queueItems.map((item) => item.cardId),
+          currentCardId: currentItem.cardId,
+          initialTotalCount,
+          completedCount,
+        }
+      : null,
+  );
+  $: commandBar.setTargetHint(currentItem?.cardId ?? null, null);
 
   $: if (reviewSession !== previousReviewSession) {
     resetSessionState(reviewSession);
     previousReviewSession = reviewSession;
+  }
+
+  $: if ($cardReviewSessionActions && $cardReviewSessionActions.actionId !== lastHandledSessionActionId) {
+    lastHandledSessionActionId = $cardReviewSessionActions.actionId;
+    void handleRequestedSessionAction($cardReviewSessionActions);
   }
 
   function resetSessionState(session: ReviewSessionData | null) {
@@ -206,6 +229,44 @@
     actionError = null;
   }
 
+  function advanceToNextCard(cardId: string) {
+    const currentIndex = queueItems.findIndex((item) => item.cardId === cardId);
+
+    if (currentIndex <= 0) {
+      if (queueItems.length <= 1) {
+        return 'There is no next card in this session.';
+      }
+
+      const [firstItem, ...remainingItems] = queueItems;
+
+      if (!firstItem) {
+        return 'There is no next card in this session.';
+      }
+
+      queueItems = [...remainingItems, firstItem];
+
+      if (drawerCardId === cardId) {
+        drawerCardId = queueItems[0]?.cardId ?? null;
+      }
+
+      actionError = null;
+      actionMessage = 'Moved to the next card.';
+      return actionMessage;
+    }
+
+    const [selectedItem] = queueItems.splice(currentIndex, 1);
+
+    if (!selectedItem) {
+      return 'There is no next card in this session.';
+    }
+
+    queueItems = [selectedItem, ...queueItems];
+    drawerCardId = selectedItem.cardId;
+    actionError = null;
+    actionMessage = 'Moved to the next card.';
+    return actionMessage;
+  }
+
   function handleDrawerUpdated(event: CustomEvent<{ card: CardLibraryCardDetailData; availableGroups: CardLibraryGroupData[] }>) {
     sessionAvailableGroups = event.detail.availableGroups;
     queueItems = queueItems.map((item) => item.cardId === event.detail.card.cardId
@@ -263,9 +324,9 @@
 
   async function applySessionAction(
     body: { action: 'rate'; cardId: string; rating: 'easy' | 'medium' | 'hard' } | { action: 'pin' | 'snooze' | 'disable'; cardId: string },
-  ) {
+  ): Promise<string> {
     if (!currentItem || actionPending) {
-      return;
+      throw new Error('The review action could not be completed right now.');
     }
 
     actionPending = true;
@@ -279,10 +340,31 @@
       removeCardFromQueue(result.cardId);
       actionMessage = result.message ?? 'Review action saved.';
       actionError = null;
+      return actionMessage;
     } catch (error) {
       actionError = error instanceof Error ? error.message : 'The review action could not be completed right now.';
+      throw error instanceof Error ? error : new Error(actionError);
     } finally {
       actionPending = false;
+    }
+  }
+
+  async function handleRequestedSessionAction(actionRequest: CardReviewSessionActionRequest) {
+    try {
+      if (actionRequest.action === 'next') {
+        actionRequest.resolve(advanceToNextCard(actionRequest.cardId));
+        return;
+      }
+
+      const message = await applySessionAction({
+        action: actionRequest.action,
+        cardId: actionRequest.cardId,
+      });
+      actionRequest.resolve(message);
+    } catch (error) {
+      const requestError = error instanceof Error ? error : new Error('The review action could not be completed right now.');
+      actionRequest.reject(requestError);
+      commandBar.pushAssistantMessage(requestError.message);
     }
   }
 

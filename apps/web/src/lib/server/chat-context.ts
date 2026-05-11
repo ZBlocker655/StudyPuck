@@ -10,13 +10,20 @@ import type { RouteContext } from '$lib/command-bar/shared.js';
 import { CardEntryRequestError } from '$lib/server/card-entry.js';
 import {
   loadActiveCardDetailData,
+  type CardLibraryCardListItemData,
+  type CardLibraryGroupData,
   loadCardLibraryData,
   loadCardLibraryGroupsData,
   loadGroupDetailData,
-  type CardLibraryCardListItemData,
   type CardLibraryGroupListItemData,
-  type CardLibraryGroupData,
 } from '$lib/server/cards.js';
+import {
+  loadCardReviewHomeData,
+  loadCardReviewSessionData,
+  type CardReviewGroupSummaryData,
+  type CardReviewSessionItemData,
+  type CardReviewSessionSelection,
+} from '$lib/server/card-review.js';
 
 type DatabaseClient = NonNullable<Parameters<typeof getNoteWithDraftCards>[3]>;
 
@@ -162,6 +169,60 @@ export type NonActionableContext = {
   allowedSuggestionTypes: readonly ['add_inbox_note'] | readonly [];
 };
 
+export type CardReviewGroupSnapshot = {
+  groupId: string;
+  groupName: string;
+  activeCardCount: number;
+  dueCardCount: number;
+  nextDueAtIso: string | null;
+};
+
+export type CardReviewCardSnapshot = {
+  cardId: string;
+  content: string;
+  meaning: string | null;
+  cardType: string | null;
+  groupNames: string[];
+  examples: string[];
+  mnemonics: string[];
+  llmInstructions: string | null;
+  nextDueAtIso: string | null;
+  reviewCount: number;
+};
+
+export type CardReviewSetupContext = {
+  contextType: 'card_review_setup';
+  languageId: string;
+  allowedSuggestionTypes: readonly ['add_inbox_note'];
+  selection: CardReviewSessionSelection;
+  stats: {
+    cardsInRotation: number;
+    dueNowCount: number;
+    reviewedTodayCount: number;
+    currentStreakDays: number;
+    lastReviewedAtIso: string | null;
+  };
+  selectedGroups: CardReviewGroupSnapshot[];
+  sessionPreview: {
+    selectedGroupCount: number;
+    selectedDueCount: number;
+    nextDueAtIso: string | null;
+  };
+};
+
+export type CardReviewSessionContext = {
+  contextType: 'card_review_session';
+  languageId: string;
+  allowedSuggestionTypes: readonly ['add_inbox_note', 'pin_review_card', 'snooze_review_card', 'next_review_card'];
+  selection: CardReviewSessionSelection;
+  initialTotalCount: number;
+  completedCount: number;
+  remainingCount: number;
+  currentCardNumber: number;
+  currentCard: CardReviewCardSnapshot;
+  upcomingCards: CardReviewCardSnapshot[];
+};
+
 export type CanonicalChatContext =
   | CardEntryNoteWorkspaceContext
   | CardLibraryListContext
@@ -169,6 +230,8 @@ export type CanonicalChatContext =
   | GroupDetailContext
   | AddCardsToGroupDrawerContext
   | CardDetailDrawerContext
+  | CardReviewSetupContext
+  | CardReviewSessionContext
   | NonActionableContext;
 
 // ── Context hint (derived from the client request) ───────────────────────────
@@ -187,6 +250,8 @@ type ResolverDeps = {
   loadCardLibraryData: typeof loadCardLibraryData;
   loadCardLibraryGroupsData: typeof loadCardLibraryGroupsData;
   loadGroupDetailData: typeof loadGroupDetailData;
+  loadCardReviewHomeData: typeof loadCardReviewHomeData;
+  loadCardReviewSessionData: typeof loadCardReviewSessionData;
 };
 
 const defaultResolverDeps: ResolverDeps = {
@@ -194,6 +259,8 @@ const defaultResolverDeps: ResolverDeps = {
   loadCardLibraryData,
   loadCardLibraryGroupsData,
   loadGroupDetailData,
+  loadCardReviewHomeData,
+  loadCardReviewSessionData,
 };
 
 // jsonb columns in the database schema are typed as `unknown` by Drizzle because
@@ -283,6 +350,31 @@ function buildGroupReference(item: Pick<CardLibraryGroupData, 'groupId' | 'group
   return {
     groupId: item.groupId,
     groupName: item.groupName,
+  };
+}
+
+function buildCardReviewGroupSnapshot(group: CardReviewGroupSummaryData): CardReviewGroupSnapshot {
+  return {
+    groupId: group.groupId,
+    groupName: group.groupName,
+    activeCardCount: group.activeCardCount,
+    dueCardCount: group.dueCardCount,
+    nextDueAtIso: group.nextDueAtIso,
+  };
+}
+
+function buildCardReviewCardSnapshot(item: CardReviewSessionItemData): CardReviewCardSnapshot {
+  return {
+    cardId: item.cardId,
+    content: item.content,
+    meaning: item.meaning,
+    cardType: item.cardType,
+    groupNames: item.groups.map((group) => group.groupName),
+    examples: item.examples,
+    mnemonics: item.mnemonics,
+    llmInstructions: item.llmInstructions,
+    nextDueAtIso: item.nextDueAtIso,
+    reviewCount: item.reviewCount,
   };
 }
 
@@ -541,6 +633,92 @@ async function resolveCardDetailDrawerContext(
   };
 }
 
+function buildCardReviewUrlFromSelection(pathname: string, selection: CardReviewSessionSelection) {
+  const url = new URL(pathname, 'https://studypuck.test');
+  url.searchParams.delete('group');
+
+  for (const groupId of selection.groupIds) {
+    url.searchParams.append('group', groupId);
+  }
+
+  if (selection.limit === null || selection.countMode === 'all_due') {
+    url.searchParams.delete('limit');
+  } else {
+    url.searchParams.set('limit', String(selection.limit));
+  }
+
+  return url;
+}
+
+async function resolveCardReviewSetupContext(
+  userId: string,
+  languageId: string,
+  surfaceContext: Extract<ChatSurfaceContext, { surface: 'card_review_setup' }>,
+  routeContext: RouteContext,
+  database: DatabaseClient,
+  deps: ResolverDeps,
+): Promise<CardReviewSetupContext> {
+  const home = await deps.loadCardReviewHomeData(
+    userId,
+    languageId,
+    buildCardReviewUrlFromSelection(routeContext.pathname, surfaceContext.selection),
+    database,
+  );
+
+  return {
+    contextType: 'card_review_setup',
+    languageId,
+    allowedSuggestionTypes: ['add_inbox_note'],
+    selection: home.selection,
+    stats: home.stats,
+    selectedGroups: home.groups
+      .filter((group) => home.selection.groupIds.includes(group.groupId))
+      .map((group) => buildCardReviewGroupSnapshot(group)),
+    sessionPreview: home.sessionPreview,
+  };
+}
+
+async function resolveCardReviewSessionContext(
+  userId: string,
+  languageId: string,
+  surfaceContext: Extract<ChatSurfaceContext, { surface: 'card_review_session' }>,
+  routeContext: RouteContext,
+  database: DatabaseClient,
+  deps: ResolverDeps,
+): Promise<CardReviewSessionContext | NonActionableContext> {
+  const session = await deps.loadCardReviewSessionData(
+    userId,
+    languageId,
+    buildCardReviewUrlFromSelection(routeContext.pathname, surfaceContext.selection),
+    database,
+  );
+  const queuedItems = session.items.filter((item) => surfaceContext.queueCardIds.includes(item.cardId));
+  const currentCard = queuedItems.find((item) => item.cardId === surfaceContext.currentCardId) ?? null;
+
+  if (!currentCard) {
+    return resolveNonActionableContext({
+      routeContext,
+      languageId,
+    });
+  }
+
+  return {
+    contextType: 'card_review_session',
+    languageId,
+    allowedSuggestionTypes: ['add_inbox_note', 'pin_review_card', 'snooze_review_card', 'next_review_card'],
+    selection: session.selection,
+    initialTotalCount: surfaceContext.initialTotalCount,
+    completedCount: surfaceContext.completedCount,
+    remainingCount: queuedItems.length,
+    currentCardNumber: surfaceContext.completedCount + 1,
+    currentCard: buildCardReviewCardSnapshot(currentCard),
+    upcomingCards: queuedItems
+      .filter((item) => item.cardId !== currentCard.cardId)
+      .slice(0, CARD_SNAPSHOT_LIMIT)
+      .map((item) => buildCardReviewCardSnapshot(item)),
+  };
+}
+
 // ── Resolver: non-actionable (cards, stats, settings, workspace) ─────────────
 
 function resolveNonActionableContext(
@@ -659,6 +837,32 @@ export async function resolveCanonicalChatContext(
         database,
         deps,
       );
+    case 'card_review_setup':
+      if (hint.routeContext.routeContextType !== 'card-review') {
+        return resolveNonActionableContext(hint);
+      }
+
+      return resolveCardReviewSetupContext(
+        userId,
+        languageId,
+        surfaceContext,
+        hint.routeContext,
+        database,
+        deps,
+      );
+    case 'card_review_session':
+      if (hint.routeContext.routeContextType !== 'card-review') {
+        return resolveNonActionableContext(hint);
+      }
+
+      return resolveCardReviewSessionContext(
+        userId,
+        languageId,
+        surfaceContext,
+        hint.routeContext,
+        database,
+        deps,
+      );
   }
 }
 
@@ -739,6 +943,13 @@ function isRemoveCardFromGroupSuggestionValid(
   }
 }
 
+function isCardReviewSuggestionValid(
+  context: CanonicalChatContext,
+  payload: Extract<ChatSuggestion, { type: 'pin_review_card' | 'snooze_review_card' | 'next_review_card' }>['payload'],
+) {
+  return context.contextType === 'card_review_session' && payload.cardId === context.currentCard.cardId;
+}
+
 export function areChatSuggestionsValidForContext(
   context: CanonicalChatContext,
   suggestions: readonly ChatSuggestion[],
@@ -773,6 +984,10 @@ export function areChatSuggestionsValidForContext(
         return isAddCardToGroupSuggestionValid(context, suggestion.payload);
       case 'remove_card_from_group':
         return isRemoveCardFromGroupSuggestionValid(context, suggestion.payload);
+      case 'pin_review_card':
+      case 'snooze_review_card':
+      case 'next_review_card':
+        return isCardReviewSuggestionValid(context, suggestion.payload);
     }
   });
 }

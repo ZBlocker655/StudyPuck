@@ -195,6 +195,74 @@ describe('commandBar entity context and conversation reset', () => {
     });
   });
 
+  it('resets messages when Card Review moves from setup into an active session', () => {
+    commandBar.setWorkspaceContext('es', null);
+    commandBar.setSurfaceContext({
+      surface: 'card_review_setup',
+      selection: {
+        groupIds: ['group-1'],
+        limit: null,
+        countMode: 'all_due',
+      },
+    });
+    commandBar.pushAssistantMessage('Existing conversation');
+    commandBar.setSurfaceContext({
+      surface: 'card_review_session',
+      selection: {
+        groupIds: ['group-1'],
+        limit: null,
+        countMode: 'all_due',
+      },
+      queueCardIds: ['card-1', 'card-2'],
+      currentCardId: 'card-1',
+      initialTotalCount: 2,
+      completedCount: 0,
+    });
+
+    const state = getState();
+    expect(state.messages).toEqual([]);
+    expect(state.surfaceContextHint).toMatchObject({
+      surface: 'card_review_session',
+      currentCardId: 'card-1',
+    });
+  });
+
+  it('resets messages when the active Card Review session card changes', () => {
+    commandBar.setWorkspaceContext('es', null);
+    commandBar.setSurfaceContext({
+      surface: 'card_review_session',
+      selection: {
+        groupIds: ['group-1'],
+        limit: null,
+        countMode: 'all_due',
+      },
+      queueCardIds: ['card-1', 'card-2'],
+      currentCardId: 'card-1',
+      initialTotalCount: 2,
+      completedCount: 0,
+    });
+    commandBar.pushAssistantMessage('Existing conversation');
+    commandBar.setSurfaceContext({
+      surface: 'card_review_session',
+      selection: {
+        groupIds: ['group-1'],
+        limit: null,
+        countMode: 'all_due',
+      },
+      queueCardIds: ['card-2', 'card-1'],
+      currentCardId: 'card-2',
+      initialTotalCount: 2,
+      completedCount: 0,
+    });
+
+    const state = getState();
+    expect(state.messages).toEqual([]);
+    expect(state.surfaceContextHint).toMatchObject({
+      surface: 'card_review_session',
+      currentCardId: 'card-2',
+    });
+  });
+
   it('getPromptHistory returns only user and assistant turns bounded to PROMPT_HISTORY_CAP', () => {
     const mockState = {
       messages: [

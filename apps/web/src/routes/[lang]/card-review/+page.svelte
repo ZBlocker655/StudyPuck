@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from '$app/stores';
+  import { commandBar } from '$lib/stores/commandBar.js';
   import type { PageData } from './$types.js';
 
   export let data: PageData;
@@ -17,6 +18,7 @@
 
   $: home = data.home;
   $: currentLanguage = $page.params.lang ?? '';
+  $: commandBar.setWorkspaceContext(currentLanguage || null, null);
   $: allGroups = home?.groups ?? [];
   $: selectedGroups = allGroups.filter((group) => selectedGroupIds.includes(group.groupId));
   $: selectedDueCount = selectedGroups.reduce((count, group) => count + group.dueCardCount, 0);
@@ -42,6 +44,19 @@
     return new Date(group.nextDueAtIso) < new Date(soonest) ? group.nextDueAtIso : soonest;
   }, null);
   $: setupHint = getSetupHint();
+  $: commandBar.setSurfaceContext(
+    home
+      ? {
+          surface: 'card_review_setup',
+          selection: {
+            groupIds: selectedGroupIds,
+            limit: effectiveLimit,
+            countMode,
+          },
+        }
+      : null,
+  );
+  $: commandBar.setTargetHint(null, null);
 
   function formatRelativeDateLabel(value: string | null): string {
     if (!value) {

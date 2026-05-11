@@ -6,8 +6,10 @@
   import { createInboxNoteRequest } from '$lib/card-entry/client.js';
   import { requestStructuredChatResponse } from '$lib/chat/client.js';
   import type { ChatSuggestion } from '$lib/chat.js';
+  import { resolveCardReviewCommandResponse } from '$lib/command-bar/card-review.js';
   import { resolveCardEntryCommandResponse } from '$lib/command-bar/card-entry.js';
   import { activeCardSuggestionActions } from '$lib/stores/activeCardSuggestionActions.js';
+  import { cardReviewSessionActions } from '$lib/stores/cardReviewSessionActions.js';
   import { cardEntrySuggestionActions } from '$lib/stores/cardEntrySuggestionActions.js';
   import { cardEntryShellCounts } from '$lib/stores/cardEntryShell.js';
   import { cardEntryUi } from '$lib/stores/cardEntryUi.js';
@@ -196,6 +198,15 @@
         });
       }
 
+      const cardReviewCommandResponse = await resolveCardReviewCommandResponse({
+        input,
+        surfaceContext: submissionState.surfaceContextHint,
+      });
+
+      if (cardReviewCommandResponse !== null) {
+        return cardReviewCommandResponse;
+      }
+
       const promptHistory = commandBar.getPromptHistory(submissionState);
 
       // URL param takes priority; fall back to the store's active note, then omit.
@@ -322,6 +333,12 @@
         return 'Add card to group';
       case 'remove_card_from_group':
         return 'Remove from group';
+      case 'pin_review_card':
+        return 'Pin card';
+      case 'snooze_review_card':
+        return 'Snooze card';
+      case 'next_review_card':
+        return 'Next card';
       default:
         return 'Apply';
     }
@@ -339,6 +356,12 @@
         return `Card ${suggestion.payload.cardId} -> Group ${suggestion.payload.groupId}`;
       case 'remove_card_from_group':
         return `Card ${suggestion.payload.cardId} <- Group ${suggestion.payload.groupId}`;
+      case 'pin_review_card':
+        return `Pin ${suggestion.payload.cardId}`;
+      case 'snooze_review_card':
+        return `Snooze ${suggestion.payload.cardId}`;
+      case 'next_review_card':
+        return `Next after ${suggestion.payload.cardId}`;
       default:
         return '';
     }
@@ -461,6 +484,24 @@
         });
         await invalidateAll();
         commandBar.pushAssistantMessage('Removed the card from the suggested group.');
+        return;
+      }
+
+      if (suggestion.type === 'pin_review_card') {
+        const message = await cardReviewSessionActions.requestPin(suggestion.payload.cardId);
+        commandBar.pushAssistantMessage(message);
+        return;
+      }
+
+      if (suggestion.type === 'snooze_review_card') {
+        const message = await cardReviewSessionActions.requestSnooze(suggestion.payload.cardId);
+        commandBar.pushAssistantMessage(message);
+        return;
+      }
+
+      if (suggestion.type === 'next_review_card') {
+        const message = await cardReviewSessionActions.requestNext(suggestion.payload.cardId);
+        commandBar.pushAssistantMessage(message);
       }
     } catch (error) {
       commandBar.pushAssistantMessage(

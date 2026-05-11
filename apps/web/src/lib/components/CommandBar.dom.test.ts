@@ -6,6 +6,7 @@ import { fireEvent, render, screen, within } from '@testing-library/svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { commandBar } from '$lib/stores/commandBar.js';
 import { activeCardSuggestionActions } from '$lib/stores/activeCardSuggestionActions.js';
+import { cardReviewSessionActions } from '$lib/stores/cardReviewSessionActions.js';
 import { cardEntrySuggestionActions } from '$lib/stores/cardEntrySuggestionActions.js';
 
 type MockPageStoreValue = {
@@ -378,5 +379,112 @@ describe('CommandBar component behavior', () => {
     await fireEvent.click(screen.getAllByRole('button', { name: /Card card-1 -> Group group-2/ })[0]);
 
     expect(applySpy).toHaveBeenCalledWith('card-1', 'group-2');
+  });
+
+  it('executes Card Review action suggestions through the session action store', async () => {
+    pageStore.set({
+      params: { lang: 'zh' },
+      route: { id: '/[lang]/card-review/session' },
+      status: 200,
+      error: null,
+      data: {},
+      form: undefined,
+      state: {},
+      url: new URL('https://studypuck.test/zh/card-review/session'),
+    });
+
+    requestStructuredChatResponse.mockResolvedValue({
+      message: 'You can just pin this one.',
+      suggestions: [
+        {
+          type: 'pin_review_card',
+          payload: { cardId: 'card-1' },
+        },
+      ],
+    });
+
+    const pinSpy = vi.spyOn(cardReviewSessionActions, 'requestPin').mockResolvedValue('Pinned to Translation Drills.');
+    const { default: CommandBar } = await import('./CommandBar.svelte');
+    const snippet = createRawSnippet(() => ({
+      render: () => '<section>context content</section>',
+    }));
+
+    render(CommandBar, {
+      props: {
+        children: snippet,
+      },
+    });
+
+    commandBar.setPathname('/zh/card-review/session');
+    commandBar.setWorkspaceContext('zh', null);
+    commandBar.setSurfaceContext({
+      surface: 'card_review_session',
+      selection: {
+        groupIds: ['group-1'],
+        limit: null,
+        countMode: 'all_due',
+      },
+      queueCardIds: ['card-1', 'card-2'],
+      currentCardId: 'card-1',
+      initialTotalCount: 2,
+      completedCount: 0,
+    });
+
+    const textbox = screen.getByLabelText('Command bar');
+    await fireEvent.input(textbox, { target: { value: 'Pin this card for drills' } });
+    await fireEvent.keyDown(textbox, { key: 'Enter' });
+
+    expect(await screen.findAllByText('Pin card')).toHaveLength(2);
+    await fireEvent.click(screen.getAllByRole('button', { name: /Pin card/i })[0]);
+
+    expect(pinSpy).toHaveBeenCalledWith('card-1');
+  });
+
+  it('handles direct Card Review slash commands without calling the chat API', async () => {
+    pageStore.set({
+      params: { lang: 'zh' },
+      route: { id: '/[lang]/card-review/session' },
+      status: 200,
+      error: null,
+      data: {},
+      form: undefined,
+      state: {},
+      url: new URL('https://studypuck.test/zh/card-review/session'),
+    });
+
+    const nextSpy = vi.spyOn(cardReviewSessionActions, 'requestNext').mockResolvedValue('Moved to the next card.');
+    const { default: CommandBar } = await import('./CommandBar.svelte');
+    const snippet = createRawSnippet(() => ({
+      render: () => '<section>context content</section>',
+    }));
+
+    render(CommandBar, {
+      props: {
+        children: snippet,
+      },
+    });
+
+    commandBar.setPathname('/zh/card-review/session');
+    commandBar.setWorkspaceContext('zh', null);
+    commandBar.setSurfaceContext({
+      surface: 'card_review_session',
+      selection: {
+        groupIds: ['group-1'],
+        limit: null,
+        countMode: 'all_due',
+      },
+      queueCardIds: ['card-1', 'card-2'],
+      currentCardId: 'card-1',
+      initialTotalCount: 2,
+      completedCount: 0,
+    });
+
+    const textbox = screen.getByLabelText('Command bar');
+    await fireEvent.input(textbox, { target: { value: '/next' } });
+    await fireEvent.keyDown(textbox, { key: 'Enter' });
+
+    expect(await screen.findAllByText('Moved to the next card.')).toHaveLength(2);
+    expect(nextSpy).toHaveBeenCalledWith('card-1');
+    expect(requestStructuredChatResponse).not.toHaveBeenCalled();
   });
 });
