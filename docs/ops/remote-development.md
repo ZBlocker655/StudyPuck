@@ -21,6 +21,7 @@ The remote devcontainer is designed to match the current StudyPuck stack:
 - **GitHub CLI**: Installed via devcontainer feature
 - **PNPM**: Enabled through Corepack using the repository's pinned package manager version
 - **Dependencies**: Installed by `.devcontainer/bootstrap.sh`
+- **Prettier CLI**: Installed by `.devcontainer/bootstrap.sh` and kept aligned with the repo version
 - **Bitwarden CLI**: Installed by `.devcontainer/bootstrap.sh`
 - **Wrangler**: Used through the existing `apps/web` dependency and scripts
 - **Copilot CLI**: Installed by `.devcontainer/bootstrap.sh` into the user-local tool path
@@ -71,7 +72,7 @@ The container runs:
 bash .devcontainer/bootstrap.sh
 ```
 
-This enables PNPM, verifies `gh`, installs workspace dependencies, installs Bitwarden CLI if missing, and installs Copilot CLI if missing.
+This enables PNPM, verifies `gh`, installs workspace dependencies, installs a matching global `prettier` binary, installs Bitwarden CLI if missing, and installs Copilot CLI if missing.
 
 If the container is running as a non-root user, the bootstrap script installs Corepack shims into a user-writable bin directory instead of `/usr/local/bin`.
 
@@ -82,6 +83,7 @@ Run:
 ```bash
 gh --version
 pnpm --version
+prettier --version
 copilot --version
 bw --version
 pnpm --filter web exec wrangler --version
