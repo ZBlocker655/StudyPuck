@@ -45,10 +45,11 @@
     "./relations": "./src/relations.ts",
     "./validation": "./src/validation.ts",
     "./types": "./src/types.ts",
-    "./users": "./src/users.ts",
+     "./users": "./src/users.ts",
 		"./cards": "./src/cards.ts",
 		"./card-entry": "./src/card-entry.ts",
 		"./card-review": "./src/card-review.ts",
+		"./translation-drills": "./src/translation-drills.ts",
 		"./test-utils": "./src/test-utils.ts"
 	}
 }

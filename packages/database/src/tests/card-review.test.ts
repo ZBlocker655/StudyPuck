@@ -2,7 +2,17 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import postgres from 'postgres';
 import { eq } from 'drizzle-orm';
 import { setupTestDatabase, cleanupTestDatabase, resetTestTables, type TestDb } from '../test-utils.js';
-import { cardGroups, cards, cardReviewDailyStats, cardReviewEvents, cardReviewSrs, groups, studyLanguages, users } from '../schema.js';
+import {
+  cardGroups,
+  cards,
+  cardReviewDailyStats,
+  cardReviewEvents,
+  cardReviewSrs,
+  groups,
+  studyLanguages,
+  translationDrillContext,
+  users,
+} from '../schema.js';
 import {
   disableCardForReview,
   getCardReviewHomeStats,
@@ -374,6 +384,10 @@ describe('Card Review database operations', () => {
       .select()
       .from(cardReviewDailyStats)
       .where(eq(cardReviewDailyStats.date, '2026-05-10'));
+    const [translationContext] = await db
+      .select()
+      .from(translationDrillContext)
+      .where(eq(translationDrillContext.cardId, 'card-actions'));
 
     expect(storedSrs.state).toBe('disabled');
     expect(storedEvents.map((event) => event.eventType).sort()).toEqual(['disabled', 'pinned_to_drills', 'snoozed']);
@@ -381,6 +395,10 @@ describe('Card Review database operations', () => {
       cardsSnoozed: 1,
       cardsDisabled: 1,
       cardsPinnedToDrills: 1,
+    });
+    expect(translationContext).toMatchObject({
+      state: 'active',
+      addedFrom: 'pinned_from_review',
     });
   });
 });

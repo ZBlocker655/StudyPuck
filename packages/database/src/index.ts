@@ -142,6 +142,7 @@ export * from './users.js';
 export * from './cards.js';
 export * from './card-entry.js';
 export * from './card-review.js';
+export * from './translation-drills.js';
 
 // Re-export relations and types
 // Note: validation schemas are NOT re-exported here to avoid pulling drizzle-zod
