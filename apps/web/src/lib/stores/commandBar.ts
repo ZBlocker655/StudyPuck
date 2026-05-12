@@ -52,7 +52,17 @@ export type CommandResponder = (
   routeContext: RouteContext,
   /** The captured store state at the moment the user's message was submitted. */
   submissionState: CommandBarState,
-) => ChatResponse | string | null | Promise<ChatResponse | string | null>;
+) => CommandResponderResult | Promise<CommandResponderResult>;
+
+export type CommandResponderResult =
+  | ChatResponse
+  | {
+      message: string;
+      suggestions?: ChatSuggestion[];
+      conversationReset?: boolean;
+    }
+  | string
+  | null;
 
 const DEFAULT_CONTEXT_WIDTH: Record<CommandContext, number> = {
   global: 62,
@@ -165,6 +175,7 @@ function createCommandBarStore() {
     clearPendingTimer();
     let responseContent: string;
     let responseSuggestions: ChatSuggestion[] = [];
+    let conversationReset = false;
 
     try {
       const result = (await responder?.(input, routeContext, submissionState)) ?? buildAssistantResponse(input, routeContext);
@@ -172,6 +183,7 @@ function createCommandBarStore() {
       if (result !== null && typeof result === 'object' && 'message' in result) {
         responseContent = result.message;
         responseSuggestions = result.suggestions ?? [];
+        conversationReset = 'conversationReset' in result && Boolean(result.conversationReset);
       } else {
         responseContent = result ?? buildAssistantResponse(input, routeContext);
       }
@@ -184,11 +196,18 @@ function createCommandBarStore() {
         return state;
       }
 
+      const nextMessages = conversationReset
+        ? [
+            createMessage('system', 'New conversation'),
+            createMessage('assistant', responseContent, responseSuggestions),
+          ]
+        : [...state.messages, createMessage('assistant', responseContent, responseSuggestions)];
+
       return {
         ...state,
         isWaiting: false,
         lastSubmittedInput: null,
-        messages: [...state.messages, createMessage('assistant', responseContent, responseSuggestions)],
+        messages: nextMessages,
         desktopConversationCollapsed: false,
         mobileSheetOpen: true,
         unreadCount: 0,
@@ -456,6 +475,23 @@ function createCommandBarStore() {
       store.update((state) => ({
         ...state,
         messages: [...state.messages, createMessage('assistant', content)],
+        desktopConversationCollapsed: false,
+        mobileSheetOpen: true,
+        unreadCount: 0,
+      }));
+    },
+
+    applyLocalResponse(response: { message: string; suggestions?: ChatSuggestion[]; conversationReset?: boolean }) {
+      store.update((state) => ({
+        ...state,
+        isWaiting: false,
+        lastSubmittedInput: null,
+        messages: response.conversationReset
+          ? [
+              createMessage('system', 'New conversation'),
+              createMessage('assistant', response.message, response.suggestions ?? []),
+            ]
+          : [...state.messages, createMessage('assistant', response.message, response.suggestions ?? [])],
         desktopConversationCollapsed: false,
         mobileSheetOpen: true,
         unreadCount: 0,
