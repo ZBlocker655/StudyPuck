@@ -148,6 +148,11 @@ describe('Translation Drills server helpers', () => {
         performanceScore: null,
       },
     ]),
+    getTranslationDrillDismissSchedule: vi.fn(async (_userId: string, _languageId: string, cardId: string) => ({
+      cardId,
+      recommendedDays: 5,
+      optionDays: [1, 5, 15, 30],
+    })),
   };
   const deps = baseDeps as unknown as TranslationDrillLoaderDeps;
 
@@ -174,11 +179,20 @@ describe('Translation Drills server helpers', () => {
       activeCardCount: 2,
       cefrLevel: 'B1',
       cards: [
-        expect.objectContaining({ cardId: 'card-2' }),
-        expect.objectContaining({ cardId: 'card-1' }),
+        expect.objectContaining({ cardId: 'card-2', dismissSchedule: expect.objectContaining({ recommendedDays: 5 }) }),
+        expect.objectContaining({ cardId: 'card-1', dismissSchedule: expect.objectContaining({ recommendedDays: 5 }) }),
       ],
       suggestedSourceCardIds: ['card-2', 'card-1'],
     });
+    expect(result.configuredGroups[0]?.activeCards[0]).toEqual(
+      expect.objectContaining({
+        cardId: 'card-1',
+        dismissSchedule: {
+          recommendedDays: 5,
+          optionDays: [1, 5, 15, 30],
+        },
+      }),
+    );
   });
 
   it('returns 404 when the requested language is not active for the user', async () => {

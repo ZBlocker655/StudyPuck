@@ -24,6 +24,7 @@ export type TranslationDrillLoaderDeps = {
   listTranslationDrillDrawPileGroups: typeof listTranslationDrillDrawPileGroups;
   listTranslationDrillContextCards: typeof listTranslationDrillContextCards;
   listTranslationDrillChallengeCards: typeof listTranslationDrillChallengeCards;
+  getTranslationDrillDismissSchedule: typeof getTranslationDrillDismissSchedule;
 };
 
 export type TranslationDrillActionDeps = Pick<TranslationDrillLoaderDeps, 'getActiveUserLanguages' | 'listTranslationDrillChallengeCards'> & {
@@ -41,6 +42,7 @@ const defaultLoaderDeps: TranslationDrillLoaderDeps = {
   listTranslationDrillDrawPileGroups,
   listTranslationDrillContextCards,
   listTranslationDrillChallengeCards,
+  getTranslationDrillDismissSchedule,
 };
 
 const defaultActionDeps: TranslationDrillActionDeps = {
@@ -119,6 +121,12 @@ export type TranslationDrillContextCardData = {
   nextDueAtIso: string | null;
   intervalDays: number | null;
   performanceScore: number | null;
+  dismissSchedule: TranslationDrillDismissScheduleData | null;
+};
+
+export type TranslationDrillDismissScheduleData = {
+  recommendedDays: number;
+  optionDays: number[];
 };
 
 export type TranslationDrillDrawPileGroupData = {
@@ -215,7 +223,10 @@ function toIsoString(date: Date | null): string | null {
   return date ? date.toISOString() : null;
 }
 
-function mapContextCard(card: TranslationDrillContextCard): TranslationDrillContextCardData {
+function mapContextCard(
+  card: TranslationDrillContextCard,
+  dismissSchedules: ReadonlyMap<string, TranslationDrillDismissScheduleData> = new Map(),
+): TranslationDrillContextCardData {
   return {
     cardId: card.cardId,
     content: card.content,
@@ -236,18 +247,22 @@ function mapContextCard(card: TranslationDrillContextCard): TranslationDrillCont
     nextDueAtIso: toIsoString(card.nextDueAt),
     intervalDays: card.intervalDays,
     performanceScore: card.performanceScore,
+    dismissSchedule: dismissSchedules.get(card.cardId) ?? null,
   };
 }
 
-function mapDrawPileGroup(group: TranslationDrillDrawPileGroup): TranslationDrillDrawPileGroupData {
+function mapDrawPileGroup(
+  group: TranslationDrillDrawPileGroup,
+  dismissSchedules: ReadonlyMap<string, TranslationDrillDismissScheduleData> = new Map(),
+): TranslationDrillDrawPileGroupData {
   return {
     groupId: group.groupId,
     groupName: group.groupName,
     drawPileName: group.drawPileName,
     pileSizeLimit: group.pileSizeLimit,
     remainingCardCount: group.remainingCardCount,
-    activeCards: group.activeCards.map((card) => mapContextCard(card)),
-    snoozedCards: group.snoozedCards.map((card) => mapContextCard(card)),
+    activeCards: group.activeCards.map((card) => mapContextCard(card, dismissSchedules)),
+    snoozedCards: group.snoozedCards.map((card) => mapContextCard(card, dismissSchedules)),
   };
 }
 
@@ -328,6 +343,21 @@ export async function loadTranslationDrillHomeData(
   ]);
 
   const configuredGroupIds = new Set(configuredGroups.map((group) => group.groupId));
+  const visibleContextCards = contextCards.filter((card) => card.state === 'active' || card.state === 'snoozed');
+  const dismissScheduleEntries = await Promise.all(
+    visibleContextCards.map(async (card) => {
+      const schedule = await deps.getTranslationDrillDismissSchedule(userId, languageId, card.cardId, database as never);
+
+      return [
+        card.cardId,
+        {
+          recommendedDays: schedule.recommendedDays,
+          optionDays: schedule.optionDays,
+        } satisfies TranslationDrillDismissScheduleData,
+      ] as const;
+    }),
+  );
+  const dismissSchedules = new Map(dismissScheduleEntries);
   const ungroupedContextCards = contextCards
     .filter((card) => card.state === 'active' || card.state === 'snoozed')
     .filter((card) => !card.sourceGroup || !configuredGroupIds.has(card.sourceGroup.groupId));
@@ -346,14 +376,14 @@ export async function loadTranslationDrillHomeData(
     availableGroups: [...availableGroups]
       .map((group) => ({ groupId: group.groupId, groupName: group.groupName }))
       .sort((left, right) => left.groupName.localeCompare(right.groupName)),
-    configuredGroups: configuredGroups.map((group) => mapDrawPileGroup(group)),
-    ungroupedContextCards: ungroupedContextCards.map((card) => mapContextCard(card)),
+    configuredGroups: configuredGroups.map((group) => mapDrawPileGroup(group, dismissSchedules)),
+    ungroupedContextCards: ungroupedContextCards.map((card) => mapContextCard(card, dismissSchedules)),
     challenge: {
       activeChallenge: null,
       generationInput: {
         activeCardCount: challengeCards.length,
         cefrLevel: language.cefrLevel ?? null,
-        cards: challengeCards.map((card) => mapContextCard(card)),
+        cards: challengeCards.map((card) => mapContextCard(card, dismissSchedules)),
         suggestedSourceCardIds: challengeCards.slice(0, 2).map((card) => card.cardId),
       },
     },
@@ -387,10 +417,17 @@ export async function applyTranslationDrillAction(
           { occurredAt: deps.now() },
           database as never,
         );
+        const schedule = await deps.getTranslationDrillDismissSchedule(userId, languageId, drawnCard.cardId, database as never);
 
         return {
           action: 'draw',
-          card: mapContextCard(drawnCard),
+          card: mapContextCard(drawnCard, new Map([[
+            drawnCard.cardId,
+            {
+              recommendedDays: schedule.recommendedDays,
+              optionDays: schedule.optionDays,
+            },
+          ]])),
           message: buildActionMessage('draw'),
         };
       }
