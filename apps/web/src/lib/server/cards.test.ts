@@ -6,6 +6,7 @@ import {
   loadCardLibraryGroupsData,
   loadGroupDetailData,
   loadActiveCardDetailData,
+  updateGroupTranslationDrillsForLanguage,
 } from './cards.js';
 
 describe('Card Library server helpers', () => {
@@ -44,6 +45,17 @@ describe('Card Library server helpers', () => {
         createdAt: null,
         metadata: null,
         activeCardCount: 1,
+      },
+    ]),
+    listTranslationDrillDrawPileGroups: vi.fn(async () => [
+      {
+        groupId: 'group-chat',
+        groupName: 'Chat',
+        drawPileName: 'Chat practice',
+        pileSizeLimit: 6,
+        remainingCardCount: 4,
+        activeCards: [],
+        snoozedCards: [],
       },
     ]),
     getGroupWithActiveCardCount: vi.fn(async () => ({
@@ -138,6 +150,11 @@ describe('Card Library server helpers', () => {
       groupName: 'Chat',
       description: 'Conversation cards',
       activeCardCount: 1,
+      translationDrills: {
+        enabled: true,
+        drawPileName: 'Chat practice',
+        pileSizeLimit: 6,
+      },
     });
     expect(result.cards.filters).toEqual({
       searchText: 'chat',
@@ -197,7 +214,47 @@ describe('Card Library server helpers', () => {
     const result = await loadCardLibraryGroupsData('user-1', 'zh', database, baseDeps);
 
     expect(result.items.map((group) => group.groupName)).toEqual(['Alpha', 'Zeta']);
+    expect(result.items[0]?.translationDrills).toEqual({
+      enabled: false,
+      drawPileName: null,
+      pileSizeLimit: 10,
+    });
+    expect(result.items[1]?.translationDrills).toEqual({
+      enabled: false,
+      drawPileName: null,
+      pileSizeLimit: 10,
+    });
     expect(result.totalCount).toBe(2);
+  });
+
+  it('updates Translation Drills settings for a group', async () => {
+    const result = await updateGroupTranslationDrillsForLanguage(
+      'user-1',
+      'zh',
+      'group-chat',
+      {
+        enabled: true,
+        drawPileName: 'Focused chat',
+        pileSizeLimit: 8,
+      },
+      database,
+      {
+        getActiveUserLanguages: baseDeps.getActiveUserLanguages,
+        upsertTranslationDrillDrawPile: vi.fn(async () => ({
+          groupId: 'group-chat',
+          groupName: 'Chat',
+          enabled: true,
+          drawPileName: 'Focused chat',
+          pileSizeLimit: 8,
+        })),
+      },
+    );
+
+    expect(result).toEqual({
+      enabled: true,
+      drawPileName: 'Focused chat',
+      pileSizeLimit: 8,
+    });
   });
 
   it('excludes current group members from addable cards in group detail', async () => {

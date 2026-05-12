@@ -80,6 +80,11 @@
   let groupNameInput: HTMLInputElement | null = null;
   let groupDescriptionInput: HTMLTextAreaElement | null = null;
   let groupSavePending = false;
+  let translationDrillsEnabled = data.groupDetail.group.translationDrills.enabled;
+  let translationDrillDrawPileName = data.groupDetail.group.translationDrills.drawPileName ?? '';
+  let translationDrillPileSizeLimit = String(data.groupDetail.group.translationDrills.pileSizeLimit);
+  let translationDrillsSavePending = false;
+  let translationDrillsError = '';
 
   let deleteDialogOpen = false;
   let deleteGroupPending = false;
@@ -148,6 +153,10 @@
     group = data.groupDetail.group;
     cards = data.groupDetail.cards;
     addableCards = data.groupDetail.addableCards;
+    translationDrillsEnabled = data.groupDetail.group.translationDrills.enabled;
+    translationDrillDrawPileName = data.groupDetail.group.translationDrills.drawPileName ?? '';
+    translationDrillPileSizeLimit = String(data.groupDetail.group.translationDrills.pileSizeLimit);
+    translationDrillsError = '';
     previousGroupDetail = data.groupDetail;
   }
 
@@ -183,6 +192,10 @@
   $: hasActiveFilters = searchQuery.trim().length > 0 || selectedType !== null;
   $: filteredAddableCards = filterAddableGroupCards(addableCards.items, addCardsSearchQuery);
   $: sortedAssignableGroups = sortCardLibraryGroups(cards.availableGroups.filter((item) => item.groupId !== currentGroupId));
+  $: translationDrillsDirty =
+    translationDrillsEnabled !== group.translationDrills.enabled
+    || translationDrillDrawPileName.trim() !== (group.translationDrills.drawPileName ?? '')
+    || Number(translationDrillPileSizeLimit) !== group.translationDrills.pileSizeLimit;
 
   function scheduleFilterNavigation(nextFilterState: string) {
     if (filterSyncTimer) {
@@ -716,6 +729,54 @@
       firstElement?.focus();
     }
   }
+
+  async function saveTranslationDrillsSettings() {
+    if (translationDrillsSavePending || !currentLang) {
+      return;
+    }
+
+    translationDrillsSavePending = true;
+    translationDrillsError = '';
+    actionFeedback = null;
+
+    try {
+      const response = await fetch(`/${currentLang}/cards/groups/${currentGroupId}/actions`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'update-translation-drills',
+          enabled: translationDrillsEnabled,
+          drawPileName: translationDrillDrawPileName,
+          pileSizeLimit: translationDrillPileSizeLimit,
+        }),
+      });
+
+      const responseBody = (await response.json().catch(() => null)) as
+        | {
+            translationDrills?: GroupDetailData['group']['translationDrills'];
+            message?: string;
+          }
+        | null;
+
+      if (!response.ok || !responseBody?.translationDrills) {
+        throw new Error(responseBody?.message ?? 'Translation Drills settings could not be updated right now.');
+      }
+
+      group = {
+        ...group,
+        translationDrills: responseBody.translationDrills,
+      };
+      translationDrillsEnabled = responseBody.translationDrills.enabled;
+      translationDrillDrawPileName = responseBody.translationDrills.drawPileName ?? '';
+      translationDrillPileSizeLimit = String(responseBody.translationDrills.pileSizeLimit);
+    } catch (error) {
+      translationDrillsError = error instanceof Error ? error.message : 'Translation Drills settings could not be updated right now.';
+    } finally {
+      translationDrillsSavePending = false;
+    }
+  }
 </script>
 
 <svelte:window on:keydown={handleWindowKeydown} />
@@ -797,6 +858,75 @@
       </div>
     </div>
   </header>
+
+  <section class="group-detail-page__translation-drills stack" style="--stack-space: var(--space-3)">
+    <div class="group-detail-page__translation-drills-header cluster">
+      <div class="stack" style="--stack-space: var(--space-1)">
+        <p class="group-detail-page__translation-drills-eyebrow">Translation Drills</p>
+        <h2>Draw pile setup</h2>
+        <p class="group-detail-page__translation-drills-copy">
+          Enable this group as a Translation Drills draw pile so the drills screen can draw cards from it.
+        </p>
+      </div>
+    </div>
+
+    <label class="group-detail-page__translation-drills-toggle">
+      <input
+        type="checkbox"
+        bind:checked={translationDrillsEnabled}
+        disabled={translationDrillsSavePending}
+      />
+      <span>Use this group in Translation Drills</span>
+    </label>
+
+    {#if translationDrillsEnabled}
+      <div class="group-detail-page__translation-drills-fields">
+        <label class="stack" style="--stack-space: var(--space-1)">
+          <span class="group-detail-page__translation-drills-label">Draw pile label</span>
+          <input
+            type="text"
+            class="group-detail-page__translation-drills-input"
+            bind:value={translationDrillDrawPileName}
+            placeholder={`${group.groupName} draw pile`}
+            disabled={translationDrillsSavePending}
+          />
+        </label>
+
+        <label class="stack" style="--stack-space: var(--space-1)">
+          <span class="group-detail-page__translation-drills-label">Active pile limit</span>
+          <input
+            type="number"
+            min="1"
+            max="100"
+            class="group-detail-page__translation-drills-input"
+            bind:value={translationDrillPileSizeLimit}
+            disabled={translationDrillsSavePending}
+          />
+        </label>
+      </div>
+    {/if}
+
+    {#if translationDrillsError}
+      <p class="group-detail-page__error" role="alert">{translationDrillsError}</p>
+    {/if}
+
+    <div class="group-detail-page__translation-drills-actions cluster">
+      <button
+        type="button"
+        class="group-detail-page__translation-drills-button"
+        disabled={translationDrillsSavePending || !translationDrillsDirty}
+        on:click={() => void saveTranslationDrillsSettings()}
+      >
+        {translationDrillsSavePending
+          ? 'Saving...'
+          : translationDrillsEnabled && !group.translationDrills.enabled
+            ? 'Enable Translation Drills'
+            : !translationDrillsEnabled && group.translationDrills.enabled
+              ? 'Remove from Translation Drills'
+              : 'Save Translation Drills settings'}
+      </button>
+    </div>
+  </section>
 
   <div class="group-detail-page__toolbar">
     <CardListFilterBar
@@ -1127,6 +1257,20 @@
     align-items: end;
   }
 
+  .group-detail-page__translation-drills {
+    padding: var(--space-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+  }
+
+  .group-detail-page__translation-drills-header,
+  .group-detail-page__translation-drills-actions {
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+  }
+
   .group-detail-page__back-link,
   .group-detail-page__count,
   .group-detail-page__feedback-title,
@@ -1134,14 +1278,16 @@
   .group-detail-row__updated,
   .group-detail-page__description,
   .group-detail-page__drawer-row-empty,
-  .group-detail-page__drawer-row-updated {
+  .group-detail-page__drawer-row-updated,
+  .group-detail-page__translation-drills-copy,
+  .group-detail-page__translation-drills-label,
+  .group-detail-page__translation-drills-eyebrow {
     color: var(--color-text-secondary);
     font-family: var(--font-ui);
   }
 
   .group-detail-page h1,
   .group-detail-page h2,
-  .group-detail-page h3,
   .group-detail-page p {
     margin: 0;
   }
@@ -1172,7 +1318,8 @@
 
   .group-detail-page__name-input,
   .group-detail-page__description-input,
-  .group-detail-page__drawer-search-input {
+  .group-detail-page__drawer-search-input,
+  .group-detail-page__translation-drills-input {
     inline-size: 100%;
     min-block-size: 2.75rem;
     padding: 0.7rem 0.95rem;
@@ -1197,7 +1344,8 @@
   .group-detail-page__toolbar-button,
   .group-detail-page__state-cta,
   .group-detail-page__dialog-button,
-  .group-detail-page__drawer-submit {
+  .group-detail-page__drawer-submit,
+  .group-detail-page__translation-drills-button {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -1214,10 +1362,36 @@
 
   .group-detail-page__toolbar-button,
   .group-detail-page__drawer-submit,
-  .group-detail-page__dialog-button--primary {
+  .group-detail-page__dialog-button--primary,
+  .group-detail-page__translation-drills-button {
     border-color: var(--color-primary);
     background: var(--color-primary);
     color: var(--color-text-inverse);
+  }
+
+  .group-detail-page__translation-drills-eyebrow {
+    font-size: var(--font-size-caption);
+    letter-spacing: var(--tracking-caps);
+    text-transform: uppercase;
+  }
+
+  .group-detail-page__translation-drills-fields {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(10rem, 1fr);
+    gap: var(--space-3);
+  }
+
+  .group-detail-page__translation-drills-toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-family: var(--font-ui);
+  }
+
+  .group-detail-page__translation-drills-label {
+    font-size: var(--font-size-caption);
+    letter-spacing: var(--tracking-caps);
+    text-transform: uppercase;
   }
 
   .group-detail-page__header-button--danger,
@@ -1382,12 +1556,14 @@
   .group-detail-page__state-cta:focus-visible,
   .group-detail-page__dialog-button:focus-visible,
   .group-detail-page__drawer-submit:focus-visible,
+  .group-detail-page__translation-drills-button:focus-visible,
   .group-detail-page__feedback-dismiss:focus-visible,
   .group-detail-page__name-button:focus-visible,
   .group-detail-page__description-button:focus-visible,
   .group-detail-page__name-input:focus-visible,
   .group-detail-page__description-input:focus-visible,
   .group-detail-page__drawer-search-input:focus-visible,
+  .group-detail-page__translation-drills-input:focus-visible,
   .group-detail-page__drawer-close:focus-visible,
   .group-detail-page__back-link:focus-visible {
     outline: 2px solid var(--color-primary);
@@ -1400,7 +1576,8 @@
     }
 
     .group-detail-page__header-main,
-    .group-detail-page__toolbar {
+    .group-detail-page__toolbar,
+    .group-detail-page__translation-drills-fields {
       grid-template-columns: 1fr;
     }
 

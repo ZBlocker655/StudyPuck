@@ -321,6 +321,14 @@
           >
             <div class="groups-page__name stack" style="--stack-space: var(--space-1)">
               <h2>{group.groupName}</h2>
+              {#if group.translationDrills.enabled}
+                <div class="groups-page__meta cluster" style="--cluster-space: var(--space-2)">
+                  <span class="groups-page__badge">Translation Drills</span>
+                  <span class="groups-page__meta-copy">
+                    {group.translationDrills.drawPileName ?? `${group.translationDrills.pileSizeLimit}-card pile`}
+                  </span>
+                </div>
+              {/if}
               <p class="groups-page__mobile-count">{group.activeCardCount}</p>
             </div>
             <p class="groups-page__description">{group.description ?? 'No description yet.'}</p>
@@ -452,7 +460,8 @@
   .groups-page__description,
   .groups-page__count,
   .groups-page__mobile-count,
-  .groups-page__feedback-title {
+  .groups-page__feedback-title,
+  .groups-page__meta-copy {
     color: var(--color-text-secondary);
     font-family: var(--font-ui);
   }
@@ -550,6 +559,25 @@
 
   .groups-page__mobile-count {
     display: none;
+  }
+
+  .groups-page__meta {
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .groups-page__badge {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: 1.5rem;
+    padding-inline: var(--space-2);
+    border-radius: var(--radius-pill);
+    background: color-mix(in srgb, var(--color-primary-subtle) 85%, var(--color-surface) 15%);
+    color: var(--color-text-accent);
+    font-family: var(--font-ui);
+    font-size: var(--font-size-caption);
+    letter-spacing: var(--tracking-caps);
+    text-transform: uppercase;
   }
 
   .groups-page__delete {
