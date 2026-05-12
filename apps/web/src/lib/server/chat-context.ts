@@ -24,6 +24,11 @@ import {
   type CardReviewSessionItemData,
   type CardReviewSessionSelection,
 } from '$lib/server/card-review.js';
+import {
+  loadTranslationDrillHomeData,
+  type TranslationDrillContextCardData,
+  type TranslationDrillHomeData,
+} from '$lib/server/translation-drills.js';
 
 type DatabaseClient = NonNullable<Parameters<typeof getNoteWithDraftCards>[3]>;
 
@@ -223,6 +228,60 @@ export type CardReviewSessionContext = {
   upcomingCards: CardReviewCardSnapshot[];
 };
 
+export type TranslationDrillCardSnapshot = {
+  cardId: string;
+  content: string;
+  meaning: string | null;
+  cardType: string | null;
+  state: 'active' | 'snoozed' | 'dismissed' | 'disabled';
+  sourceGroupName: string | null;
+  examples: string[];
+  mnemonics: string[];
+  llmInstructions: string | null;
+};
+
+export type TranslationDrillGroupSnapshot = {
+  groupId: string;
+  groupName: string;
+  drawPileName: string | null;
+  pileSizeLimit: number;
+  remainingCardCount: number;
+  activeCardCount: number;
+  snoozedCardCount: number;
+};
+
+type TranslationDrillAllowedSuggestionType =
+  | 'add_inbox_note'
+  | 'draw_translation_drill_card'
+  | 'snooze_translation_drill_card'
+  | 'dismiss_translation_drill_card'
+  | 'next_translation_drill_challenge';
+
+type TranslationDrillBaseContext = {
+  languageId: string;
+  allowedSuggestionTypes: readonly TranslationDrillAllowedSuggestionType[];
+  summary: TranslationDrillHomeData['summary'];
+  configuredGroups: TranslationDrillGroupSnapshot[];
+  visibleContextCards: TranslationDrillCardSnapshot[];
+  focusedCardId: string | null;
+};
+
+export type TranslationDrillsHomeContext = TranslationDrillBaseContext & {
+  contextType: 'translation_drills_home';
+  activeChallenge: null;
+};
+
+export type TranslationDrillsChallengeContext = TranslationDrillBaseContext & {
+  contextType: 'translation_drills_challenge';
+  activeChallenge: {
+    challengeId: string;
+    prompt: string;
+    sourceCardIds: string[];
+    startedAtIso: string;
+    sourceCards: TranslationDrillCardSnapshot[];
+  };
+};
+
 export type CanonicalChatContext =
   | CardEntryNoteWorkspaceContext
   | CardLibraryListContext
@@ -232,6 +291,8 @@ export type CanonicalChatContext =
   | CardDetailDrawerContext
   | CardReviewSetupContext
   | CardReviewSessionContext
+  | TranslationDrillsHomeContext
+  | TranslationDrillsChallengeContext
   | NonActionableContext;
 
 // ── Context hint (derived from the client request) ───────────────────────────
@@ -252,6 +313,7 @@ type ResolverDeps = {
   loadGroupDetailData: typeof loadGroupDetailData;
   loadCardReviewHomeData: typeof loadCardReviewHomeData;
   loadCardReviewSessionData: typeof loadCardReviewSessionData;
+  loadTranslationDrillHomeData: typeof loadTranslationDrillHomeData;
 };
 
 const defaultResolverDeps: ResolverDeps = {
@@ -261,6 +323,7 @@ const defaultResolverDeps: ResolverDeps = {
   loadGroupDetailData,
   loadCardReviewHomeData,
   loadCardReviewSessionData,
+  loadTranslationDrillHomeData,
 };
 
 // jsonb columns in the database schema are typed as `unknown` by Drizzle because
@@ -375,6 +438,34 @@ function buildCardReviewCardSnapshot(item: CardReviewSessionItemData): CardRevie
     llmInstructions: item.llmInstructions,
     nextDueAtIso: item.nextDueAtIso,
     reviewCount: item.reviewCount,
+  };
+}
+
+function buildTranslationDrillCardSnapshot(card: TranslationDrillContextCardData): TranslationDrillCardSnapshot {
+  return {
+    cardId: card.cardId,
+    content: card.content,
+    meaning: card.meaning,
+    cardType: card.cardType,
+    state: card.state,
+    sourceGroupName: card.sourceGroup?.groupName ?? null,
+    examples: card.examples,
+    mnemonics: card.mnemonics,
+    llmInstructions: card.llmInstructions,
+  };
+}
+
+function buildTranslationDrillGroupSnapshot(
+  group: TranslationDrillHomeData['configuredGroups'][number],
+): TranslationDrillGroupSnapshot {
+  return {
+    groupId: group.groupId,
+    groupName: group.groupName,
+    drawPileName: group.drawPileName,
+    pileSizeLimit: group.pileSizeLimit,
+    remainingCardCount: group.remainingCardCount,
+    activeCardCount: group.activeCards.length,
+    snoozedCardCount: group.snoozedCards.length,
   };
 }
 
@@ -719,6 +810,95 @@ async function resolveCardReviewSessionContext(
   };
 }
 
+function getAllowedTranslationDrillSuggestionTypes(
+  home: TranslationDrillHomeData,
+): TranslationDrillAllowedSuggestionType[] {
+  const allowed: TranslationDrillAllowedSuggestionType[] = ['add_inbox_note'];
+
+  if (home.configuredGroups.some((group) => group.remainingCardCount > 0)) {
+    allowed.push('draw_translation_drill_card');
+  }
+
+  if (home.challenge.generationInput.activeCardCount > 0) {
+    allowed.push('next_translation_drill_challenge');
+  }
+
+  const visibleContextCards = [
+    ...home.configuredGroups.flatMap((group) => [...group.activeCards, ...group.snoozedCards]),
+    ...home.ungroupedContextCards,
+  ];
+
+  if (visibleContextCards.some((card) => card.state === 'active')) {
+    allowed.push('snooze_translation_drill_card');
+  }
+
+  if (visibleContextCards.length > 0) {
+    allowed.push('dismiss_translation_drill_card');
+  }
+
+  return allowed;
+}
+
+async function resolveTranslationDrillsContext(
+  userId: string,
+  languageId: string,
+  surfaceContext: Extract<ChatSurfaceContext, { surface: 'translation_drills' }>,
+  database: DatabaseClient,
+  deps: ResolverDeps,
+): Promise<TranslationDrillsHomeContext | TranslationDrillsChallengeContext> {
+  const home = await deps.loadTranslationDrillHomeData(userId, languageId, database);
+  const visibleContextCards = [
+    ...home.configuredGroups.flatMap((group) => [...group.activeCards, ...group.snoozedCards]),
+    ...home.ungroupedContextCards,
+  ];
+  const visibleContextCardSnapshots = visibleContextCards.map((card) => buildTranslationDrillCardSnapshot(card));
+  const visibleContextCardIds = new Set(visibleContextCards.map((card) => card.cardId));
+  const baseContext: TranslationDrillBaseContext = {
+    languageId,
+    allowedSuggestionTypes: getAllowedTranslationDrillSuggestionTypes(home),
+    summary: home.summary,
+    configuredGroups: home.configuredGroups.map((group) => buildTranslationDrillGroupSnapshot(group)),
+    visibleContextCards: visibleContextCardSnapshots,
+    focusedCardId:
+      surfaceContext.focusedCardId && visibleContextCardIds.has(surfaceContext.focusedCardId)
+        ? surfaceContext.focusedCardId
+        : null,
+  };
+
+  if (!surfaceContext.activeChallenge) {
+    return {
+      contextType: 'translation_drills_home',
+      ...baseContext,
+      activeChallenge: null,
+    };
+  }
+
+  const challengeCardById = new Map(home.challenge.generationInput.cards.map((card) => [card.cardId, card]));
+  const sourceCards = surfaceContext.activeChallenge.sourceCardIds
+    .map((cardId) => challengeCardById.get(cardId))
+    .filter((card): card is TranslationDrillContextCardData => card !== undefined);
+
+  if (sourceCards.length !== surfaceContext.activeChallenge.sourceCardIds.length) {
+    return {
+      contextType: 'translation_drills_home',
+      ...baseContext,
+      activeChallenge: null,
+    };
+  }
+
+  return {
+    contextType: 'translation_drills_challenge',
+    ...baseContext,
+    activeChallenge: {
+      challengeId: surfaceContext.activeChallenge.challengeId,
+      prompt: surfaceContext.activeChallenge.prompt,
+      sourceCardIds: surfaceContext.activeChallenge.sourceCardIds,
+      startedAtIso: surfaceContext.activeChallenge.startedAtIso,
+      sourceCards: sourceCards.map((card) => buildTranslationDrillCardSnapshot(card)),
+    },
+  };
+}
+
 // ── Resolver: non-actionable (cards, stats, settings, workspace) ─────────────
 
 function resolveNonActionableContext(
@@ -863,6 +1043,18 @@ export async function resolveCanonicalChatContext(
         database,
         deps,
       );
+    case 'translation_drills':
+      if (hint.routeContext.routeContextType !== 'translation-drills') {
+        return resolveNonActionableContext(hint);
+      }
+
+      return resolveTranslationDrillsContext(
+        userId,
+        languageId,
+        surfaceContext,
+        database,
+        deps,
+      );
   }
 }
 
@@ -950,6 +1142,43 @@ function isCardReviewSuggestionValid(
   return context.contextType === 'card_review_session' && payload.cardId === context.currentCard.cardId;
 }
 
+function isTranslationDrillDrawSuggestionValid(
+  context: CanonicalChatContext,
+  payload: Extract<ChatSuggestion, { type: 'draw_translation_drill_card' }>['payload'],
+) {
+  return (
+    (context.contextType === 'translation_drills_home' || context.contextType === 'translation_drills_challenge') &&
+    context.configuredGroups.some((group) => group.groupId === payload.groupId && group.remainingCardCount > 0)
+  );
+}
+
+function isTranslationDrillSnoozeSuggestionValid(
+  context: CanonicalChatContext,
+  payload: Extract<ChatSuggestion, { type: 'snooze_translation_drill_card' }>['payload'],
+) {
+  return (
+    (context.contextType === 'translation_drills_home' || context.contextType === 'translation_drills_challenge') &&
+    context.visibleContextCards.some((card) => card.cardId === payload.cardId && card.state === 'active')
+  );
+}
+
+function isTranslationDrillDismissSuggestionValid(
+  context: CanonicalChatContext,
+  payload: Extract<ChatSuggestion, { type: 'dismiss_translation_drill_card' }>['payload'],
+) {
+  return (
+    (context.contextType === 'translation_drills_home' || context.contextType === 'translation_drills_challenge') &&
+    context.visibleContextCards.some((card) => card.cardId === payload.cardId)
+  );
+}
+
+function isNextTranslationDrillChallengeSuggestionValid(context: CanonicalChatContext) {
+  return (
+    (context.contextType === 'translation_drills_home' || context.contextType === 'translation_drills_challenge') &&
+    context.allowedSuggestionTypes.includes('next_translation_drill_challenge')
+  );
+}
+
 export function areChatSuggestionsValidForContext(
   context: CanonicalChatContext,
   suggestions: readonly ChatSuggestion[],
@@ -988,6 +1217,14 @@ export function areChatSuggestionsValidForContext(
       case 'snooze_review_card':
       case 'next_review_card':
         return isCardReviewSuggestionValid(context, suggestion.payload);
+      case 'draw_translation_drill_card':
+        return isTranslationDrillDrawSuggestionValid(context, suggestion.payload);
+      case 'snooze_translation_drill_card':
+        return isTranslationDrillSnoozeSuggestionValid(context, suggestion.payload);
+      case 'dismiss_translation_drill_card':
+        return isTranslationDrillDismissSuggestionValid(context, suggestion.payload);
+      case 'next_translation_drill_challenge':
+        return isNextTranslationDrillChallengeSuggestionValid(context);
     }
   });
 }

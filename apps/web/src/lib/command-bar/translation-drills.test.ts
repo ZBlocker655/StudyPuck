@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { resolveRouteContext } from '$lib/command-bar/shared.js';
 import { translationDrillSession } from '$lib/stores/translationDrillSession.js';
 import { resolveTranslationDrillCommandResponse } from './translation-drills.js';
 import { translationDrillSessionActions } from '$lib/stores/translationDrillSessionActions.js';
@@ -88,6 +89,12 @@ function createHome(): TranslationDrillHomeData {
 }
 
 describe('resolveTranslationDrillCommandResponse', () => {
+  const activeSurfaceContext = {
+    surface: 'translation_drills' as const,
+    activeChallenge: null,
+    focusedCardId: 'card-1',
+  };
+
   beforeEach(() => {
     translationDrillSession.reset();
     vi.restoreAllMocks();
@@ -101,7 +108,11 @@ describe('resolveTranslationDrillCommandResponse', () => {
       focusedCardId: 'card-1',
     });
 
-    await expect(resolveTranslationDrillCommandResponse('/context')).resolves.toBe('Active context: 经历.');
+    await expect(resolveTranslationDrillCommandResponse({
+      input: '/context',
+      routeContext: resolveRouteContext('/zh/translation-drills'),
+      surfaceContext: activeSurfaceContext,
+    })).resolves.toBe('Active context: 经历. No active challenge yet.');
   });
 
   it('dispatches /next through the Translation Drills action store', async () => {
@@ -117,7 +128,11 @@ describe('resolveTranslationDrillCommandResponse', () => {
       conversationReset: true,
     });
 
-    await expect(resolveTranslationDrillCommandResponse('/next')).resolves.toEqual({
+    await expect(resolveTranslationDrillCommandResponse({
+      input: '/next',
+      routeContext: resolveRouteContext('/zh/translation-drills'),
+      surfaceContext: activeSurfaceContext,
+    })).resolves.toEqual({
       message: 'New challenge ready.',
       conversationReset: true,
     });
@@ -139,13 +154,37 @@ describe('resolveTranslationDrillCommandResponse', () => {
       message: '经历 dismissed.',
     });
 
-    await expect(resolveTranslationDrillCommandResponse('/snooze')).resolves.toEqual({
+    await expect(resolveTranslationDrillCommandResponse({
+      input: '/snooze',
+      routeContext: resolveRouteContext('/zh/translation-drills'),
+      surfaceContext: { ...activeSurfaceContext, focusedCardId: null },
+    })).resolves.toEqual({
       message: '经历 snoozed.',
     });
-    await expect(resolveTranslationDrillCommandResponse('/dismiss')).resolves.toEqual({
+    await expect(resolveTranslationDrillCommandResponse({
+      input: '/dismiss',
+      routeContext: resolveRouteContext('/zh/translation-drills'),
+      surfaceContext: { ...activeSurfaceContext, focusedCardId: null },
+    })).resolves.toEqual({
       message: '经历 dismissed.',
     });
     expect(snoozeSpy).toHaveBeenCalledWith('card-1');
     expect(dismissSpy).toHaveBeenCalledWith('card-1');
+  });
+
+  it('returns null for Translation Drills commands outside the Translation Drills route context', async () => {
+    await expect(resolveTranslationDrillCommandResponse({
+      input: '/next',
+      routeContext: resolveRouteContext('/zh/cards'),
+      surfaceContext: activeSurfaceContext,
+    })).resolves.toBeNull();
+  });
+
+  it('requires the Translation Drills surface to be active before handling drill commands', async () => {
+    await expect(resolveTranslationDrillCommandResponse({
+      input: '/next',
+      routeContext: resolveRouteContext('/zh/translation-drills'),
+      surfaceContext: null,
+    })).resolves.toBe('Open Translation Drills before using that command.');
   });
 });

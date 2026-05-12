@@ -1,11 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import { resolveCardReviewCommandResponse } from './card-review.js';
+import { resolveRouteContext } from './shared.js';
 import { cardReviewSessionActions } from '$lib/stores/cardReviewSessionActions.js';
 
 describe('resolveCardReviewCommandResponse', () => {
   it('returns null for non-Card Review commands', async () => {
     await expect(resolveCardReviewCommandResponse({
       input: '/help',
+      routeContext: resolveRouteContext('/zh/card-review'),
       surfaceContext: null,
     })).resolves.toBeNull();
   });
@@ -13,6 +15,7 @@ describe('resolveCardReviewCommandResponse', () => {
   it('requires an active Card Review session before executing review commands', async () => {
     await expect(resolveCardReviewCommandResponse({
       input: '/pin',
+      routeContext: resolveRouteContext('/zh/card-review'),
       surfaceContext: {
         surface: 'card_review_setup',
         selection: {
@@ -29,6 +32,7 @@ describe('resolveCardReviewCommandResponse', () => {
 
     await expect(resolveCardReviewCommandResponse({
       input: '/next',
+      routeContext: resolveRouteContext('/zh/card-review/session'),
       surfaceContext: {
         surface: 'card_review_session',
         selection: {
@@ -44,5 +48,17 @@ describe('resolveCardReviewCommandResponse', () => {
     })).resolves.toBe('Moved to the next card.');
 
     expect(nextSpy).toHaveBeenCalledWith('card-1');
+  });
+
+  it('ignores Card Review slash commands outside Card Review routes', async () => {
+    await expect(resolveCardReviewCommandResponse({
+      input: '/next',
+      routeContext: resolveRouteContext('/zh/translation-drills'),
+      surfaceContext: {
+        surface: 'translation_drills',
+        activeChallenge: null,
+        focusedCardId: 'card-1',
+      },
+    })).resolves.toBeNull();
   });
 });

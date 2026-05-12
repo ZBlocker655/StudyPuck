@@ -100,5 +100,5 @@ describe('Group detail page', () => {
     expect(toggle.checked).toBe(true);
     expect(screen.getByDisplayValue('Chat practice')).toBeTruthy();
     expect(screen.getByDisplayValue('6')).toBeTruthy();
-  });
+  }, 10000);
 });

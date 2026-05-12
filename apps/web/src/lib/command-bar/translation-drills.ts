@@ -1,9 +1,17 @@
+import type { RouteContext } from '$lib/command-bar/shared.js';
+import type { ChatSurfaceContext } from '$lib/chat.js';
 import { get } from 'svelte/store';
 import { translationDrillSession } from '$lib/stores/translationDrillSession.js';
 import {
   translationDrillSessionActions,
   type TranslationDrillLocalResponse,
 } from '$lib/stores/translationDrillSessionActions.js';
+
+type ResolveTranslationDrillCommandResponseInput = {
+  input: string;
+  routeContext: RouteContext;
+  surfaceContext: ChatSurfaceContext | null;
+};
 
 function parseTranslationDrillCommand(input: string) {
   const trimmedInput = input.trim();
@@ -18,6 +26,16 @@ function parseTranslationDrillCommand(input: string) {
     return null;
   }
 
+  if (
+    typedCommand !== '/context' &&
+    typedCommand !== '/next' &&
+    typedCommand !== '/draw' &&
+    typedCommand !== '/snooze' &&
+    typedCommand !== '/dismiss'
+  ) {
+    return null;
+  }
+
   return {
     command: typedCommand,
     argument: rest.join(' ').trim(),
@@ -26,12 +44,15 @@ function parseTranslationDrillCommand(input: string) {
 
 function formatContextSummary() {
   const state = get(translationDrillSession);
+  const challengeSummary = state.activeChallenge
+    ? ` Current challenge: "${state.activeChallenge.prompt}".`
+    : ' No active challenge yet.';
 
   if (state.activeCards.length === 0) {
-    return 'There are no active Translation Drills cards yet.';
+    return `There are no active Translation Drills cards yet.${challengeSummary}`;
   }
 
-  return `Active context: ${state.activeCards.map((card) => card.content).join(', ')}.`;
+  return `Active context: ${state.activeCards.map((card) => card.content).join(', ')}.${challengeSummary}`;
 }
 
 function resolveTargetCardId() {
@@ -83,11 +104,21 @@ function resolveGroupId(argument: string) {
   };
 }
 
-export async function resolveTranslationDrillCommandResponse(input: string): Promise<TranslationDrillLocalResponse | string | null> {
-  const parsed = parseTranslationDrillCommand(input);
+export async function resolveTranslationDrillCommandResponse(
+  input: ResolveTranslationDrillCommandResponseInput,
+): Promise<TranslationDrillLocalResponse | string | null> {
+  const parsed = parseTranslationDrillCommand(input.input);
 
   if (!parsed) {
     return null;
+  }
+
+  if (input.routeContext.commandContext !== 'translation-drills') {
+    return null;
+  }
+
+  if (input.surfaceContext?.surface !== 'translation_drills') {
+    return 'Open Translation Drills before using that command.';
   }
 
   if (parsed.command === '/context') {

@@ -60,6 +60,18 @@ describe('commandBar command filtering', () => {
     expect(groups[1].commands.map((command) => command.command)).toEqual(['/add', '/lang', '/help']);
   });
 
+  it('includes Translation Drills slash commands in the Translation Drills context', () => {
+    const groups = getFilteredCommandGroups('translation-drills', '/');
+
+    expect(groups[0]?.commands.map((command) => command.command)).toEqual([
+      '/next',
+      '/snooze',
+      '/dismiss',
+      '/draw',
+      '/context',
+    ]);
+  });
+
   it('does not duplicate a global-only group when already in the global context', () => {
     const groups = getFilteredCommandGroups('global', '/h');
 
@@ -260,6 +272,35 @@ describe('commandBar entity context and conversation reset', () => {
     expect(state.surfaceContextHint).toMatchObject({
       surface: 'card_review_session',
       currentCardId: 'card-2',
+    });
+  });
+
+  it('resets messages when Translation Drills starts a new challenge', () => {
+    commandBar.setWorkspaceContext('es', null);
+    commandBar.setSurfaceContext({
+      surface: 'translation_drills',
+      activeChallenge: null,
+      focusedCardId: 'card-1',
+    });
+    commandBar.pushAssistantMessage('Existing conversation');
+    commandBar.setSurfaceContext({
+      surface: 'translation_drills',
+      activeChallenge: {
+        challengeId: 'challenge-1',
+        prompt: 'I want to speak more clearly today.',
+        sourceCardIds: ['card-1'],
+        startedAtIso: '2026-05-10T12:00:00.000Z',
+      },
+      focusedCardId: 'card-1',
+    });
+
+    const state = getState();
+    expect(state.messages).toEqual([]);
+    expect(state.surfaceContextHint).toMatchObject({
+      surface: 'translation_drills',
+      activeChallenge: {
+        challengeId: 'challenge-1',
+      },
     });
   });
 

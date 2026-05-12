@@ -563,51 +563,17 @@
     return pendingActionKey === key;
   }
 
-  function buildChallengePrompt() {
-    if (!homeState) {
-      throw new Error('Translation Drills is not ready yet.');
-    }
-
-    const languageLabel = getLanguageByCode(lang)?.label ?? defaultLanguageLabel;
-    const generationInput = homeState.challenge.generationInput;
-    const sourceCards = generationInput.cards
-      .filter((card) => generationInput.suggestedSourceCardIds.includes(card.cardId))
-      .slice(0, 2);
-
-    if (sourceCards.length === 0) {
-      throw new Error('Draw or pin at least one active card before starting a challenge.');
-    }
-
-    const formatMeaning = (card: TranslationDrillContextCardData) => card.meaning?.replace(/^to\s+/i, '') ?? `use "${card.content}"`;
-    const [firstCard, secondCard] = sourceCards;
-    const firstMeaning = formatMeaning(firstCard);
-    const secondMeaning = secondCard ? formatMeaning(secondCard) : null;
-    const sentence = secondMeaning
-      ? `We should ${firstMeaning} this carefully before we ${secondMeaning}.`
-      : `I want to ${firstMeaning} this more clearly today.`;
-
-    return {
-      prompt: sentence,
-      sourceCardIds: sourceCards.map((card) => card.cardId),
-      languageLabel,
-    };
-  }
-
   async function startChallenge(): Promise<TranslationDrillLocalResponse> {
     if (!homeState) {
       throw new Error('Translation Drills is not available right now.');
     }
 
-    const challengeInput = buildChallengePrompt();
+    const languageLabel = getLanguageByCode(lang)?.label ?? defaultLanguageLabel;
     setPendingAction('challenge:next');
 
     try {
       const result = await postAction({
         action: 'challenge-start',
-        challenge: {
-          prompt: challengeInput.prompt,
-          sourceCardIds: challengeInput.sourceCardIds,
-        },
       });
 
       if (result.action !== 'challenge-start') {
@@ -617,7 +583,7 @@
       activeChallenge = result.challenge;
       actionMessage = result.message;
       return {
-        message: `${result.message} Translate to ${challengeInput.languageLabel}: "${result.challenge.prompt}"`,
+        message: `${result.message} Translate to ${languageLabel}: "${result.challenge.prompt}"`,
         conversationReset: true,
       };
     } catch (error) {

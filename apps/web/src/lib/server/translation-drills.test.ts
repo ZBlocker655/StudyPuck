@@ -381,10 +381,7 @@ describe('applyTranslationDrillAction', () => {
       'zh',
       {
         action: 'challenge-start',
-        challenge: {
-          prompt: 'Translate: "We should make up for the time we lost."',
-          sourceCardIds: ['card-1'],
-        },
+        sourceCardIds: ['card-1'],
       },
       database,
       deps,
@@ -394,7 +391,7 @@ describe('applyTranslationDrillAction', () => {
       action: 'challenge-start',
       conversationReset: true,
       challenge: {
-        prompt: 'Translate: "We should make up for the time we lost."',
+        prompt: 'I want to compensate this more clearly today.',
         sourceCardIds: ['card-1'],
       },
     });
@@ -422,10 +419,7 @@ describe('applyTranslationDrillAction', () => {
       'zh',
       {
         action: 'challenge-start',
-        challenge: {
-          prompt: 'Translate this.',
-          sourceCardIds: ['card-2'],
-        },
+        sourceCardIds: ['card-2'],
       },
       database,
       deps,

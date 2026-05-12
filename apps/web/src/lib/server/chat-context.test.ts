@@ -113,6 +113,7 @@ describe('resolveCanonicalChatContext', () => {
         loadGroupDetailData: vi.fn(),
         loadCardReviewHomeData: vi.fn(),
         loadCardReviewSessionData: vi.fn(),
+        loadTranslationDrillHomeData: vi.fn(),
       },
     );
 
@@ -163,6 +164,7 @@ describe('resolveCanonicalChatContext', () => {
         loadGroupDetailData: vi.fn(),
         loadCardReviewHomeData: vi.fn(),
         loadCardReviewSessionData: vi.fn(),
+        loadTranslationDrillHomeData: vi.fn(),
       },
     );
 
@@ -235,6 +237,7 @@ describe('resolveCanonicalChatContext', () => {
         }),
         loadCardReviewHomeData: vi.fn(),
         loadCardReviewSessionData: vi.fn(),
+        loadTranslationDrillHomeData: vi.fn(),
       },
     );
 
@@ -319,6 +322,7 @@ describe('resolveCanonicalChatContext', () => {
         }),
         loadCardReviewHomeData: vi.fn(),
         loadCardReviewSessionData: vi.fn(),
+        loadTranslationDrillHomeData: vi.fn(),
       },
     );
 
@@ -402,6 +406,7 @@ describe('resolveCanonicalChatContext', () => {
         }),
         loadCardReviewHomeData: vi.fn(),
         loadCardReviewSessionData: vi.fn(),
+        loadTranslationDrillHomeData: vi.fn(),
       },
     );
 
@@ -483,6 +488,7 @@ describe('resolveCanonicalChatContext', () => {
           },
         }),
         loadCardReviewSessionData: vi.fn(),
+        loadTranslationDrillHomeData: vi.fn(),
       },
     );
 
@@ -576,6 +582,7 @@ describe('resolveCanonicalChatContext', () => {
             },
           ],
         }),
+        loadTranslationDrillHomeData: vi.fn(),
       },
     );
 
@@ -592,6 +599,262 @@ describe('resolveCanonicalChatContext', () => {
         content: 'hablar',
       },
       upcomingCards: [{ cardId: 'card-2', content: 'conversar' }],
+    });
+  });
+
+  it('resolves Translation Drills home context from the authoritative drill home data', async () => {
+    const context = await resolveCanonicalChatContext(
+      'user-1',
+      {
+        routeContext: resolveRouteContext('/es/translation-drills'),
+        languageId: 'es',
+        surfaceContext: {
+          surface: 'translation_drills',
+          activeChallenge: null,
+          focusedCardId: 'card-1',
+        },
+      },
+      {} as Parameters<typeof resolveCanonicalChatContext>[2],
+      {
+        loadActiveCardDetailData: vi.fn(),
+        loadCardLibraryData: vi.fn(),
+        loadCardLibraryGroupsData: vi.fn(),
+        loadGroupDetailData: vi.fn(),
+        loadCardReviewHomeData: vi.fn(),
+        loadCardReviewSessionData: vi.fn(),
+        loadTranslationDrillHomeData: vi.fn().mockResolvedValue({
+          summary: {
+            configuredGroupCount: 1,
+            activeCardCount: 1,
+            snoozedCardCount: 1,
+            dismissedCardCount: 0,
+            disabledCardCount: 0,
+            remainingDrawCount: 2,
+            hasConfiguredDrawPiles: true,
+            hasVisibleContext: true,
+          },
+          availableGroups: [{ groupId: 'group-1', groupName: 'Core' }],
+          configuredGroups: [{
+            groupId: 'group-1',
+            groupName: 'Core',
+            drawPileName: 'Core drill',
+            pileSizeLimit: 4,
+            remainingCardCount: 2,
+            activeCards: [{
+              cardId: 'card-1',
+              content: 'hablar',
+              meaning: 'to speak',
+              cardType: 'word',
+              examples: [],
+              mnemonics: [],
+              llmInstructions: null,
+              updatedAtIso: null,
+              sourceGroup: { groupId: 'group-1', groupName: 'Core' },
+              addedFrom: 'draw_pile:group-1',
+              addedAtIso: null,
+              lastUsedAtIso: null,
+              usageCount: 0,
+              state: 'active',
+              stateUntilIso: null,
+              cefrOverride: null,
+              nextDueAtIso: null,
+              intervalDays: null,
+              performanceScore: null,
+              dismissSchedule: null,
+            }],
+            snoozedCards: [{
+              cardId: 'card-2',
+              content: 'escuchar',
+              meaning: 'to listen',
+              cardType: 'word',
+              examples: [],
+              mnemonics: [],
+              llmInstructions: null,
+              updatedAtIso: null,
+              sourceGroup: { groupId: 'group-1', groupName: 'Core' },
+              addedFrom: 'draw_pile:group-1',
+              addedAtIso: null,
+              lastUsedAtIso: null,
+              usageCount: 1,
+              state: 'snoozed',
+              stateUntilIso: null,
+              cefrOverride: null,
+              nextDueAtIso: null,
+              intervalDays: null,
+              performanceScore: null,
+              dismissSchedule: null,
+            }],
+          }],
+          ungroupedContextCards: [],
+          challenge: {
+            activeChallenge: null,
+            generationInput: {
+              activeCardCount: 1,
+              cefrLevel: 'B1',
+              cards: [{
+                cardId: 'card-1',
+                content: 'hablar',
+                meaning: 'to speak',
+                cardType: 'word',
+                examples: [],
+                mnemonics: [],
+                llmInstructions: null,
+                updatedAtIso: null,
+                sourceGroup: { groupId: 'group-1', groupName: 'Core' },
+                addedFrom: 'draw_pile:group-1',
+                addedAtIso: null,
+                lastUsedAtIso: null,
+                usageCount: 0,
+                state: 'active',
+                stateUntilIso: null,
+                cefrOverride: null,
+                nextDueAtIso: null,
+                intervalDays: null,
+                performanceScore: null,
+                dismissSchedule: null,
+              }],
+              suggestedSourceCardIds: ['card-1'],
+            },
+          },
+        }),
+      },
+    );
+
+    expect(context).toMatchObject({
+      contextType: 'translation_drills_home',
+      languageId: 'es',
+      allowedSuggestionTypes: [
+        'add_inbox_note',
+        'draw_translation_drill_card',
+        'next_translation_drill_challenge',
+        'snooze_translation_drill_card',
+        'dismiss_translation_drill_card',
+      ],
+      focusedCardId: 'card-1',
+      configuredGroups: [{
+        groupId: 'group-1',
+        groupName: 'Core',
+        drawPileName: 'Core drill',
+        remainingCardCount: 2,
+      }],
+      visibleContextCards: [
+        { cardId: 'card-1', state: 'active' },
+        { cardId: 'card-2', state: 'snoozed' },
+      ],
+      activeChallenge: null,
+    });
+  });
+
+  it('resolves Translation Drills challenge context with validated source cards', async () => {
+    const context = await resolveCanonicalChatContext(
+      'user-1',
+      {
+        routeContext: resolveRouteContext('/es/translation-drills'),
+        languageId: 'es',
+        surfaceContext: {
+          surface: 'translation_drills',
+          activeChallenge: {
+            challengeId: 'challenge-1',
+            prompt: 'I want to speak more clearly today.',
+            sourceCardIds: ['card-1'],
+            startedAtIso: '2026-05-10T12:00:00.000Z',
+          },
+          focusedCardId: 'card-1',
+        },
+      },
+      {} as Parameters<typeof resolveCanonicalChatContext>[2],
+      {
+        loadActiveCardDetailData: vi.fn(),
+        loadCardLibraryData: vi.fn(),
+        loadCardLibraryGroupsData: vi.fn(),
+        loadGroupDetailData: vi.fn(),
+        loadCardReviewHomeData: vi.fn(),
+        loadCardReviewSessionData: vi.fn(),
+        loadTranslationDrillHomeData: vi.fn().mockResolvedValue({
+          summary: {
+            configuredGroupCount: 1,
+            activeCardCount: 1,
+            snoozedCardCount: 0,
+            dismissedCardCount: 0,
+            disabledCardCount: 0,
+            remainingDrawCount: 1,
+            hasConfiguredDrawPiles: true,
+            hasVisibleContext: true,
+          },
+          availableGroups: [{ groupId: 'group-1', groupName: 'Core' }],
+          configuredGroups: [{
+            groupId: 'group-1',
+            groupName: 'Core',
+            drawPileName: null,
+            pileSizeLimit: 4,
+            remainingCardCount: 1,
+            activeCards: [],
+            snoozedCards: [],
+          }],
+          ungroupedContextCards: [{
+            cardId: 'card-1',
+            content: 'hablar',
+            meaning: 'to speak',
+            cardType: 'word',
+            examples: ['Quiero hablar contigo.'],
+            mnemonics: ['habitual speech'],
+            llmInstructions: null,
+            updatedAtIso: null,
+            sourceGroup: null,
+            addedFrom: 'pinned_from_review',
+            addedAtIso: null,
+            lastUsedAtIso: null,
+            usageCount: 0,
+            state: 'active',
+            stateUntilIso: null,
+            cefrOverride: null,
+            nextDueAtIso: null,
+            intervalDays: null,
+            performanceScore: null,
+            dismissSchedule: null,
+          }],
+          challenge: {
+            activeChallenge: null,
+            generationInput: {
+              activeCardCount: 1,
+              cefrLevel: 'B1',
+              cards: [{
+                cardId: 'card-1',
+                content: 'hablar',
+                meaning: 'to speak',
+                cardType: 'word',
+                examples: ['Quiero hablar contigo.'],
+                mnemonics: ['habitual speech'],
+                llmInstructions: null,
+                updatedAtIso: null,
+                sourceGroup: null,
+                addedFrom: 'pinned_from_review',
+                addedAtIso: null,
+                lastUsedAtIso: null,
+                usageCount: 0,
+                state: 'active',
+                stateUntilIso: null,
+                cefrOverride: null,
+                nextDueAtIso: null,
+                intervalDays: null,
+                performanceScore: null,
+                dismissSchedule: null,
+              }],
+              suggestedSourceCardIds: ['card-1'],
+            },
+          },
+        }),
+      },
+    );
+
+    expect(context).toMatchObject({
+      contextType: 'translation_drills_challenge',
+      activeChallenge: {
+        challengeId: 'challenge-1',
+        prompt: 'I want to speak more clearly today.',
+        sourceCardIds: ['card-1'],
+        sourceCards: [{ cardId: 'card-1', content: 'hablar' }],
+      },
     });
   });
 });
@@ -631,6 +894,7 @@ describe('getAllowedSuggestionTypes', () => {
         loadGroupDetailData: vi.fn(),
         loadCardReviewHomeData: vi.fn(),
         loadCardReviewSessionData: vi.fn(),
+        loadTranslationDrillHomeData: vi.fn(),
       },
     );
 
@@ -670,6 +934,7 @@ describe('getAllowedSuggestionTypes', () => {
         loadGroupDetailData: vi.fn(),
         loadCardReviewHomeData: vi.fn(),
         loadCardReviewSessionData: vi.fn(),
+        loadTranslationDrillHomeData: vi.fn(),
       },
     );
 
@@ -737,6 +1002,7 @@ describe('getAllowedSuggestionTypes', () => {
             },
           ],
         }),
+        loadTranslationDrillHomeData: vi.fn(),
       },
     );
 
@@ -745,6 +1011,91 @@ describe('getAllowedSuggestionTypes', () => {
       'pin_review_card',
       'snooze_review_card',
       'next_review_card',
+    ]);
+  });
+
+  it('returns Translation Drills suggestion types for drill contexts', async () => {
+    const context = await resolveCanonicalChatContext(
+      'user-1',
+      {
+        routeContext: resolveRouteContext('/es/translation-drills'),
+        languageId: 'es',
+        surfaceContext: {
+          surface: 'translation_drills',
+          activeChallenge: null,
+          focusedCardId: null,
+        },
+      },
+      {} as Parameters<typeof resolveCanonicalChatContext>[2],
+      {
+        loadActiveCardDetailData: vi.fn(),
+        loadCardLibraryData: vi.fn(),
+        loadCardLibraryGroupsData: vi.fn(),
+        loadGroupDetailData: vi.fn(),
+        loadCardReviewHomeData: vi.fn(),
+        loadCardReviewSessionData: vi.fn(),
+        loadTranslationDrillHomeData: vi.fn().mockResolvedValue({
+          summary: {
+            configuredGroupCount: 1,
+            activeCardCount: 1,
+            snoozedCardCount: 0,
+            dismissedCardCount: 0,
+            disabledCardCount: 0,
+            remainingDrawCount: 1,
+            hasConfiguredDrawPiles: true,
+            hasVisibleContext: true,
+          },
+          availableGroups: [{ groupId: 'group-1', groupName: 'Core' }],
+          configuredGroups: [{
+            groupId: 'group-1',
+            groupName: 'Core',
+            drawPileName: null,
+            pileSizeLimit: 4,
+            remainingCardCount: 1,
+            activeCards: [{
+              cardId: 'card-1',
+              content: 'hablar',
+              meaning: 'to speak',
+              cardType: 'word',
+              examples: [],
+              mnemonics: [],
+              llmInstructions: null,
+              updatedAtIso: null,
+              sourceGroup: { groupId: 'group-1', groupName: 'Core' },
+              addedFrom: 'draw_pile:group-1',
+              addedAtIso: null,
+              lastUsedAtIso: null,
+              usageCount: 0,
+              state: 'active',
+              stateUntilIso: null,
+              cefrOverride: null,
+              nextDueAtIso: null,
+              intervalDays: null,
+              performanceScore: null,
+              dismissSchedule: null,
+            }],
+            snoozedCards: [],
+          }],
+          ungroupedContextCards: [],
+          challenge: {
+            activeChallenge: null,
+            generationInput: {
+              activeCardCount: 1,
+              cefrLevel: 'B1',
+              cards: [],
+              suggestedSourceCardIds: [],
+            },
+          },
+        }),
+      },
+    );
+
+    expect(getAllowedSuggestionTypes(context)).toEqual([
+      'add_inbox_note',
+      'draw_translation_drill_card',
+      'next_translation_drill_challenge',
+      'snooze_translation_drill_card',
+      'dismiss_translation_drill_card',
     ]);
   });
 });
@@ -884,6 +1235,102 @@ describe('areChatSuggestionsValidForContext', () => {
     expect(
       areChatSuggestionsValidForContext(context, [
         { type: 'pin_review_card', payload: { cardId: 'card-2' } },
+      ]),
+    ).toBe(false);
+  });
+
+  it('accepts only in-scope Translation Drills suggestions', () => {
+    const context = {
+      contextType: 'translation_drills_challenge',
+      languageId: 'es',
+      allowedSuggestionTypes: [
+        'add_inbox_note',
+        'draw_translation_drill_card',
+        'snooze_translation_drill_card',
+        'dismiss_translation_drill_card',
+        'next_translation_drill_challenge',
+      ],
+      summary: {
+        configuredGroupCount: 1,
+        activeCardCount: 1,
+        snoozedCardCount: 1,
+        dismissedCardCount: 0,
+        disabledCardCount: 0,
+        remainingDrawCount: 2,
+        hasConfiguredDrawPiles: true,
+        hasVisibleContext: true,
+      },
+      configuredGroups: [{
+        groupId: 'group-1',
+        groupName: 'Core',
+        drawPileName: null,
+        pileSizeLimit: 4,
+        remainingCardCount: 2,
+        activeCardCount: 1,
+        snoozedCardCount: 1,
+      }],
+      visibleContextCards: [
+        {
+          cardId: 'card-1',
+          content: 'hablar',
+          meaning: 'to speak',
+          cardType: 'word',
+          state: 'active',
+          sourceGroupName: 'Core',
+          examples: [],
+          mnemonics: [],
+          llmInstructions: null,
+        },
+        {
+          cardId: 'card-2',
+          content: 'escuchar',
+          meaning: 'to listen',
+          cardType: 'word',
+          state: 'snoozed',
+          sourceGroupName: 'Core',
+          examples: [],
+          mnemonics: [],
+          llmInstructions: null,
+        },
+      ],
+      focusedCardId: 'card-1',
+      activeChallenge: {
+        challengeId: 'challenge-1',
+        prompt: 'I want to speak more clearly today.',
+        sourceCardIds: ['card-1'],
+        startedAtIso: '2026-05-10T12:00:00.000Z',
+        sourceCards: [{
+          cardId: 'card-1',
+          content: 'hablar',
+          meaning: 'to speak',
+          cardType: 'word',
+          state: 'active',
+          sourceGroupName: 'Core',
+          examples: [],
+          mnemonics: [],
+          llmInstructions: null,
+        }],
+      },
+    } as Awaited<ReturnType<typeof resolveCanonicalChatContext>>;
+
+    expect(
+      areChatSuggestionsValidForContext(context, [
+        { type: 'draw_translation_drill_card', payload: { groupId: 'group-1' } },
+        { type: 'snooze_translation_drill_card', payload: { cardId: 'card-1' } },
+        { type: 'dismiss_translation_drill_card', payload: { cardId: 'card-2' } },
+        { type: 'next_translation_drill_challenge', payload: {} },
+      ]),
+    ).toBe(true);
+
+    expect(
+      areChatSuggestionsValidForContext(context, [
+        { type: 'draw_translation_drill_card', payload: { groupId: 'group-999' } },
+      ]),
+    ).toBe(false);
+
+    expect(
+      areChatSuggestionsValidForContext(context, [
+        { type: 'snooze_translation_drill_card', payload: { cardId: 'card-2' } },
       ]),
     ).toBe(false);
   });

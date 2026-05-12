@@ -57,11 +57,6 @@ const defaultActionDeps: TranslationDrillActionDeps = {
 };
 
 const translationDrillDismissDaysSchema = z.coerce.number().int().min(1, 'Dismiss timing must be at least 1 day.').max(365, 'Dismiss timing must be 365 days or fewer.');
-const translationDrillChallengePayloadSchema = z.object({
-  challengeId: z.string().trim().min(1).max(120).optional(),
-  prompt: z.string().trim().min(1, 'Challenge prompt is required.').max(400),
-  sourceCardIds: z.array(activeCardIdSchema).min(1, 'Select at least one active context card for the challenge.').max(10),
-});
 const translationDrillActionSchema = z.discriminatedUnion('action', [
   z.object({
     action: z.literal('draw'),
@@ -82,7 +77,7 @@ const translationDrillActionSchema = z.discriminatedUnion('action', [
   }),
   z.object({
     action: z.literal('challenge-start'),
-    challenge: translationDrillChallengePayloadSchema,
+    sourceCardIds: z.array(activeCardIdSchema).min(1).max(10).optional(),
   }),
   z.object({
     action: z.literal('challenge-clear'),
@@ -327,6 +322,25 @@ async function validateChallengeSourceCards(
   }
 }
 
+function formatChallengeMeaning(card: TranslationDrillContextCard) {
+  return card.meaning?.replace(/^to\s+/i, '') ?? `use "${card.content}"`;
+}
+
+function buildChallengePrompt(cards: TranslationDrillContextCard[]) {
+  const [firstCard, secondCard] = cards;
+
+  if (!firstCard) {
+    throw new TranslationDrillRequestError(400, 'Draw or pin at least one active card before starting a challenge.');
+  }
+
+  const firstMeaning = formatChallengeMeaning(firstCard);
+  const secondMeaning = secondCard ? formatChallengeMeaning(secondCard) : null;
+
+  return secondMeaning
+    ? `We should ${firstMeaning} this carefully before we ${secondMeaning}.`
+    : `I want to ${firstMeaning} this more clearly today.`;
+}
+
 export async function loadTranslationDrillHomeData(
   userId: string,
   languageId: string,
@@ -509,21 +523,23 @@ export async function applyTranslationDrillAction(
       }
 
       case 'challenge-start': {
-        const challengeId = payload.challenge.challengeId?.trim() || `translation-drill-${globalThis.crypto?.randomUUID?.() ?? Date.now().toString(36)}`;
-        await validateChallengeSourceCards(
-          userId,
-          languageId,
-          payload.challenge.sourceCardIds,
-          database,
-          deps,
-        );
+        const availableChallengeCards = await deps.listTranslationDrillChallengeCards(userId, languageId, database as never);
+        const selectedSourceCardIds = payload.sourceCardIds ?? availableChallengeCards.slice(0, 2).map((card) => card.cardId);
+
+        await validateChallengeSourceCards(userId, languageId, selectedSourceCardIds, database, deps);
+
+        const challengeCardById = new Map(availableChallengeCards.map((card) => [card.cardId, card]));
+        const sourceCards = selectedSourceCardIds
+          .map((cardId) => challengeCardById.get(cardId))
+          .filter((card): card is TranslationDrillContextCard => card !== undefined);
+        const challengeId = `translation-drill-${globalThis.crypto?.randomUUID?.() ?? Date.now().toString(36)}`;
 
         return {
           action: 'challenge-start',
           challenge: {
             challengeId,
-            prompt: payload.challenge.prompt,
-            sourceCardIds: payload.challenge.sourceCardIds,
+            prompt: buildChallengePrompt(sourceCards),
+            sourceCardIds: selectedSourceCardIds,
             startedAtIso: deps.now().toISOString(),
           },
           conversationReset: true,

@@ -204,6 +204,7 @@
 
       const cardReviewCommandResponse = await resolveCardReviewCommandResponse({
         input,
+        routeContext: submissionState.routeContext,
         surfaceContext: submissionState.surfaceContextHint,
       });
 
@@ -211,7 +212,11 @@
         return cardReviewCommandResponse;
       }
 
-      const translationDrillCommandResponse = await resolveTranslationDrillCommandResponse(input);
+      const translationDrillCommandResponse = await resolveTranslationDrillCommandResponse({
+        input,
+        routeContext: submissionState.routeContext,
+        surfaceContext: submissionState.surfaceContextHint,
+      });
 
       if (translationDrillCommandResponse !== null) {
         return translationDrillCommandResponse;
@@ -363,6 +368,14 @@
         return 'Snooze card';
       case 'next_review_card':
         return 'Next card';
+      case 'draw_translation_drill_card':
+        return 'Draw card';
+      case 'snooze_translation_drill_card':
+        return 'Snooze card';
+      case 'dismiss_translation_drill_card':
+        return 'Dismiss card';
+      case 'next_translation_drill_challenge':
+        return 'New challenge';
       default:
         return 'Apply';
     }
@@ -386,6 +399,14 @@
         return `Snooze ${suggestion.payload.cardId}`;
       case 'next_review_card':
         return `Next after ${suggestion.payload.cardId}`;
+      case 'draw_translation_drill_card':
+        return `Draw from ${suggestion.payload.groupId}`;
+      case 'snooze_translation_drill_card':
+        return `Snooze ${suggestion.payload.cardId}`;
+      case 'dismiss_translation_drill_card':
+        return `Dismiss ${suggestion.payload.cardId}`;
+      case 'next_translation_drill_challenge':
+        return 'Start the next challenge';
       default:
         return '';
     }
@@ -526,6 +547,30 @@
       if (suggestion.type === 'next_review_card') {
         const message = await cardReviewSessionActions.requestNext(suggestion.payload.cardId);
         commandBar.pushAssistantMessage(message);
+        return;
+      }
+
+      if (suggestion.type === 'draw_translation_drill_card') {
+        const response = await translationDrillSessionActions.requestDraw(suggestion.payload.groupId);
+        commandBar.pushAssistantMessage(response.message);
+        return;
+      }
+
+      if (suggestion.type === 'snooze_translation_drill_card') {
+        const response = await translationDrillSessionActions.requestSnooze(suggestion.payload.cardId);
+        commandBar.pushAssistantMessage(response.message);
+        return;
+      }
+
+      if (suggestion.type === 'dismiss_translation_drill_card') {
+        const response = await translationDrillSessionActions.requestDismiss(suggestion.payload.cardId);
+        commandBar.pushAssistantMessage(response.message);
+        return;
+      }
+
+      if (suggestion.type === 'next_translation_drill_challenge') {
+        const response = await translationDrillSessionActions.requestNext();
+        commandBar.applyLocalResponse(response);
       }
     } catch (error) {
       commandBar.pushAssistantMessage(

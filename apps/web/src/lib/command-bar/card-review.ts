@@ -1,8 +1,10 @@
+import type { RouteContext } from '$lib/command-bar/shared.js';
 import type { ChatSurfaceContext } from '$lib/chat.js';
 import { cardReviewSessionActions } from '$lib/stores/cardReviewSessionActions.js';
 
 type ResolveCardReviewCommandResponseInput = {
   input: string;
+  routeContext: RouteContext;
   surfaceContext: ChatSurfaceContext | null;
 };
 
@@ -28,6 +30,10 @@ export async function resolveCardReviewCommandResponse(
   const command = parseCardReviewCommand(input.input);
 
   if (!command) {
+    return null;
+  }
+
+  if (input.routeContext.commandContext !== 'card-review') {
     return null;
   }
 
