@@ -949,8 +949,8 @@
             Translation Drills uses cards from your groups as practice material. Add one or more groups, then draw cards into your active context like a hand of cards.
           </p>
           <div class="translation-drills__overlay-actions cluster">
-            <a class="translation-drills__button translation-drills__button--primary" href={`/${lang}/cards`}>
-              Go to Cards
+            <a class="translation-drills__button translation-drills__button--primary" href={`/${lang}/cards/groups`}>
+              Go to Groups
             </a>
             <button
               type="button"

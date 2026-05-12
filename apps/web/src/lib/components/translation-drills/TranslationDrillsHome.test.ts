@@ -120,7 +120,7 @@ describe('TranslationDrillsHome', () => {
     });
 
     expect(screen.getByRole('heading', { name: 'Add groups to start drilling' })).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Go to Cards' }).getAttribute('href')).toBe('/zh/cards');
+    expect(screen.getByRole('link', { name: 'Go to Groups' }).getAttribute('href')).toBe('/zh/cards/groups');
   });
 
   it('draws cards from a pile and updates the visible count', async () => {
