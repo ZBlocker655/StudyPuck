@@ -1,8 +1,18 @@
 <script lang="ts">
+  import { get } from 'svelte/store';
+  import { getLanguageByCode } from '$lib/config/languages.js';
+  import ActiveCardDrawer from '$lib/components/cards/ActiveCardDrawer.svelte';
+  import type { CardLibraryCardDetailData } from '$lib/server/cards.js';
   import type {
     TranslationDrillContextCardData,
     TranslationDrillHomeData,
+    TranslationDrillActionResult,
   } from '$lib/server/translation-drills.js';
+  import { translationDrillSession } from '$lib/stores/translationDrillSession.js';
+  import {
+    translationDrillSessionActions,
+    type TranslationDrillLocalResponse,
+  } from '$lib/stores/translationDrillSessionActions.js';
 
   export let lang: string;
   export let home: TranslationDrillHomeData | null;
@@ -30,9 +40,11 @@
         usageCount: number;
         performanceScore: number | null;
         message: string;
-      };
+      }
+    | Extract<TranslationDrillActionResult, { action: 'challenge-start' | 'challenge-clear' }>;
 
   const DRAW_PILE_STACK_LAYERS = [0, 1, 2];
+  const defaultLanguageLabel = 'your target language';
 
   let homeState: HomeState | null = home ? structuredClone(home) : null;
   let previousHome = home;
@@ -45,6 +57,13 @@
   let learnMoreExpanded = false;
   let dismissCard: TranslationDrillContextCardData | null = null;
   let dismissOptions: number[] = [1];
+  let activeChallenge: Extract<TranslationDrillActionResult, { action: 'challenge-start' }>['challenge'] | null = null;
+  let focusedCardId: string | null = null;
+  let drawerCardId: string | null = null;
+  let drawerCard: TranslationDrillContextCardData | null = null;
+  let drawerCardDetail: CardLibraryCardDetailData | null = null;
+  let availableDrawerGroups: Array<{ groupId: string; groupName: string }> = [];
+  let lastHandledSessionActionId = get(translationDrillSessionActions)?.actionId ?? 0;
 
   $: if (home !== previousHome) {
     homeState = home ? structuredClone(home) : null;
@@ -56,10 +75,61 @@
     dismissCardId = null;
     dismissReturnInDays = 1;
     learnMoreExpanded = false;
+    activeChallenge = home?.challenge.activeChallenge ?? null;
+    focusedCardId = null;
+    drawerCardId = null;
+    if (homeState) {
+      syncGenerationInput();
+    }
   }
 
   $: dismissCard = dismissCardId ? findCard(dismissCardId)?.card ?? null : null;
   $: dismissOptions = dismissCard?.dismissSchedule?.optionDays ?? [1];
+  $: drawerCard = drawerCardId ? findCard(drawerCardId)?.card ?? null : null;
+  $: drawerCardDetail = drawerCard ? toDrawerCard(drawerCard) : null;
+  $: availableDrawerGroups = homeState?.availableGroups ?? [];
+  $: translationDrillSession.sync({
+    lang,
+    home: homeState,
+    activeChallenge,
+    focusedCardId,
+  });
+  $: if ($translationDrillSessionActions && $translationDrillSessionActions.actionId !== lastHandledSessionActionId) {
+    lastHandledSessionActionId = $translationDrillSessionActions.actionId;
+    void handleRequestedSessionAction($translationDrillSessionActions);
+  }
+
+  function getActiveContextCards() {
+    if (!homeState) {
+      return [];
+    }
+
+    return [
+      ...homeState.configuredGroups.flatMap((group) => group.activeCards),
+      ...homeState.ungroupedContextCards.filter((card) => card.state === 'active'),
+    ];
+  }
+
+  function syncGenerationInput() {
+    if (!homeState) {
+      return;
+    }
+
+    const activeCards = getActiveContextCards();
+
+    homeState = {
+      ...homeState,
+      challenge: {
+        ...homeState.challenge,
+        generationInput: {
+          ...homeState.challenge.generationInput,
+          activeCardCount: activeCards.length,
+          cards: activeCards,
+          suggestedSourceCardIds: activeCards.slice(0, 2).map((card) => card.cardId),
+        },
+      },
+    };
+  }
 
   function recalculateSummary() {
     if (!homeState) {
@@ -86,6 +156,7 @@
         hasVisibleContext: activeCardCount + snoozedCardCount > 0,
       },
     };
+    syncGenerationInput();
   }
 
   function shouldShowEmptyOverlay() {
@@ -265,6 +336,10 @@
     }
   }
 
+  function setFocusedCard(cardId: string | null) {
+    focusedCardId = cardId;
+  }
+
   async function postAction(payload: Record<string, unknown>): Promise<TranslationDrillActionResponse> {
     const response = await fetch(`/${lang}/translation-drills/actions`, {
       method: 'POST',
@@ -293,6 +368,7 @@
   }
 
   async function handleDraw(groupId: string) {
+    setFocusedCard(null);
     setPendingAction(`draw:${groupId}`);
     openMenuCardId = null;
 
@@ -322,6 +398,7 @@
       return;
     }
 
+    setFocusedCard(cardId);
     setPendingAction(`card:${cardId}:snooze`);
     openMenuCardId = null;
 
@@ -357,6 +434,7 @@
       return;
     }
 
+    setFocusedCard(cardId);
     dismissCardId = cardId;
     dismissReturnInDays = card.dismissSchedule?.recommendedDays ?? card.dismissSchedule?.optionDays[0] ?? 1;
     openMenuCardId = null;
@@ -416,6 +494,7 @@
       return;
     }
 
+    setFocusedCard(cardId);
     setPendingAction(`card:${cardId}:disable`);
     openMenuCardId = null;
 
@@ -482,6 +561,129 @@
 
   function isActionPending(key: string) {
     return pendingActionKey === key;
+  }
+
+  function buildChallengePrompt() {
+    if (!homeState) {
+      throw new Error('Translation Drills is not ready yet.');
+    }
+
+    const languageLabel = getLanguageByCode(lang)?.label ?? defaultLanguageLabel;
+    const generationInput = homeState.challenge.generationInput;
+    const sourceCards = generationInput.cards
+      .filter((card) => generationInput.suggestedSourceCardIds.includes(card.cardId))
+      .slice(0, 2);
+
+    if (sourceCards.length === 0) {
+      throw new Error('Draw or pin at least one active card before starting a challenge.');
+    }
+
+    const formatMeaning = (card: TranslationDrillContextCardData) => card.meaning?.replace(/^to\s+/i, '') ?? `use "${card.content}"`;
+    const [firstCard, secondCard] = sourceCards;
+    const firstMeaning = formatMeaning(firstCard);
+    const secondMeaning = secondCard ? formatMeaning(secondCard) : null;
+    const sentence = secondMeaning
+      ? `We should ${firstMeaning} this carefully before we ${secondMeaning}.`
+      : `I want to ${firstMeaning} this more clearly today.`;
+
+    return {
+      prompt: sentence,
+      sourceCardIds: sourceCards.map((card) => card.cardId),
+      languageLabel,
+    };
+  }
+
+  async function startChallenge(): Promise<TranslationDrillLocalResponse> {
+    if (!homeState) {
+      throw new Error('Translation Drills is not available right now.');
+    }
+
+    const challengeInput = buildChallengePrompt();
+    setPendingAction('challenge:next');
+
+    try {
+      const result = await postAction({
+        action: 'challenge-start',
+        challenge: {
+          prompt: challengeInput.prompt,
+          sourceCardIds: challengeInput.sourceCardIds,
+        },
+      });
+
+      if (result.action !== 'challenge-start') {
+        throw new Error('Unexpected response while starting a Translation Drills challenge.');
+      }
+
+      activeChallenge = result.challenge;
+      actionMessage = result.message;
+      return {
+        message: `${result.message} Translate to ${challengeInput.languageLabel}: "${result.challenge.prompt}"`,
+        conversationReset: true,
+      };
+    } catch (error) {
+      actionError = error instanceof Error ? error.message : 'The challenge could not be created right now.';
+      throw error instanceof Error ? error : new Error(actionError);
+    } finally {
+      setPendingAction(null);
+    }
+  }
+
+  function toDrawerCard(card: TranslationDrillContextCardData): CardLibraryCardDetailData {
+    return {
+      cardId: card.cardId,
+      content: card.content,
+      meaning: card.meaning,
+      cardType: card.cardType,
+      examples: card.examples,
+      mnemonics: card.mnemonics,
+      llmInstructions: card.llmInstructions,
+      updatedAtIso: card.updatedAtIso,
+      groups: card.sourceGroup ? [card.sourceGroup] : [],
+    };
+  }
+
+  function openDrawer(cardId: string) {
+    setFocusedCard(cardId);
+    drawerCardId = cardId;
+    openMenuCardId = null;
+  }
+
+  function closeDrawer() {
+    drawerCardId = null;
+  }
+
+  async function handleRequestedSessionAction(
+    actionRequest: import('$lib/stores/translationDrillSessionActions.js').TranslationDrillSessionActionRequest,
+  ) {
+    try {
+      if (actionRequest.action === 'next') {
+        actionRequest.resolve(await startChallenge());
+        return;
+      }
+
+      if (actionRequest.action === 'draw') {
+        await handleDraw(actionRequest.groupId);
+        actionRequest.resolve({
+          message: actionMessage || 'Card drawn into Translation Drills.',
+        });
+        return;
+      }
+
+      if (actionRequest.action === 'snooze') {
+        await handleSnooze(actionRequest.cardId);
+        actionRequest.resolve({
+          message: actionMessage || 'Card snoozed.',
+        });
+        return;
+      }
+
+      openDismissDialog(actionRequest.cardId);
+      actionRequest.resolve({
+        message: 'Choose when the card should return in the dismiss dialog.',
+      });
+    } catch (error) {
+      actionRequest.reject(error instanceof Error ? error : new Error('The Translation Drills action could not be completed right now.'));
+    }
   }
 </script>
 
@@ -588,7 +790,13 @@
 
                     {#if openMenuCardId === card.cardId}
                       <div class="card-row__menu stack" style="--stack-space: var(--space-1)" role="menu">
-                        <a class="card-row__menu-link" href={`/${lang}/cards?card=${card.cardId}`}>View in Cards</a>
+                        <button
+                          type="button"
+                          class="card-row__menu-button"
+                          onclick={() => openDrawer(card.cardId)}
+                        >
+                          View card detail
+                        </button>
                         <button
                           type="button"
                           class="card-row__menu-button"
@@ -640,7 +848,13 @@
 
                     {#if openMenuCardId === card.cardId}
                       <div class="card-row__menu stack" style="--stack-space: var(--space-1)" role="menu">
-                        <a class="card-row__menu-link" href={`/${lang}/cards?card=${card.cardId}`}>View in Cards</a>
+                        <button
+                          type="button"
+                          class="card-row__menu-button"
+                          onclick={() => openDrawer(card.cardId)}
+                        >
+                          View card detail
+                        </button>
                         <button
                           type="button"
                           class="card-row__menu-button"
@@ -807,6 +1021,19 @@
         </button>
       </div>
     </div>
+  {/if}
+
+  {#if drawerCardDetail}
+    <ActiveCardDrawer
+      lang={lang}
+      card={drawerCardDetail}
+      availableGroups={availableDrawerGroups}
+      selectedIndex={0}
+      totalCount={1}
+      disabled={true}
+      allowDelete={false}
+      on:close={closeDrawer}
+    />
   {/if}
 {/if}
 

@@ -8,6 +8,9 @@
   import type { ChatSuggestion } from '$lib/chat.js';
   import { resolveCardReviewCommandResponse } from '$lib/command-bar/card-review.js';
   import { resolveCardEntryCommandResponse } from '$lib/command-bar/card-entry.js';
+  import { resolveTranslationDrillCommandResponse } from '$lib/command-bar/translation-drills.js';
+  import { translationDrillSession } from '$lib/stores/translationDrillSession.js';
+  import { translationDrillSessionActions } from '$lib/stores/translationDrillSessionActions.js';
   import { activeCardSuggestionActions } from '$lib/stores/activeCardSuggestionActions.js';
   import { cardReviewSessionActions } from '$lib/stores/cardReviewSessionActions.js';
   import { cardEntrySuggestionActions } from '$lib/stores/cardEntrySuggestionActions.js';
@@ -49,6 +52,7 @@
   const showMobileConversation = $derived(
     !isDesktop && $commandBar.mobileSheetOpen && ($commandBar.messages.length > 0 || $commandBar.isWaiting),
   );
+  const activeTranslationDrillChallenge = $derived($translationDrillSession.activeChallenge);
 
   function updateDesktopMode() {
     isDesktop = mediaQueryList?.matches ?? false;
@@ -207,6 +211,12 @@
         return cardReviewCommandResponse;
       }
 
+      const translationDrillCommandResponse = await resolveTranslationDrillCommandResponse(input);
+
+      if (translationDrillCommandResponse !== null) {
+        return translationDrillCommandResponse;
+      }
+
       const promptHistory = commandBar.getPromptHistory(submissionState);
 
       // URL param takes priority; fall back to the store's active note, then omit.
@@ -313,6 +323,20 @@
 
   function handleAutocompleteMouseDown(event: MouseEvent) {
     event.preventDefault();
+  }
+
+  async function handleNewTranslationChallenge() {
+    try {
+      const result = await translationDrillSessionActions.requestNext();
+      commandBar.applyLocalResponse(result);
+      await tick();
+      resizeInput();
+      focusInput();
+    } catch (error) {
+      commandBar.applyLocalResponse({
+        message: error instanceof Error ? error.message : 'The new challenge could not be created right now.',
+      });
+    }
   }
 
   /**
@@ -578,6 +602,16 @@
           </div>
 
           <div class="cluster conversation-header__actions">
+            {#if $commandBar.routeContext.commandContext === 'translation-drills'}
+              <button
+                type="button"
+                class="conversation-header__button conversation-header__button--primary"
+                aria-label="Start a new Translation Drills challenge"
+                onclick={() => void handleNewTranslationChallenge()}
+              >
+                New Challenge
+              </button>
+            {/if}
             <button
               type="button"
               class="conversation-header__button"
@@ -597,37 +631,61 @@
           </div>
         </header>
 
-        <div class="conversation-thread" aria-live="polite" aria-atomic="false">
+        {#if $commandBar.routeContext.commandContext === 'translation-drills' && activeTranslationDrillChallenge}
+          <section class="translation-drill-challenge stack" style="--stack-space: var(--space-1)" role="status" aria-live="polite">
+            <p class="translation-drill-challenge__eyebrow">Translate to {$translationDrillSession.lang ? $translationDrillSession.lang.toUpperCase() : 'your language'}</p>
+            <p class="translation-drill-challenge__prompt">{activeTranslationDrillChallenge.prompt}</p>
+          </section>
+        {/if}
+
+        <div
+          class="conversation-thread"
+          class:conversation-thread--challenge={$commandBar.routeContext.commandContext === 'translation-drills' && Boolean(activeTranslationDrillChallenge)}
+          aria-live="polite"
+          aria-atomic="false"
+        >
           {#if $commandBar.messages.length === 0 && !$commandBar.isWaiting}
             <div class="conversation-empty stack" style="--stack-space: var(--space-2)">
-              <p class="conversation-empty__title">No conversation yet</p>
-              <p class="text-muted">Responses will appear here after you send a message or run a conversational command.</p>
+              <p class="conversation-empty__title">
+                {$commandBar.routeContext.commandContext === 'translation-drills' && !activeTranslationDrillChallenge
+                  ? 'No active challenge'
+                  : 'No conversation yet'}
+              </p>
+              <p class="text-muted">
+                {$commandBar.routeContext.commandContext === 'translation-drills' && !activeTranslationDrillChallenge
+                  ? 'Click New Challenge or type /next below to begin.'
+                  : 'Responses will appear here after you send a message or run a conversational command.'}
+              </p>
             </div>
           {/if}
 
           {#each $commandBar.messages as message}
-            <article
-              class="message"
-              class:message--user={message.role === 'user'}
-              class:message--assistant={message.role !== 'user'}
-            >
-              <p class="message__label">{message.role === 'user' ? 'You' : 'StudyPuck'}</p>
-              <p>{message.content}</p>
-              {#if message.suggestions && message.suggestions.length > 0}
-                <div class="message__suggestions cluster" style="--cluster-space: var(--space-2)">
-                  {#each message.suggestions as suggestion}
-                    <button
-                      type="button"
-                      class="suggestion-button"
-                      onclick={() => void handleSuggestionClick(suggestion)}
-                    >
-                      <span class="suggestion-button__text">{getSuggestionText(suggestion)}</span>
-                      <span class="suggestion-button__meta">{getSuggestionLabel(suggestion)}</span>
-                    </button>
-                  {/each}
-                </div>
-              {/if}
-            </article>
+            {#if message.role === 'system'}
+              <p class="conversation-divider">{message.content}</p>
+            {:else}
+              <article
+                class="message"
+                class:message--user={message.role === 'user'}
+                class:message--assistant={message.role !== 'user'}
+              >
+                <p class="message__label">{message.role === 'user' ? 'You' : 'StudyPuck'}</p>
+                <p>{message.content}</p>
+                {#if message.suggestions && message.suggestions.length > 0}
+                  <div class="message__suggestions cluster" style="--cluster-space: var(--space-2)">
+                    {#each message.suggestions as suggestion}
+                      <button
+                        type="button"
+                        class="suggestion-button"
+                        onclick={() => void handleSuggestionClick(suggestion)}
+                      >
+                        <span class="suggestion-button__text">{getSuggestionText(suggestion)}</span>
+                        <span class="suggestion-button__meta">{getSuggestionLabel(suggestion)}</span>
+                      </button>
+                    {/each}
+                  </div>
+                {/if}
+              </article>
+            {/if}
           {/each}
 
           {#if $commandBar.isWaiting}
@@ -671,30 +729,60 @@
         <span aria-hidden="true"></span>
       </button>
 
+      {#if $commandBar.routeContext.commandContext === 'translation-drills'}
+        <div class="conversation-sheet__actions cluster">
+          <button
+            type="button"
+            class="conversation-header__button conversation-header__button--primary"
+            onclick={() => void handleNewTranslationChallenge()}
+          >
+            New Challenge
+          </button>
+          <button
+            type="button"
+            class="conversation-header__button"
+            onclick={() => commandBar.closeMobileSheet()}
+          >
+            Cards
+          </button>
+        </div>
+      {/if}
+
+      {#if $commandBar.routeContext.commandContext === 'translation-drills' && activeTranslationDrillChallenge}
+        <section class="translation-drill-challenge stack" style="--stack-space: var(--space-1)" role="status" aria-live="polite">
+          <p class="translation-drill-challenge__eyebrow">Translate to {$translationDrillSession.lang ? $translationDrillSession.lang.toUpperCase() : 'your language'}</p>
+          <p class="translation-drill-challenge__prompt">{activeTranslationDrillChallenge.prompt}</p>
+        </section>
+      {/if}
+
       <div class="conversation-sheet__thread" aria-live="polite" aria-atomic="false">
         {#each $commandBar.messages as message}
-          <article
-            class="message"
-            class:message--user={message.role === 'user'}
-            class:message--assistant={message.role !== 'user'}
-          >
-            <p class="message__label">{message.role === 'user' ? 'You' : 'StudyPuck'}</p>
-            <p>{message.content}</p>
-            {#if message.suggestions && message.suggestions.length > 0}
-              <div class="message__suggestions cluster" style="--cluster-space: var(--space-2)">
-                {#each message.suggestions as suggestion}
-                  <button
-                    type="button"
-                    class="suggestion-button"
-                    onclick={() => void handleSuggestionClick(suggestion)}
-                  >
-                    <span class="suggestion-button__text">{getSuggestionText(suggestion)}</span>
-                    <span class="suggestion-button__meta">{getSuggestionLabel(suggestion)}</span>
-                  </button>
-                {/each}
-              </div>
-            {/if}
-          </article>
+          {#if message.role === 'system'}
+            <p class="conversation-divider">{message.content}</p>
+          {:else}
+            <article
+              class="message"
+              class:message--user={message.role === 'user'}
+              class:message--assistant={message.role !== 'user'}
+            >
+              <p class="message__label">{message.role === 'user' ? 'You' : 'StudyPuck'}</p>
+              <p>{message.content}</p>
+              {#if message.suggestions && message.suggestions.length > 0}
+                <div class="message__suggestions cluster" style="--cluster-space: var(--space-2)">
+                  {#each message.suggestions as suggestion}
+                    <button
+                      type="button"
+                      class="suggestion-button"
+                      onclick={() => void handleSuggestionClick(suggestion)}
+                    >
+                      <span class="suggestion-button__text">{getSuggestionText(suggestion)}</span>
+                      <span class="suggestion-button__meta">{getSuggestionLabel(suggestion)}</span>
+                    </button>
+                  {/each}
+                </div>
+              {/if}
+            </article>
+          {/if}
         {/each}
 
         {#if $commandBar.isWaiting}
@@ -1057,6 +1145,12 @@
     font-size: var(--font-size-caption);
   }
 
+  .conversation-header__button--primary {
+    border-color: var(--color-primary);
+    background: var(--color-primary);
+    color: var(--color-text-inverse);
+  }
+
   .conversation-thread,
   .conversation-sheet__thread {
     display: flex;
@@ -1066,6 +1160,21 @@
     overflow: auto;
   }
 
+  .conversation-thread--challenge {
+    min-block-size: 12rem;
+  }
+
+  .conversation-divider {
+    margin: 0;
+    padding: var(--space-2) 0;
+    text-align: center;
+    font-family: var(--font-ui);
+    font-size: var(--font-size-caption);
+    letter-spacing: var(--tracking-caps);
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+  }
+
   .conversation-empty {
     justify-content: center;
     min-block-size: 100%;
@@ -1073,6 +1182,35 @@
     border: 1px dashed var(--color-border);
     border-radius: var(--radius-lg);
     background: color-mix(in srgb, var(--color-surface) 80%, transparent);
+  }
+
+  .translation-drill-challenge {
+    margin-block-end: var(--space-4);
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid color-mix(in srgb, var(--color-primary) 28%, var(--color-border));
+    border-radius: var(--radius-lg);
+    background: var(--color-primary-subtle);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .translation-drill-challenge__eyebrow,
+  .conversation-sheet__actions {
+    margin: 0;
+    font-family: var(--font-ui);
+    font-size: var(--font-size-caption);
+    letter-spacing: var(--tracking-caps);
+    text-transform: uppercase;
+  }
+
+  .translation-drill-challenge__eyebrow {
+    color: var(--color-primary-text);
+  }
+
+  .translation-drill-challenge__prompt {
+    margin: 0;
+    font-size: var(--font-size-body);
+    font-weight: 600;
+    line-height: var(--leading-body);
   }
 
   .conversation-empty__title {
@@ -1116,6 +1254,8 @@
     }
 
     .workspace-pane--conversation {
+      display: flex;
+      flex-direction: column;
       padding: var(--space-4);
       background: var(--color-surface);
     }
@@ -1236,6 +1376,11 @@
       border-radius: var(--radius-lg);
       background: var(--color-surface-raised);
       box-shadow: var(--shadow-lg);
+    }
+
+    .conversation-sheet__actions {
+      justify-content: space-between;
+      gap: var(--space-2);
     }
 
     .conversation-sheet__handle {

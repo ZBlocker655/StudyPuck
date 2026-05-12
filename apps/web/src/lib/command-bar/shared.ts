@@ -92,6 +92,12 @@ export const COMMANDS: CommandDefinition[] = [
     commandContext: 'translation-drills',
     insertText: '/draw ',
   },
+  {
+    command: '/context',
+    description: 'List the cards currently active in Translation Drills.',
+    commandContext: 'translation-drills',
+    insertText: '/context',
+  },
 ];
 
 export function defaultRouteContext(): RouteContext {
