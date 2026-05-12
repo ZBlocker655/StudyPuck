@@ -50,6 +50,22 @@ function buildResponseShapeInstruction(allowedSuggestionTypes: readonly ChatSugg
     suggestionExamples.push('{"type":"next_review_card","payload":{"cardId":"string"}}');
   }
 
+  if (allowedSuggestionTypes.includes('draw_translation_drill_card')) {
+    suggestionExamples.push('{"type":"draw_translation_drill_card","payload":{"groupId":"string"}}');
+  }
+
+  if (allowedSuggestionTypes.includes('snooze_translation_drill_card')) {
+    suggestionExamples.push('{"type":"snooze_translation_drill_card","payload":{"cardId":"string"}}');
+  }
+
+  if (allowedSuggestionTypes.includes('dismiss_translation_drill_card')) {
+    suggestionExamples.push('{"type":"dismiss_translation_drill_card","payload":{"cardId":"string"}}');
+  }
+
+  if (allowedSuggestionTypes.includes('next_translation_drill_challenge')) {
+    suggestionExamples.push('{"type":"next_translation_drill_challenge","payload":{}}');
+  }
+
   return [
     'Return this JSON shape exactly:',
     '{"message":"string","suggestions":[{"type":"...","payload":{...}}]}',
@@ -82,6 +98,16 @@ function buildSuggestionGuidance(allowedSuggestionTypes: readonly ChatSuggestion
   ) {
     guidance.push('Use the exact current review cardId from the machine context for Card Review suggestions.');
     guidance.push('Only suggest Card Review actions that are valid for the current session card and queue state.');
+  }
+
+  if (
+    allowedSuggestionTypes.includes('draw_translation_drill_card') ||
+    allowedSuggestionTypes.includes('snooze_translation_drill_card') ||
+    allowedSuggestionTypes.includes('dismiss_translation_drill_card') ||
+    allowedSuggestionTypes.includes('next_translation_drill_challenge')
+  ) {
+    guidance.push('Use exact groupId and cardId values from the Translation Drills machine context for drill-action suggestions.');
+    guidance.push('Only suggest drill actions when the user clearly asks for a drill action such as drawing, snoozing, dismissing, or moving to a new challenge.');
   }
 
   if (allowedSuggestionTypes.includes('create_group')) {
@@ -129,7 +155,24 @@ function buildCardEntryNoteWorkspaceContextBlock(context: CardEntryNoteWorkspace
 function buildGenericContextBlock(
   context: Exclude<CanonicalChatContext, { contextType: 'card_entry_note_workspace' }>,
 ): string {
-  return ['Machine context:', JSON.stringify(context, null, 2)].join('\n');
+  const blocks = ['Machine context:', JSON.stringify(context, null, 2)];
+
+  if (context.contextType === 'translation_drills_challenge') {
+    blocks.push(
+      'The active Translation Drills challenge is authoritative app state.',
+      'If the user message looks like an attempted translation for the active challenge, evaluate the attempt, explain corrections, and avoid returning drill-action suggestions unless the user also asks for an app action.',
+      'If the user asks a follow-up question about the challenge, source cards, or context, answer the question directly instead of treating it as a new translation attempt.',
+    );
+  }
+
+  if (context.contextType === 'translation_drills_home') {
+    blocks.push(
+      'There is no active Translation Drills challenge yet.',
+      'If the user asks to start or change drill state, prefer drill-action suggestions over pretending a challenge is already active.',
+    );
+  }
+
+  return blocks.join('\n');
 }
 
 function buildConversationHistoryBlock(history: ConversationHistoryTurn[]): string {

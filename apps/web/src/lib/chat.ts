@@ -22,6 +22,10 @@ export const CHAT_SUGGESTION_TYPES = [
   'pin_review_card',
   'snooze_review_card',
   'next_review_card',
+  'draw_translation_drill_card',
+  'snooze_translation_drill_card',
+  'dismiss_translation_drill_card',
+  'next_translation_drill_challenge',
 ] as const;
 
 export const PROMPT_HISTORY_CAP = 10;
@@ -88,6 +92,17 @@ export const cardReviewSessionSurfaceContextSchema = z.object({
   completedCount: z.number().int().min(0).max(100),
 });
 
+export const translationDrillsSurfaceContextSchema = z.object({
+  surface: z.literal('translation_drills'),
+  activeChallenge: z.object({
+    challengeId: z.string().trim().min(1).max(160),
+    prompt: z.string().trim().min(1).max(400),
+    sourceCardIds: z.array(activeCardIdSchema).min(1).max(10),
+    startedAtIso: z.string().datetime(),
+  }).nullable(),
+  focusedCardId: activeCardIdSchema.nullable().optional(),
+});
+
 export const chatSurfaceContextSchema = z.discriminatedUnion('surface', [
   cardLibraryListSurfaceContextSchema,
   groupsListSurfaceContextSchema,
@@ -96,6 +111,7 @@ export const chatSurfaceContextSchema = z.discriminatedUnion('surface', [
   cardDetailDrawerSurfaceContextSchema,
   cardReviewSetupSurfaceContextSchema,
   cardReviewSessionSurfaceContextSchema,
+  translationDrillsSurfaceContextSchema,
 ]);
 
 export type ConversationHistoryTurn = z.infer<typeof conversationHistoryTurnSchema>;
@@ -178,6 +194,32 @@ export const nextReviewCardSuggestionSchema = z.object({
   payload: cardReviewActionSuggestionPayloadSchema,
 });
 
+export const drawTranslationDrillCardSuggestionSchema = z.object({
+  type: z.literal('draw_translation_drill_card'),
+  payload: z.object({
+    groupId: activeGroupIdSchema,
+  }),
+});
+
+export const snoozeTranslationDrillCardSuggestionSchema = z.object({
+  type: z.literal('snooze_translation_drill_card'),
+  payload: z.object({
+    cardId: activeCardIdSchema,
+  }),
+});
+
+export const dismissTranslationDrillCardSuggestionSchema = z.object({
+  type: z.literal('dismiss_translation_drill_card'),
+  payload: z.object({
+    cardId: activeCardIdSchema,
+  }),
+});
+
+export const nextTranslationDrillChallengeSuggestionSchema = z.object({
+  type: z.literal('next_translation_drill_challenge'),
+  payload: z.object({}),
+});
+
 export const chatSuggestionSchema = z.discriminatedUnion('type', [
   appendExampleSentenceSuggestionSchema,
   appendMnemonicSuggestionSchema,
@@ -188,6 +230,10 @@ export const chatSuggestionSchema = z.discriminatedUnion('type', [
   pinReviewCardSuggestionSchema,
   snoozeReviewCardSuggestionSchema,
   nextReviewCardSuggestionSchema,
+  drawTranslationDrillCardSuggestionSchema,
+  snoozeTranslationDrillCardSuggestionSchema,
+  dismissTranslationDrillCardSuggestionSchema,
+  nextTranslationDrillChallengeSuggestionSchema,
 ]);
 
 export type ChatRequest = z.infer<typeof chatRequestSchema>;

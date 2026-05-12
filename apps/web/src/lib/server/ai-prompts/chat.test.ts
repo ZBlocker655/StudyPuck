@@ -232,4 +232,92 @@ describe('buildStructuredChatPrompt', () => {
     expect(prompt.userPrompt).toContain('Use the exact current review cardId from the machine context');
     expect(prompt.userPrompt).toContain('"cardId": "card-1"');
   });
+
+  it('includes Translation Drills challenge guidance and drill-action suggestion shapes', () => {
+    const canonicalContext: CanonicalChatContext = {
+      contextType: 'translation_drills_challenge',
+      languageId: 'zh',
+      allowedSuggestionTypes: [
+        'add_inbox_note',
+        'draw_translation_drill_card',
+        'snooze_translation_drill_card',
+        'dismiss_translation_drill_card',
+        'next_translation_drill_challenge',
+      ],
+      summary: {
+        configuredGroupCount: 1,
+        activeCardCount: 1,
+        snoozedCardCount: 1,
+        dismissedCardCount: 0,
+        disabledCardCount: 0,
+        remainingDrawCount: 2,
+        hasConfiguredDrawPiles: true,
+        hasVisibleContext: true,
+      },
+      configuredGroups: [{
+        groupId: 'group-1',
+        groupName: 'Core',
+        drawPileName: 'Core drill',
+        pileSizeLimit: 4,
+        remainingCardCount: 2,
+        activeCardCount: 1,
+        snoozedCardCount: 1,
+      }],
+      visibleContextCards: [
+        {
+          cardId: 'card-1',
+          content: '谈论',
+          meaning: 'to discuss',
+          cardType: 'word',
+          state: 'active',
+          sourceGroupName: 'Core',
+          examples: ['我们以后再谈论这个问题。'],
+          mnemonics: ['discussion loops'],
+          llmInstructions: null,
+        },
+      ],
+      focusedCardId: 'card-1',
+      activeChallenge: {
+        challengeId: 'challenge-1',
+        prompt: 'We should discuss this carefully before we decide.',
+        sourceCardIds: ['card-1'],
+        startedAtIso: '2026-05-10T12:00:00.000Z',
+        sourceCards: [
+          {
+            cardId: 'card-1',
+            content: '谈论',
+            meaning: 'to discuss',
+            cardType: 'word',
+            state: 'active',
+            sourceGroupName: 'Core',
+            examples: ['我们以后再谈论这个问题。'],
+            mnemonics: ['discussion loops'],
+            llmInstructions: null,
+          },
+        ],
+      },
+    };
+
+    const prompt = buildStructuredChatPrompt({
+      canonicalContext,
+      userInput: 'I would say: 我们应该仔细谈论这个问题。',
+      allowedSuggestionTypes: [
+        'add_inbox_note',
+        'draw_translation_drill_card',
+        'snooze_translation_drill_card',
+        'dismiss_translation_drill_card',
+        'next_translation_drill_challenge',
+      ],
+    });
+
+    expect(prompt.userPrompt).toContain('"contextType": "translation_drills_challenge"');
+    expect(prompt.userPrompt).toContain('{"type":"draw_translation_drill_card","payload":{"groupId":"string"}}');
+    expect(prompt.userPrompt).toContain('{"type":"snooze_translation_drill_card","payload":{"cardId":"string"}}');
+    expect(prompt.userPrompt).toContain('{"type":"dismiss_translation_drill_card","payload":{"cardId":"string"}}');
+    expect(prompt.userPrompt).toContain('{"type":"next_translation_drill_challenge","payload":{}}');
+    expect(prompt.userPrompt).toContain('The active Translation Drills challenge is authoritative app state.');
+    expect(prompt.userPrompt).toContain('If the user message looks like an attempted translation for the active challenge');
+    expect(prompt.userPrompt).toContain('follow-up question about the challenge');
+    expect(prompt.userPrompt).toContain('Use exact groupId and cardId values from the Translation Drills machine context');
+  });
 });

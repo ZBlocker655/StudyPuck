@@ -81,6 +81,12 @@ export const COMMANDS: CommandDefinition[] = [
     insertText: '/next',
   },
   {
+    command: '/snooze',
+    description: 'Snooze the focused Translation Drills card.',
+    commandContext: 'translation-drills',
+    insertText: '/snooze',
+  },
+  {
     command: '/dismiss',
     description: 'Dismiss the current card from the translation context.',
     commandContext: 'translation-drills',

@@ -131,6 +131,8 @@ function getSurfaceContextScopeKey(surfaceContext: ChatSurfaceContext | null) {
       return `${surfaceContext.surface}:${surfaceContext.sourceSurface}:${surfaceContext.groupId ?? 'none'}:${surfaceContext.cardId}`;
     case 'card_review_session':
       return `${surfaceContext.surface}:${surfaceContext.selection.groupIds.join(',')}:${surfaceContext.selection.limit ?? 'all'}:${surfaceContext.currentCardId}`;
+    case 'translation_drills':
+      return `${surfaceContext.surface}:${surfaceContext.activeChallenge?.challengeId ?? 'idle'}`;
   }
 }
 

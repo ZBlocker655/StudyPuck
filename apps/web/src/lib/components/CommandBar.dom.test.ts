@@ -2,12 +2,14 @@
 
 import { createRawSnippet } from 'svelte';
 import { writable } from 'svelte/store';
-import { fireEvent, render, screen, within } from '@testing-library/svelte';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { commandBar } from '$lib/stores/commandBar.js';
 import { activeCardSuggestionActions } from '$lib/stores/activeCardSuggestionActions.js';
 import { cardReviewSessionActions } from '$lib/stores/cardReviewSessionActions.js';
 import { cardEntrySuggestionActions } from '$lib/stores/cardEntrySuggestionActions.js';
+import { translationDrillSession } from '$lib/stores/translationDrillSession.js';
+import { translationDrillSessionActions } from '$lib/stores/translationDrillSessionActions.js';
 
 type MockPageStoreValue = {
   params: { lang: string; noteId?: string };
@@ -66,6 +68,7 @@ describe('CommandBar component behavior', () => {
     commandBar.setWorkspaceContext(null, null);
     commandBar.setTargetHint(null, null);
     commandBar.setSurfaceContext(null);
+    translationDrillSession.reset();
     requestStructuredChatResponse.mockReset();
     createInboxNoteRequest.mockReset();
   });
@@ -485,6 +488,186 @@ describe('CommandBar component behavior', () => {
 
     expect(await screen.findAllByText('Moved to the next card.')).toHaveLength(2);
     expect(nextSpy).toHaveBeenCalledWith('card-1');
+    expect(requestStructuredChatResponse).not.toHaveBeenCalled();
+  });
+
+  it('executes Translation Drills action suggestions through the session action store', async () => {
+    pageStore.set({
+      params: { lang: 'zh' },
+      route: { id: '/[lang]/translation-drills' },
+      status: 200,
+      error: null,
+      data: {},
+      form: undefined,
+      state: {},
+      url: new URL('https://studypuck.test/zh/translation-drills'),
+    });
+
+    requestStructuredChatResponse.mockResolvedValue({
+      message: 'Draw another card from Core.',
+      suggestions: [
+        {
+          type: 'draw_translation_drill_card',
+          payload: { groupId: 'group-1' },
+        },
+      ],
+    });
+
+    const drawSpy = vi.spyOn(translationDrillSessionActions, 'requestDraw').mockResolvedValue({
+      message: 'Card drawn into Translation Drills.',
+    });
+    const { default: CommandBar } = await import('./CommandBar.svelte');
+    const snippet = createRawSnippet(() => ({
+      render: () => '<section>context content</section>',
+    }));
+
+    render(CommandBar, {
+      props: {
+        children: snippet,
+      },
+    });
+
+    commandBar.setPathname('/zh/translation-drills');
+    commandBar.setWorkspaceContext('zh', null);
+    commandBar.setSurfaceContext({
+      surface: 'translation_drills',
+      activeChallenge: null,
+      focusedCardId: 'card-1',
+    });
+
+    const textbox = screen.getByLabelText('Command bar');
+    await fireEvent.input(textbox, { target: { value: 'Draw another card from Core' } });
+    await fireEvent.keyDown(textbox, { key: 'Enter' });
+
+    expect(await screen.findAllByText('Draw card')).toHaveLength(2);
+    await fireEvent.click(screen.getAllByRole('button', { name: /Draw from group-1/i })[0]);
+
+    expect(drawSpy).toHaveBeenCalledWith('group-1');
+  });
+
+  it('handles direct Translation Drills slash commands without calling the chat API', async () => {
+    pageStore.set({
+      params: { lang: 'zh' },
+      route: { id: '/[lang]/translation-drills' },
+      status: 200,
+      error: null,
+      data: {},
+      form: undefined,
+      state: {},
+      url: new URL('https://studypuck.test/zh/translation-drills'),
+    });
+
+    translationDrillSession.sync({
+      lang: 'zh',
+      home: {
+        summary: {
+          configuredGroupCount: 1,
+          activeCardCount: 1,
+          snoozedCardCount: 0,
+          dismissedCardCount: 0,
+          disabledCardCount: 0,
+          remainingDrawCount: 2,
+          hasConfiguredDrawPiles: true,
+          hasVisibleContext: true,
+        },
+        availableGroups: [{ groupId: 'group-1', groupName: 'Core' }],
+        configuredGroups: [{
+          groupId: 'group-1',
+          groupName: 'Core',
+          drawPileName: null,
+          pileSizeLimit: 4,
+          remainingCardCount: 2,
+          activeCards: [{
+            cardId: 'card-1',
+            content: '谈论',
+            meaning: 'to discuss',
+            cardType: 'word',
+            examples: [],
+            mnemonics: [],
+            llmInstructions: null,
+            updatedAtIso: null,
+            sourceGroup: { groupId: 'group-1', groupName: 'Core' },
+            addedFrom: 'draw_pile:group-1',
+            addedAtIso: null,
+            lastUsedAtIso: null,
+            usageCount: 0,
+            state: 'active',
+            stateUntilIso: null,
+            cefrOverride: null,
+            nextDueAtIso: null,
+            intervalDays: null,
+            performanceScore: null,
+            dismissSchedule: null,
+          }],
+          snoozedCards: [],
+        }],
+        ungroupedContextCards: [],
+        challenge: {
+          activeChallenge: null,
+          generationInput: {
+            activeCardCount: 1,
+            cefrLevel: 'B1',
+            cards: [{
+              cardId: 'card-1',
+              content: '谈论',
+              meaning: 'to discuss',
+              cardType: 'word',
+              examples: [],
+              mnemonics: [],
+              llmInstructions: null,
+              updatedAtIso: null,
+              sourceGroup: { groupId: 'group-1', groupName: 'Core' },
+              addedFrom: 'draw_pile:group-1',
+              addedAtIso: null,
+              lastUsedAtIso: null,
+              usageCount: 0,
+              state: 'active',
+              stateUntilIso: null,
+              cefrOverride: null,
+              nextDueAtIso: null,
+              intervalDays: null,
+              performanceScore: null,
+              dismissSchedule: null,
+            }],
+            suggestedSourceCardIds: ['card-1'],
+          },
+        },
+      },
+      activeChallenge: null,
+      focusedCardId: 'card-1',
+    });
+
+    const nextSpy = vi.spyOn(translationDrillSessionActions, 'requestNext').mockResolvedValue({
+      message: 'New challenge ready.',
+      conversationReset: true,
+    });
+    const { default: CommandBar } = await import('./CommandBar.svelte');
+    const snippet = createRawSnippet(() => ({
+      render: () => '<section>context content</section>',
+    }));
+
+    render(CommandBar, {
+      props: {
+        children: snippet,
+      },
+    });
+
+    commandBar.setPathname('/zh/translation-drills');
+    commandBar.setWorkspaceContext('zh', null);
+    commandBar.setSurfaceContext({
+      surface: 'translation_drills',
+      activeChallenge: null,
+      focusedCardId: 'card-1',
+    });
+
+    const textbox = screen.getByLabelText('Command bar');
+    await fireEvent.input(textbox, { target: { value: '/next' } });
+    await fireEvent.keyDown(textbox, { key: 'Enter' });
+
+    await waitFor(() => {
+      expect(nextSpy).toHaveBeenCalled();
+    }, { timeout: 3000 });
+    expect(nextSpy).toHaveBeenCalled();
     expect(requestStructuredChatResponse).not.toHaveBeenCalled();
   });
 });

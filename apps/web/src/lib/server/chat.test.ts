@@ -101,7 +101,7 @@ describe('handleStudyPuckChatRequest', () => {
         generateStructured,
       }),
     ).resolves.toEqual({
-      message: 'Available commands in Translation Drills: /add, /lang, /help, /next, /dismiss, /draw, and /context.',
+      message: 'Available commands in Translation Drills: /add, /lang, /help, /next, /snooze, /dismiss, /draw, and /context.',
       suggestions: [],
     });
 
