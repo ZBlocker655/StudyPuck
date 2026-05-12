@@ -11,8 +11,10 @@ import {
   listActiveCards,
   listActiveCardsInGroup,
   listGroupsWithActiveCardCounts,
+  listTranslationDrillDrawPileGroups,
   removeCardFromGroup,
   softDeleteActiveCards,
+  upsertTranslationDrillDrawPile,
   updateActiveCard,
   updateGroup,
   type ActiveCardDetail,
@@ -42,6 +44,7 @@ type LoaderDeps = {
   getActiveUserLanguages: typeof getActiveUserLanguages;
   listActiveCards: typeof listActiveCards;
   listGroupsWithActiveCardCounts: typeof listGroupsWithActiveCardCounts;
+  listTranslationDrillDrawPileGroups: typeof listTranslationDrillDrawPileGroups;
   getGroupWithActiveCardCount: typeof getGroupWithActiveCardCount;
   listActiveCardsInGroup: typeof listActiveCardsInGroup;
   getActiveCardWithGroups: typeof getActiveCardWithGroups;
@@ -52,6 +55,7 @@ const defaultLoaderDeps: LoaderDeps = {
   getActiveUserLanguages,
   listActiveCards,
   listGroupsWithActiveCardCounts,
+  listTranslationDrillDrawPileGroups,
   getGroupWithActiveCardCount,
   listActiveCardsInGroup,
   getActiveCardWithGroups,
@@ -71,6 +75,12 @@ export class CardLibraryRequestError extends Error {
 export type CardLibraryGroupData = {
   groupId: string;
   groupName: string;
+};
+
+export type TranslationDrillGroupConfigData = {
+  enabled: boolean;
+  drawPileName: string | null;
+  pileSizeLimit: number;
 };
 
 export type CardLibraryGroupFilterOption = CardLibraryGroupData & {
@@ -119,6 +129,7 @@ export type GroupDetailData = {
     groupName: string;
     description: string | null;
     activeCardCount: number;
+    translationDrills: TranslationDrillGroupConfigData;
   };
   cards: CardLibraryData;
   addableCards: {
@@ -132,6 +143,7 @@ export type CardLibraryGroupListItemData = {
   groupName: string;
   description: string | null;
   activeCardCount: number;
+  translationDrills: TranslationDrillGroupConfigData;
 };
 
 export type CardLibraryGroupsData = {
@@ -147,6 +159,23 @@ const cardLibraryGroupCreateSchema = z.object({
 const groupDetailGroupUpdateSchema = z.object({
   groupName: editableGroupNameSchema,
   description: editableCardOptionalTextSchema.optional().default(null),
+});
+
+const DEFAULT_TRANSLATION_DRILL_PILE_SIZE_LIMIT = 10;
+
+const translationDrillGroupConfigUpdateSchema = z.object({
+  enabled: z.boolean(),
+  drawPileName: z
+    .union([z.string(), z.null(), z.undefined()])
+    .transform((value) => {
+      if (typeof value !== 'string') {
+        return null;
+      }
+
+      const trimmed = value.trim();
+      return trimmed.length > 0 ? trimmed : null;
+    }),
+  pileSizeLimit: z.coerce.number().int().min(1, 'Pile size limit must be at least 1.').max(100, 'Pile size limit must be 100 or fewer.'),
 });
 
 function normalizeStringList(value: unknown): string[] {
@@ -301,12 +330,43 @@ function mapGroupFilterOption(group: GroupWithActiveCardCount): CardLibraryGroup
   };
 }
 
-function mapGroupListItem(group: GroupWithActiveCardCount): CardLibraryGroupListItemData {
+function createDefaultTranslationDrillGroupConfig(): TranslationDrillGroupConfigData {
+  return {
+    enabled: false,
+    drawPileName: null,
+    pileSizeLimit: DEFAULT_TRANSLATION_DRILL_PILE_SIZE_LIMIT,
+  };
+}
+
+function createTranslationDrillGroupConfigLookup(
+  groups: Array<{
+    groupId: string;
+    drawPileName: string | null;
+    pileSizeLimit: number;
+  }>,
+) {
+  return new Map<string, TranslationDrillGroupConfigData>(
+    groups.map((group) => [
+      group.groupId,
+      {
+        enabled: true,
+        drawPileName: group.drawPileName,
+        pileSizeLimit: group.pileSizeLimit ?? DEFAULT_TRANSLATION_DRILL_PILE_SIZE_LIMIT,
+      },
+    ]),
+  );
+}
+
+function mapGroupListItem(
+  group: GroupWithActiveCardCount,
+  translationDrillConfig = createDefaultTranslationDrillGroupConfig(),
+): CardLibraryGroupListItemData {
   return {
     groupId: group.groupId,
     groupName: group.groupName,
     description: group.description ?? null,
     activeCardCount: group.activeCardCount,
+    translationDrills: translationDrillConfig,
   };
 }
 
@@ -347,10 +407,11 @@ async function ensureUniqueGroupName(
   database: DatabaseClient,
   options?: {
     excludeGroupId?: string;
+    getGroups?: typeof getGroups;
   },
 ) {
   const normalizedName = normalizeGroupName(groupName);
-  const existingGroups = await getGroups(userId, languageId, database as never);
+  const existingGroups = await (options?.getGroups ?? getGroups)(userId, languageId, database as never);
   const duplicateGroup = existingGroups.find((group) => {
     if (options?.excludeGroupId && group.groupId === options.excludeGroupId) {
       return false;
@@ -504,10 +565,17 @@ export async function loadCardLibraryGroupsData(
 ): Promise<CardLibraryGroupsData> {
   await assertUserHasLanguage(userId, languageId, database, deps);
 
-  const groups = await deps.listGroupsWithActiveCardCounts(userId, languageId, database as never);
+  const [groups, translationDrillGroups] = await Promise.all([
+    deps.listGroupsWithActiveCardCounts(userId, languageId, database as never),
+    deps.listTranslationDrillDrawPileGroups(userId, languageId, {}, database as never),
+  ]);
+  const translationDrillConfigByGroupId = createTranslationDrillGroupConfigLookup(translationDrillGroups);
 
   return {
-    items: sortGroupsByName(groups.map((group) => mapGroupListItem(group))),
+    items: sortGroupsByName(groups.map((group) => mapGroupListItem(
+      group,
+      translationDrillConfigByGroupId.get(group.groupId) ?? createDefaultTranslationDrillGroupConfig(),
+    ))),
     totalCount: groups.length,
   };
 }
@@ -524,7 +592,7 @@ export async function loadGroupDetailData(
 
   const parsedGroupId = parseGroupId(groupId);
   const filters = parseFilters(url);
-  const [group, items, allActiveCards, availableGroups] = await Promise.all([
+  const [group, items, allActiveCards, availableGroups, translationDrillGroups] = await Promise.all([
     deps.getGroupWithActiveCardCount(userId, languageId, parsedGroupId, database as never),
     deps.listActiveCardsInGroup(
       userId,
@@ -538,11 +606,14 @@ export async function loadGroupDetailData(
     ),
     deps.listActiveCards(userId, languageId, {}, database as never),
     deps.listGroupsWithActiveCardCounts(userId, languageId, database as never),
+    deps.listTranslationDrillDrawPileGroups(userId, languageId, {}, database as never),
   ]);
 
   if (!group) {
     throw new CardLibraryRequestError(404, 'Group not found.');
   }
+
+  const translationDrillConfigByGroupId = createTranslationDrillGroupConfigLookup(translationDrillGroups);
 
   return {
     group: {
@@ -550,6 +621,7 @@ export async function loadGroupDetailData(
       groupName: group.groupName,
       description: group.description ?? null,
       activeCardCount: group.activeCardCount,
+      translationDrills: translationDrillConfigByGroupId.get(parsedGroupId) ?? createDefaultTranslationDrillGroupConfig(),
     },
     cards: {
       items: items.map((item) => mapCardListItem(item)),
@@ -755,8 +827,21 @@ export async function updateGroupDetailForLanguage(
   groupId: unknown,
   input: unknown,
   database: DatabaseClient,
+  deps: {
+    getActiveUserLanguages: typeof getActiveUserLanguages;
+    getGroupWithActiveCardCount: typeof getGroupWithActiveCardCount;
+    getGroups: typeof getGroups;
+    updateGroup: typeof updateGroup;
+    listTranslationDrillDrawPileGroups: typeof listTranslationDrillDrawPileGroups;
+  } = {
+    getActiveUserLanguages,
+    getGroupWithActiveCardCount,
+    getGroups,
+    updateGroup,
+    listTranslationDrillDrawPileGroups,
+  },
 ) {
-  await assertUserHasLanguage(userId, languageId, database);
+  await assertUserHasLanguage(userId, languageId, database, deps);
 
   const parsedGroupId = parseGroupId(groupId);
   const parsedInput = groupDetailGroupUpdateSchema.safeParse(input);
@@ -768,7 +853,7 @@ export async function updateGroupDetailForLanguage(
     );
   }
 
-  const existingGroup = await getGroupWithActiveCardCount(userId, languageId, parsedGroupId, database as never);
+  const existingGroup = await deps.getGroupWithActiveCardCount(userId, languageId, parsedGroupId, database as never);
 
   if (!existingGroup) {
     throw new CardLibraryRequestError(404, 'Group not found.');
@@ -779,10 +864,13 @@ export async function updateGroupDetailForLanguage(
     languageId,
     parsedInput.data.groupName,
     database,
-    { excludeGroupId: parsedGroupId },
+    {
+      excludeGroupId: parsedGroupId,
+      getGroups: deps.getGroups,
+    },
   );
 
-  const updatedGroup = await updateGroup(
+  const updatedGroup = await deps.updateGroup(
     userId,
     languageId,
     parsedGroupId,
@@ -797,12 +885,73 @@ export async function updateGroupDetailForLanguage(
     throw new CardLibraryRequestError(404, 'Group not found.');
   }
 
+  const translationDrillConfig = createTranslationDrillGroupConfigLookup(
+    await deps.listTranslationDrillDrawPileGroups(userId, languageId, database as never),
+  ).get(parsedGroupId) ?? createDefaultTranslationDrillGroupConfig();
+
   return {
     groupId: updatedGroup.groupId,
     groupName: updatedGroup.groupName,
     description: updatedGroup.description ?? null,
     activeCardCount: existingGroup.activeCardCount,
+    translationDrills: translationDrillConfig,
   };
+}
+
+export async function updateGroupTranslationDrillsForLanguage(
+  userId: string,
+  languageId: string,
+  groupId: unknown,
+  input: unknown,
+  database: DatabaseClient,
+  deps: {
+    getActiveUserLanguages: typeof getActiveUserLanguages;
+    upsertTranslationDrillDrawPile: typeof upsertTranslationDrillDrawPile;
+  } = {
+    getActiveUserLanguages,
+    upsertTranslationDrillDrawPile,
+  },
+): Promise<TranslationDrillGroupConfigData> {
+  await assertUserHasLanguage(userId, languageId, database, deps);
+
+  const parsedGroupId = parseGroupId(groupId);
+  const parsedInput = translationDrillGroupConfigUpdateSchema.safeParse(input);
+
+  if (!parsedInput.success) {
+    throw new CardLibraryRequestError(
+      400,
+      parsedInput.error.issues[0]?.message ?? 'Translation Drills settings are invalid.',
+    );
+  }
+
+  try {
+    const updatedConfig = await deps.upsertTranslationDrillDrawPile(
+      userId,
+      languageId,
+      parsedGroupId,
+      {
+        enabled: parsedInput.data.enabled,
+        drawPileName: parsedInput.data.drawPileName,
+        pileSizeLimit: parsedInput.data.pileSizeLimit,
+      },
+      database as never,
+    );
+
+    return {
+      enabled: updatedConfig.enabled,
+      drawPileName: updatedConfig.drawPileName,
+      pileSizeLimit: updatedConfig.pileSizeLimit,
+    };
+  } catch (error) {
+    if (
+      error instanceof Error
+      && error.message === 'That group is not available for Translation Drills.'
+    ) {
+      throw new CardLibraryRequestError(404, error.message);
+    }
+
+    throw error;
+  }
 }
 
 export async function addCardsToGroupDetailForLanguage(

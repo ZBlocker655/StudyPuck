@@ -7,6 +7,7 @@ import {
   deleteCardLibraryGroupForLanguage,
   removeCardsFromGroupDetailForLanguage,
   updateGroupDetailForLanguage,
+  updateGroupTranslationDrillsForLanguage,
 } from '$lib/server/cards.js';
 
 type GroupDetailActionRequestBody =
@@ -21,6 +22,12 @@ type GroupDetailActionRequestBody =
     }
   | {
       action?: 'delete-group';
+    }
+  | {
+      action?: 'update-translation-drills';
+      enabled?: boolean;
+      drawPileName?: string | null;
+      pileSizeLimit?: number | string;
     };
 
 export const POST: RequestHandler = async (event) => {
@@ -89,6 +96,22 @@ export const POST: RequestHandler = async (event) => {
       if (body.action === 'delete-group') {
         return {
           deleted: await deleteCardLibraryGroupForLanguage(userId, languageId, groupId, database as never),
+        };
+      }
+
+      if (body.action === 'update-translation-drills') {
+        return {
+          translationDrills: await updateGroupTranslationDrillsForLanguage(
+            userId,
+            languageId,
+            groupId,
+            {
+              enabled: body.enabled,
+              drawPileName: body.drawPileName,
+              pileSizeLimit: body.pileSizeLimit,
+            },
+            database as never,
+          ),
         };
       }
 
