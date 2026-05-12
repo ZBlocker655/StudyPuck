@@ -7,6 +7,7 @@ import {
   loadGroupDetailData,
   loadActiveCardDetailData,
   updateGroupTranslationDrillsForLanguage,
+  updateGroupDetailForLanguage,
 } from './cards.js';
 
 describe('Card Library server helpers', () => {
@@ -115,6 +116,18 @@ describe('Card Library server helpers', () => {
         metadata: null,
       },
     ]),
+    updateGroup: vi.fn(async () => ({
+      userId: 'user-1',
+      languageId: 'zh',
+      groupId: 'group-chat',
+      groupName: 'Focused Chat',
+      description: 'Conversation cards',
+      embedding: null,
+      embeddingModel: null,
+      embeddingGeneratedAt: null,
+      createdAt: null,
+      metadata: null,
+    })),
   };
 
   it('loads Card Library data with the active query/filter state and filtered ids', async () => {
@@ -254,6 +267,38 @@ describe('Card Library server helpers', () => {
       enabled: true,
       drawPileName: 'Focused chat',
       pileSizeLimit: 8,
+    });
+  });
+
+  it('preserves Translation Drills config when updating group metadata', async () => {
+    const result = await updateGroupDetailForLanguage(
+      'user-1',
+      'zh',
+      'group-chat',
+      {
+        groupName: 'Focused Chat',
+        description: 'Conversation cards',
+      },
+      database,
+      {
+        getActiveUserLanguages: baseDeps.getActiveUserLanguages,
+        getGroupWithActiveCardCount: baseDeps.getGroupWithActiveCardCount,
+        getGroups: baseDeps.getGroups,
+        updateGroup: baseDeps.updateGroup,
+        listTranslationDrillDrawPileGroups: baseDeps.listTranslationDrillDrawPileGroups,
+      },
+    );
+
+    expect(result).toEqual({
+      groupId: 'group-chat',
+      groupName: 'Focused Chat',
+      description: 'Conversation cards',
+      activeCardCount: 1,
+      translationDrills: {
+        enabled: true,
+        drawPileName: 'Chat practice',
+        pileSizeLimit: 6,
+      },
     });
   });
 

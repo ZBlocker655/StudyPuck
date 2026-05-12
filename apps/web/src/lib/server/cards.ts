@@ -407,10 +407,11 @@ async function ensureUniqueGroupName(
   database: DatabaseClient,
   options?: {
     excludeGroupId?: string;
+    getGroups?: typeof getGroups;
   },
 ) {
   const normalizedName = normalizeGroupName(groupName);
-  const existingGroups = await getGroups(userId, languageId, database as never);
+  const existingGroups = await (options?.getGroups ?? getGroups)(userId, languageId, database as never);
   const duplicateGroup = existingGroups.find((group) => {
     if (options?.excludeGroupId && group.groupId === options.excludeGroupId) {
       return false;
@@ -826,8 +827,21 @@ export async function updateGroupDetailForLanguage(
   groupId: unknown,
   input: unknown,
   database: DatabaseClient,
+  deps: {
+    getActiveUserLanguages: typeof getActiveUserLanguages;
+    getGroupWithActiveCardCount: typeof getGroupWithActiveCardCount;
+    getGroups: typeof getGroups;
+    updateGroup: typeof updateGroup;
+    listTranslationDrillDrawPileGroups: typeof listTranslationDrillDrawPileGroups;
+  } = {
+    getActiveUserLanguages,
+    getGroupWithActiveCardCount,
+    getGroups,
+    updateGroup,
+    listTranslationDrillDrawPileGroups,
+  },
 ) {
-  await assertUserHasLanguage(userId, languageId, database);
+  await assertUserHasLanguage(userId, languageId, database, deps);
 
   const parsedGroupId = parseGroupId(groupId);
   const parsedInput = groupDetailGroupUpdateSchema.safeParse(input);
@@ -839,7 +853,7 @@ export async function updateGroupDetailForLanguage(
     );
   }
 
-  const existingGroup = await getGroupWithActiveCardCount(userId, languageId, parsedGroupId, database as never);
+  const existingGroup = await deps.getGroupWithActiveCardCount(userId, languageId, parsedGroupId, database as never);
 
   if (!existingGroup) {
     throw new CardLibraryRequestError(404, 'Group not found.');
@@ -850,10 +864,13 @@ export async function updateGroupDetailForLanguage(
     languageId,
     parsedInput.data.groupName,
     database,
-    { excludeGroupId: parsedGroupId },
+    {
+      excludeGroupId: parsedGroupId,
+      getGroups: deps.getGroups,
+    },
   );
 
-  const updatedGroup = await updateGroup(
+  const updatedGroup = await deps.updateGroup(
     userId,
     languageId,
     parsedGroupId,
@@ -868,11 +885,16 @@ export async function updateGroupDetailForLanguage(
     throw new CardLibraryRequestError(404, 'Group not found.');
   }
 
+  const translationDrillConfig = createTranslationDrillGroupConfigLookup(
+    await deps.listTranslationDrillDrawPileGroups(userId, languageId, database as never),
+  ).get(parsedGroupId) ?? createDefaultTranslationDrillGroupConfig();
+
   return {
     groupId: updatedGroup.groupId,
     groupName: updatedGroup.groupName,
     description: updatedGroup.description ?? null,
     activeCardCount: existingGroup.activeCardCount,
+    translationDrills: translationDrillConfig,
   };
 }
 
