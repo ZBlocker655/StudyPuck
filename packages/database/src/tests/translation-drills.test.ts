@@ -286,6 +286,25 @@ describe('Translation Drills database operations', () => {
     expect(dailyStats?.cardsDrawn).toBe(1);
   });
 
+  it('draws from a configured pile inside an existing transaction', async () => {
+    await seedLibrary();
+
+    const drawn = await db.transaction(async (tx) => drawTranslationDrillCard(
+      TEST_USER.userId,
+      TEST_LANG.languageId,
+      'group-core',
+      { occurredAt: NOW },
+      tx,
+    ));
+    const [dailyStats] = await db
+      .select()
+      .from(translationDrillDailyStats)
+      .where(eq(translationDrillDailyStats.date, '2026-05-10'));
+
+    expect(drawn.cardId).toBe('card-new');
+    expect(dailyStats?.cardsDrawn).toBe(1);
+  });
+
   it('updates snooze, dismiss, and disable state without touching core card status', async () => {
     await seedLibrary();
 

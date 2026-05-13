@@ -190,6 +190,68 @@ async function upsertDailyStats(
     });
 }
 
+async function activateTranslationDrillCardInConnection(
+  userId: string,
+  languageId: string,
+  cardId: string,
+  connection: AnyDb,
+  options: {
+    addedFrom?: string | null;
+    occurredAt?: Date;
+    trackDrawStat?: boolean;
+  } = {},
+): Promise<TranslationDrillContextCard> {
+  const occurredAt = options.occurredAt ?? new Date();
+  const [card] = await connection
+    .select({
+      cardId: cards.cardId,
+    })
+    .from(cards)
+    .where(and(
+      eq(cards.userId, userId),
+      eq(cards.languageId, languageId),
+      eq(cards.cardId, cardId),
+      eq(cards.status, 'active'),
+    ));
+
+  if (!card) {
+    throw new Error('That card is not available for Translation Drills.');
+  }
+
+  await connection
+    .insert(translationDrillContext)
+    .values({
+      userId,
+      languageId,
+      cardId,
+      state: 'active',
+      addedFrom: options.addedFrom ?? null,
+      addedAt: occurredAt,
+      lastUsed: null,
+      usageCount: 0,
+      stateUntil: null,
+    })
+    .onConflictDoUpdate({
+      target: [
+        translationDrillContext.userId,
+        translationDrillContext.languageId,
+        translationDrillContext.cardId,
+      ],
+      set: {
+        state: 'active',
+        addedFrom: options.addedFrom ?? translationDrillContext.addedFrom,
+        addedAt: occurredAt,
+        stateUntil: null,
+      },
+    });
+
+  if (options.trackDrawStat) {
+    await upsertDailyStats(userId, languageId, occurredAt, { cardsDrawn: 1 }, connection);
+  }
+
+  return await requireContextCard(userId, languageId, cardId, connection);
+}
+
 async function getConfiguredDrawPile(
   userId: string,
   languageId: string,
@@ -611,57 +673,14 @@ export async function activateTranslationDrillCard(
   } = {},
   database?: AnyDb,
 ): Promise<TranslationDrillContextCard> {
-  const occurredAt = options.occurredAt ?? new Date();
-
   return await runInTransaction(database, async (tx) => {
-    const [card] = await tx
-      .select({
-        cardId: cards.cardId,
-      })
-      .from(cards)
-      .where(and(
-        eq(cards.userId, userId),
-        eq(cards.languageId, languageId),
-        eq(cards.cardId, cardId),
-        eq(cards.status, 'active'),
-      ));
-
-    if (!card) {
-      throw new Error('That card is not available for Translation Drills.');
-    }
-
-    await tx
-      .insert(translationDrillContext)
-      .values({
-        userId,
-        languageId,
-        cardId,
-        state: 'active',
-        addedFrom: options.addedFrom ?? null,
-        addedAt: occurredAt,
-        lastUsed: null,
-        usageCount: 0,
-        stateUntil: null,
-      })
-      .onConflictDoUpdate({
-        target: [
-          translationDrillContext.userId,
-          translationDrillContext.languageId,
-          translationDrillContext.cardId,
-        ],
-        set: {
-          state: 'active',
-          addedFrom: options.addedFrom ?? translationDrillContext.addedFrom,
-          addedAt: occurredAt,
-          stateUntil: null,
-        },
-      });
-
-    if (options.trackDrawStat) {
-      await upsertDailyStats(userId, languageId, occurredAt, { cardsDrawn: 1 }, tx);
-    }
-
-    return await requireContextCard(userId, languageId, cardId, tx);
+    return await activateTranslationDrillCardInConnection(
+      userId,
+      languageId,
+      cardId,
+      tx,
+      options,
+    );
   });
 }
 
@@ -729,16 +748,16 @@ export async function drawTranslationDrillCard(
       throw new Error('There are no cards available to draw from that pile right now.');
     }
 
-    return await activateTranslationDrillCard(
+    return await activateTranslationDrillCardInConnection(
       userId,
       languageId,
       nextCard.cardId,
+      tx,
       {
         addedFrom: `draw_pile:${groupId}`,
         occurredAt,
         trackDrawStat: true,
       },
-      tx,
     );
   });
 }
