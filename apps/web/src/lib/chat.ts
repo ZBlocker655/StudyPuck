@@ -97,7 +97,7 @@ export const translationDrillsSurfaceContextSchema = z.object({
   activeChallenge: z.object({
     challengeId: z.string().trim().min(1).max(160),
     prompt: z.string().trim().min(1).max(400),
-    sourceCardIds: z.array(activeCardIdSchema).min(1).max(10),
+    sourceCardIds: z.array(activeCardIdSchema).min(1).max(2),
     startedAtIso: z.string().datetime(),
   }).nullable(),
   focusedCardId: activeCardIdSchema.nullable().optional(),

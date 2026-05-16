@@ -3,8 +3,8 @@ import { z } from 'zod';
 export type AiProviderName = 'gemini' | 'openai';
 
 export type AiRequestMetadata = {
-  feature: 'card-entry' | 'chat';
-  operation: 'preprocess-note' | 'semantic-embedding' | 'conversation';
+  feature: 'card-entry' | 'chat' | 'translation-drills';
+  operation: 'preprocess-note' | 'semantic-embedding' | 'conversation' | 'plan-challenge';
   userId: string;
   languageId: string;
   noteId?: string;
@@ -202,6 +202,154 @@ function extractJsonText(rawText: string): string {
 function buildRawTextPreview(rawText: string): string {
   const normalized = rawText.replace(/\s+/g, ' ').trim();
   return normalized.length > 400 ? `${normalized.slice(0, 400)}…` : normalized;
+}
+
+function nextNonWhitespaceCharacter(text: string, startIndex: number): string | null {
+  for (let index = startIndex; index < text.length; index += 1) {
+    const character = text[index];
+
+    if (character && !/\s/.test(character)) {
+      return character;
+    }
+  }
+
+  return null;
+}
+
+function repairJsonStringContent(jsonText: string): string {
+  let repaired = '';
+  let inString = false;
+  let escaping = false;
+
+  for (let index = 0; index < jsonText.length; index += 1) {
+    const character = jsonText[index];
+
+    if (!character) {
+      continue;
+    }
+
+    if (!inString) {
+      if (character === '"') {
+        inString = true;
+      }
+
+      repaired += character;
+      continue;
+    }
+
+    if (escaping) {
+      if (/["\\/bfnrt]/.test(character)) {
+        repaired += character;
+      } else if (character === 'u') {
+        const unicodeCandidate = jsonText.slice(index + 1, index + 5);
+
+        if (/^[0-9a-fA-F]{4}$/.test(unicodeCandidate)) {
+          repaired += `u${unicodeCandidate}`;
+          index += 4;
+        } else {
+          repaired += `\\u${unicodeCandidate}`;
+          index += Math.max(0, unicodeCandidate.length);
+        }
+      } else {
+        repaired += `\\${character}`;
+      }
+
+      escaping = false;
+      continue;
+    }
+
+    if (character === '\\') {
+      repaired += character;
+      escaping = true;
+      continue;
+    }
+
+    if (character === '"') {
+      const nextCharacter = nextNonWhitespaceCharacter(jsonText, index + 1);
+
+      if (nextCharacter === null || nextCharacter === ',' || nextCharacter === '}' || nextCharacter === ']' || nextCharacter === ':') {
+        inString = false;
+        repaired += character;
+      } else {
+        repaired += '\\"';
+      }
+
+      continue;
+    }
+
+    if (character === '\n') {
+      repaired += '\\n';
+      continue;
+    }
+
+    if (character === '\r') {
+      repaired += '\\r';
+      continue;
+    }
+
+    if (character === '\t') {
+      repaired += '\\t';
+      continue;
+    }
+
+    repaired += character;
+  }
+
+  return inString ? `${repaired}"` : repaired;
+}
+
+function attemptDeterministicJsonRepair(rawText: string): string | null {
+  let jsonText = rawText.trim();
+
+  try {
+    jsonText = extractJsonText(rawText);
+  } catch {
+    jsonText = rawText.trim();
+  }
+
+  const repaired = repairJsonStringContent(
+    jsonText
+      .replace(/^\uFEFF/, '')
+      .replace(/[“”]/g, '"')
+      .replace(/[‘’]/g, '\'')
+      .replace(/,\s*([}\]])/g, '$1'),
+  );
+
+  return repaired === jsonText ? null : repaired;
+}
+
+function buildJsonRepairPrompt(request: {
+  systemPrompt: string;
+  userPrompt: string;
+  rawText: string;
+  error: AiStructuredResponseError;
+}) {
+  return {
+    systemPrompt: [
+      'You repair malformed JSON produced by another model.',
+      'Return only valid JSON.',
+      'Do not wrap the answer in markdown or code fences.',
+      'Preserve the original meaning and suggestion payloads whenever possible.',
+      'Do not add commentary before or after the JSON.',
+    ].join('\n'),
+    userPrompt: [
+      'Repair the malformed JSON response below so it satisfies the original request.',
+      '',
+      'Original system prompt:',
+      request.systemPrompt,
+      '',
+      'Original user prompt:',
+      request.userPrompt,
+      '',
+      `Parsing failure stage: ${request.error.stage}`,
+      `Parsing failure message: ${request.error.message}`,
+      '',
+      'Malformed model output:',
+      request.rawText,
+      '',
+      'Return repaired valid JSON only.',
+    ].join('\n'),
+  };
 }
 
 async function parseStructuredResponse<T>(rawText: string, responseSchema: z.ZodType<T>): Promise<T> {
@@ -487,7 +635,49 @@ export function createAiService(options: {
             systemPrompt: request.systemPrompt,
             userPrompt: request.userPrompt,
           });
-          const parsed = await parseStructuredResponse(rawText, request.responseSchema);
+          let parsed: T | undefined;
+
+          try {
+            parsed = await parseStructuredResponse(rawText, request.responseSchema);
+          } catch (error) {
+            if (!(error instanceof AiStructuredResponseError) || (error.stage !== 'json_extract' && error.stage !== 'json_parse')) {
+              throw error;
+            }
+
+            const deterministicallyRepaired = attemptDeterministicJsonRepair(rawText);
+
+            if (deterministicallyRepaired) {
+              try {
+                parsed = await parseStructuredResponse(deterministicallyRepaired, request.responseSchema);
+              } catch {
+                // Fall through to the LLM repair attempt.
+              }
+            }
+
+            if (parsed === undefined) {
+              const repairPrompt = buildJsonRepairPrompt({
+                systemPrompt: request.systemPrompt,
+                userPrompt: request.userPrompt,
+                rawText,
+                error,
+              });
+              const repairedRawText = await providerGenerators[provider.name]({
+                config: provider,
+                systemPrompt: repairPrompt.systemPrompt,
+                userPrompt: repairPrompt.userPrompt,
+              });
+
+              parsed = await parseStructuredResponse(repairedRawText, request.responseSchema);
+            }
+          }
+
+          if (parsed === undefined) {
+            throw new AiStructuredResponseError({
+              message: 'The AI response could not be repaired into valid structured output.',
+              stage: 'json_parse',
+              rawTextPreview: rawText,
+            });
+          }
 
           await hooks.onRequestSuccess({
             provider: provider.name,

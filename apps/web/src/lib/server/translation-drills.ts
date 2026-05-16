@@ -5,6 +5,7 @@ import {
   getActiveUserLanguages,
   getDb,
   getGroups,
+  recordTranslationDrillChallengeUsage,
   getTranslationDrillDismissSchedule,
   listTranslationDrillChallengeCards,
   listTranslationDrillContextCards,
@@ -15,6 +16,11 @@ import {
 } from '@studypuck/database';
 import { z } from 'zod';
 import { activeCardIdSchema, activeGroupIdSchema } from '$lib/schemas/cards.js';
+import {
+  planTranslationDrillChallenge,
+  type TranslationDrillChallengePlan,
+  type TranslationDrillChallengePlannerInput,
+} from '$lib/server/translation-drill-challenges.js';
 
 type DatabaseClient = ReturnType<typeof getDb>;
 
@@ -32,6 +38,7 @@ export type TranslationDrillActionDeps = Pick<TranslationDrillLoaderDeps, 'getAc
   snoozeTranslationDrillCard: typeof snoozeTranslationDrillCard;
   disableTranslationDrillCard: typeof disableTranslationDrillCard;
   dismissTranslationDrillCard: typeof dismissTranslationDrillCard;
+  recordTranslationDrillChallengeUsage: typeof recordTranslationDrillChallengeUsage;
   getTranslationDrillDismissSchedule: typeof getTranslationDrillDismissSchedule;
   now: () => Date;
 };
@@ -52,6 +59,7 @@ const defaultActionDeps: TranslationDrillActionDeps = {
   snoozeTranslationDrillCard,
   disableTranslationDrillCard,
   dismissTranslationDrillCard,
+  recordTranslationDrillChallengeUsage,
   getTranslationDrillDismissSchedule,
   now: () => new Date(),
 };
@@ -77,8 +85,8 @@ const translationDrillActionSchema = z.discriminatedUnion('action', [
   }),
   z.object({
     action: z.literal('challenge-start'),
-    sourceCardIds: z.array(activeCardIdSchema).min(1).max(10).optional(),
-    previousSourceCardIds: z.array(activeCardIdSchema).min(1).max(10).optional(),
+    sourceCardIds: z.array(activeCardIdSchema).min(1).max(2).optional(),
+    previousSourceCardIds: z.array(activeCardIdSchema).min(1).max(2).optional(),
   }),
   z.object({
     action: z.literal('challenge-clear'),
@@ -86,6 +94,8 @@ const translationDrillActionSchema = z.discriminatedUnion('action', [
 ]);
 
 const TRANSLATION_DRILL_DEFAULT_SNOOZE_DURATION_MS = 24 * 60 * 60 * 1_000;
+const TRANSLATION_DRILL_CHALLENGE_SHORTLIST_DIVISOR = 2;
+const TRANSLATION_DRILL_CHALLENGE_SHORTLIST_MIN_SIZE = 2;
 
 export class TranslationDrillRequestError extends Error {
   status: number;
@@ -199,6 +209,13 @@ export type TranslationDrillActionResult =
 
 type ActiveLanguageRecord = Awaited<ReturnType<typeof getActiveUserLanguages>>[number];
 
+type TranslationDrillActionRuntime = {
+  privateEnv?: Record<string, string | undefined>;
+  planChallenge?: (
+    input: TranslationDrillChallengePlannerInput,
+  ) => Promise<TranslationDrillChallengePlan>;
+};
+
 async function assertUserHasLanguage(
   userId: string,
   languageId: string,
@@ -279,6 +296,22 @@ function buildActionMessage(action: TranslationDrillActionInput['action']): stri
   }
 }
 
+function shortlistChallengeCandidateCards(cards: TranslationDrillContextCard[]) {
+  if (cards.length <= 1) {
+    return cards;
+  }
+
+  const shortlistSize = Math.min(
+    cards.length,
+    Math.max(
+      Math.floor(cards.length / TRANSLATION_DRILL_CHALLENGE_SHORTLIST_DIVISOR),
+      TRANSLATION_DRILL_CHALLENGE_SHORTLIST_MIN_SIZE,
+    ),
+  );
+
+  return cards.slice(0, shortlistSize);
+}
+
 function normalizeMutationError(error: unknown): never {
   if (error instanceof TranslationDrillRequestError) {
     throw error;
@@ -323,59 +356,31 @@ async function validateChallengeSourceCards(
   }
 }
 
-function formatChallengeMeaning(card: TranslationDrillContextCard) {
-  return card.meaning?.replace(/^to\s+/i, '') ?? `use "${card.content}"`;
-}
+function assertPlannedChallengeIsValid(
+  challenge: TranslationDrillChallengePlan,
+  candidateCards: readonly TranslationDrillContextCard[],
+  requireExactCandidateMatch: boolean,
+): void {
+  const candidateCardIds = candidateCards.map((card) => card.cardId);
+  const candidateCardIdSet = new Set(candidateCardIds);
 
-function buildChallengePrompt(cards: TranslationDrillContextCard[]) {
-  const [firstCard, secondCard] = cards;
-
-  if (!firstCard) {
-    throw new TranslationDrillRequestError(400, 'Draw or pin at least one active card before starting a challenge.');
+  if (!challenge.prompt.trim()) {
+    throw new TranslationDrillRequestError(500, 'The challenge generator returned an empty prompt.');
   }
 
-  const firstMeaning = formatChallengeMeaning(firstCard);
-  const secondMeaning = secondCard ? formatChallengeMeaning(secondCard) : null;
-
-  return secondMeaning
-    ? `We should ${firstMeaning} this carefully before we ${secondMeaning}.`
-    : `I want to ${firstMeaning} this more clearly today.`;
-}
-
-function selectDefaultChallengeSourceCardIds(
-  cards: TranslationDrillContextCard[],
-  previousSourceCardIds: readonly string[] | undefined,
-) {
-  const cardIds = cards.map((card) => card.cardId);
-
-  if (cardIds.length === 0) {
-    throw new TranslationDrillRequestError(400, 'Draw or pin at least one active card before starting a challenge.');
+  if (challenge.sourceCardIds.length === 0 || challenge.sourceCardIds.some((cardId) => !candidateCardIdSet.has(cardId))) {
+    throw new TranslationDrillRequestError(500, 'The challenge generator returned an invalid source-card selection.');
   }
 
-  if (cardIds.length === 1 || !previousSourceCardIds || previousSourceCardIds.length === 0) {
-    return cardIds.slice(0, Math.min(2, cardIds.length));
+  if (
+    requireExactCandidateMatch
+    && (
+      challenge.sourceCardIds.length !== candidateCardIds.length
+      || challenge.sourceCardIds.some((cardId, index) => cardId !== candidateCardIds[index])
+    )
+  ) {
+    throw new TranslationDrillRequestError(500, 'The challenge generator did not preserve the requested source cards.');
   }
-
-  const previousChallengeKey = previousSourceCardIds.join('|');
-  const firstPreviousIndex = cardIds.indexOf(previousSourceCardIds[0] ?? '');
-
-  if (firstPreviousIndex === -1) {
-    return cardIds.slice(0, Math.min(2, cardIds.length));
-  }
-
-  for (let offset = 1; offset < cardIds.length; offset += 1) {
-    const startIndex = (firstPreviousIndex + offset) % cardIds.length;
-    const candidate = Array.from(
-      { length: Math.min(2, cardIds.length) },
-      (_, index) => cardIds[(startIndex + index) % cardIds.length]!,
-    );
-
-    if (candidate.join('|') !== previousChallengeKey) {
-      return candidate;
-    }
-  }
-
-  return cardIds.slice(0, Math.min(2, cardIds.length));
 }
 
 export async function loadTranslationDrillHomeData(
@@ -447,8 +452,9 @@ export async function applyTranslationDrillAction(
   input: unknown,
   database: DatabaseClient,
   deps: TranslationDrillActionDeps = defaultActionDeps,
+  runtime: TranslationDrillActionRuntime = {},
 ): Promise<TranslationDrillActionResult> {
-  await assertUserHasLanguage(userId, languageId, database, deps);
+  const language = await assertUserHasLanguage(userId, languageId, database, deps);
 
   const parsed = translationDrillActionSchema.safeParse(input);
 
@@ -560,25 +566,53 @@ export async function applyTranslationDrillAction(
       }
 
       case 'challenge-start': {
+        const occurredAt = deps.now();
         const availableChallengeCards = await deps.listTranslationDrillChallengeCards(userId, languageId, database as never);
-        const selectedSourceCardIds = payload.sourceCardIds
-          ?? selectDefaultChallengeSourceCardIds(availableChallengeCards, payload.previousSourceCardIds);
-
-        await validateChallengeSourceCards(userId, languageId, selectedSourceCardIds, database, deps);
-
         const challengeCardById = new Map(availableChallengeCards.map((card) => [card.cardId, card]));
-        const sourceCards = selectedSourceCardIds
-          .map((cardId) => challengeCardById.get(cardId))
-          .filter((card): card is TranslationDrillContextCard => card !== undefined);
+        const requestedSourceCardIds = payload.sourceCardIds
+          ? [...payload.sourceCardIds]
+          : null;
+
+        if (requestedSourceCardIds) {
+          await validateChallengeSourceCards(userId, languageId, requestedSourceCardIds, database, deps);
+        }
+
+        const candidateCards = requestedSourceCardIds
+          ? requestedSourceCardIds
+            .map((cardId) => challengeCardById.get(cardId))
+            .filter((card): card is TranslationDrillContextCard => card !== undefined)
+          : shortlistChallengeCandidateCards(availableChallengeCards);
+        const planChallenge = runtime.planChallenge ?? ((planInput: TranslationDrillChallengePlannerInput) =>
+          planTranslationDrillChallenge({
+            ...planInput,
+            privateEnv: runtime.privateEnv ?? {},
+          }));
+        const plannedChallenge = await planChallenge({
+          userId,
+          languageId,
+          targetLanguageName: language.languageName,
+          cefrLevel: language.cefrLevel ?? null,
+          candidateCards,
+          previousSourceCardIds: payload.previousSourceCardIds,
+          mustUseAllCandidateCards: Boolean(requestedSourceCardIds),
+        });
+        assertPlannedChallengeIsValid(plannedChallenge, candidateCards, Boolean(requestedSourceCardIds));
+        await deps.recordTranslationDrillChallengeUsage(
+          userId,
+          languageId,
+          plannedChallenge.sourceCardIds,
+          { occurredAt },
+          database as never,
+        );
         const challengeId = `translation-drill-${globalThis.crypto?.randomUUID?.() ?? Date.now().toString(36)}`;
 
         return {
           action: 'challenge-start',
           challenge: {
             challengeId,
-            prompt: buildChallengePrompt(sourceCards),
-            sourceCardIds: selectedSourceCardIds,
-            startedAtIso: deps.now().toISOString(),
+            prompt: plannedChallenge.prompt,
+            sourceCardIds: plannedChallenge.sourceCardIds,
+            startedAtIso: occurredAt.toISOString(),
           },
           conversationReset: true,
           message: buildActionMessage('challenge-start'),

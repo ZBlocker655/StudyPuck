@@ -161,6 +161,14 @@ function buildGenericContextBlock(
     blocks.push(
       'The active Translation Drills challenge is authoritative app state.',
       'If the user message looks like an attempted translation for the active challenge, evaluate the attempt, explain corrections, and avoid returning drill-action suggestions unless the user also asks for an app action.',
+      'You may proactively suggest add_inbox_note when the drill reveals a durable usage distinction, contrast, or reminder that would be worth saving for later study even if the user did not explicitly ask to save a note.',
+      'Treat the listed source cards as the intended challenge focus, but accept other correct target-language solutions when they answer the English prompt naturally.',
+      'If the learner gives a natural, correct translation that uses a valid synonym or alternate idiom instead of the intended source card, acknowledge that it works, then give a brief hint toward the target card rather than immediately revealing it.',
+      'If the learner leaves an English word or phrase in the answer because they do not know it, first decide whether that missing word is the intended source-card target or a different supporting word.',
+      'If the missing English word is the intended source-card target, respond like the valid-but-off-target case: hint toward the target card first and avoid fully revealing it immediately.',
+      'If the missing English word is not the intended source-card target, you may directly give a good target-language word or phrase for that missing piece while still helping the learner complete the sentence.',
+      'If prior conversation history shows you already hinted and the learner still has not used the intended card, reveal the target wording and explain why it was the preferred practice target for this challenge.',
+      'Only call the answer plainly wrong when it is ungrammatical, semantically off, or a materially worse fit for the prompt.',
       'If the user asks a follow-up question about the challenge, source cards, or context, answer the question directly instead of treating it as a new translation attempt.',
     );
   }

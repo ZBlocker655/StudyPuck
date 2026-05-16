@@ -27,7 +27,9 @@ export const POST: RequestHandler = async (event) => {
   try {
     const result = await withTransactionDb(
       env.DATABASE_URL,
-      (database) => applyTranslationDrillAction(userId, languageId, body, database as never),
+      (database) => applyTranslationDrillAction(userId, languageId, body, database as never, undefined, {
+        privateEnv: env,
+      }),
     );
 
     return json(result);

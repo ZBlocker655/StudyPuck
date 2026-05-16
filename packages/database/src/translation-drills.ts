@@ -840,6 +840,44 @@ export async function disableTranslationDrillCard(
   });
 }
 
+export async function recordTranslationDrillChallengeUsage(
+  userId: string,
+  languageId: string,
+  cardIds: readonly string[],
+  options: { occurredAt?: Date } = {},
+  database?: AnyDb,
+): Promise<void> {
+  const normalizedCardIds = [...new Set(cardIds.map((cardId) => cardId.trim()).filter(Boolean))];
+
+  if (normalizedCardIds.length === 0) {
+    return;
+  }
+
+  const occurredAt = options.occurredAt ?? new Date();
+
+  await runInTransaction(database, async (tx) => {
+    const contextCards = await Promise.all(normalizedCardIds.map(async (cardId) => requireContextCard(userId, languageId, cardId, tx)));
+
+    if (contextCards.some((card) => card.state !== 'active')) {
+      throw new Error('Only active Translation Drills cards can be recorded for challenge usage.');
+    }
+
+    for (const card of contextCards) {
+      await tx
+        .update(translationDrillContext)
+        .set({
+          lastUsed: occurredAt,
+          usageCount: card.usageCount + 1,
+        })
+        .where(and(
+          eq(translationDrillContext.userId, userId),
+          eq(translationDrillContext.languageId, languageId),
+          eq(translationDrillContext.cardId, card.cardId),
+        ));
+    }
+  });
+}
+
 export async function dismissTranslationDrillCard(
   userId: string,
   languageId: string,

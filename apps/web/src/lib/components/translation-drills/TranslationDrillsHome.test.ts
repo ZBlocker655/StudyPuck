@@ -218,4 +218,53 @@ describe('TranslationDrillsHome', () => {
       expect(screen.queryByRole('button', { name: '💤 Snooze' })).toBeNull();
     });
   });
+
+  it('opens card detail from the drill context and lets the user close the drawer', async () => {
+    render(TranslationDrillsHome, {
+      props: {
+        lang: 'zh',
+        home: createHome(),
+        loadError: null,
+      },
+    });
+
+    const activeCardRow = screen.getByLabelText('经历').closest('article');
+    expect(activeCardRow).toBeTruthy();
+    await fireEvent.click(within(activeCardRow as HTMLElement).getByRole('button', { name: '···' }));
+    await fireEvent.click(screen.getByRole('button', { name: 'View card detail' }));
+
+    const closeButton = await screen.findByRole('button', { name: 'Close drawer' });
+    expect(closeButton.hasAttribute('disabled')).toBe(false);
+
+    await fireEvent.click(closeButton);
+
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Close drawer' })).toBeNull();
+    });
+  });
+
+  it('keeps the drawer open when the home prop is refreshed with the same visible card', async () => {
+    const view = render(TranslationDrillsHome, {
+      props: {
+        lang: 'zh',
+        home: createHome(),
+        loadError: null,
+      },
+    });
+
+    const activeCardRow = screen.getByLabelText('经历').closest('article');
+    expect(activeCardRow).toBeTruthy();
+    await fireEvent.click(within(activeCardRow as HTMLElement).getByRole('button', { name: '···' }));
+    await fireEvent.click(screen.getByRole('button', { name: 'View card detail' }));
+
+    await screen.findByRole('button', { name: 'Close drawer' });
+
+    await view.rerender({
+      lang: 'zh',
+      home: createHome(),
+      loadError: null,
+    });
+
+    expect(screen.getByRole('button', { name: 'Close drawer' })).toBeTruthy();
+  });
 });

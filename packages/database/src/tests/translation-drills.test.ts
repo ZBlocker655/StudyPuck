@@ -21,6 +21,7 @@ import {
   listTranslationDrillContextCards,
   listTranslationDrillDrawPileGroups,
   pinCardToTranslationDrillsContext,
+  recordTranslationDrillChallengeUsage,
   snoozeTranslationDrillCard,
   upsertTranslationDrillDrawPile,
 } from '../translation-drills.js';
@@ -303,6 +304,40 @@ describe('Translation Drills database operations', () => {
 
     expect(drawn.cardId).toBe('card-new');
     expect(dailyStats?.cardsDrawn).toBe(1);
+  });
+
+  it('records selected challenge cards as used', async () => {
+    await seedLibrary();
+
+    await recordTranslationDrillChallengeUsage(
+      TEST_USER.userId,
+      TEST_LANG.languageId,
+      ['card-active', 'card-pinned'],
+      { occurredAt: NOW },
+      db,
+    );
+
+    const storedContextCards = await db
+      .select({
+        cardId: translationDrillContext.cardId,
+        usageCount: translationDrillContext.usageCount,
+        lastUsed: translationDrillContext.lastUsed,
+      })
+      .from(translationDrillContext)
+      .where(eq(translationDrillContext.userId, TEST_USER.userId));
+
+    expect(storedContextCards).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        cardId: 'card-active',
+        usageCount: 2,
+        lastUsed: NOW,
+      }),
+      expect.objectContaining({
+        cardId: 'card-pinned',
+        usageCount: 5,
+        lastUsed: NOW,
+      }),
+    ]));
   });
 
   it('updates snooze, dismiss, and disable state without touching core card status', async () => {
