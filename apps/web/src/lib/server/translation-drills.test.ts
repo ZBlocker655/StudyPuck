@@ -397,6 +397,77 @@ describe('applyTranslationDrillAction', () => {
     });
   });
 
+  it('rotates default challenge source cards away from the previous challenge when possible', async () => {
+    const rotatingDeps = {
+      ...actionDeps,
+      listTranslationDrillChallengeCards: vi.fn(async () => [
+        {
+          cardId: 'card-2',
+          content: '把握',
+          meaning: 'to grasp',
+          cardType: 'word',
+          examples: [],
+          mnemonics: [],
+          llmInstructions: 'Prefer aspect pairs',
+          updatedAt: new Date('2026-05-02T12:00:00.000Z'),
+          sourceGroup: null,
+          addedFrom: 'pinned_from_review',
+          addedAt: new Date('2026-05-09T12:00:00.000Z'),
+          lastUsedAt: new Date('2026-05-09T12:05:00.000Z'),
+          usageCount: 2,
+          state: 'active' as const,
+          stateUntil: null,
+          cefrOverride: 'B2',
+          metadata: null,
+          nextDueAt: new Date('2026-05-13T12:00:00.000Z'),
+          intervalDays: 3,
+          performanceScore: 0.8,
+        },
+        {
+          cardId: 'card-1',
+          content: '补偿',
+          meaning: 'to compensate',
+          cardType: 'word',
+          examples: [],
+          mnemonics: [],
+          llmInstructions: null,
+          updatedAt: new Date('2026-05-01T12:00:00.000Z'),
+          sourceGroup: { groupId: 'group-core', groupName: 'Core' },
+          addedFrom: 'draw_pile:group-core',
+          addedAt: new Date('2026-05-08T12:00:00.000Z'),
+          lastUsedAt: null,
+          usageCount: 0,
+          state: 'active' as const,
+          stateUntil: null,
+          cefrOverride: null,
+          metadata: null,
+          nextDueAt: null,
+          intervalDays: null,
+          performanceScore: null,
+        },
+      ]),
+    } as unknown as TranslationDrillActionDeps;
+
+    const result = await applyTranslationDrillAction(
+      'user-1',
+      'zh',
+      {
+        action: 'challenge-start',
+        previousSourceCardIds: ['card-2', 'card-1'],
+      },
+      database,
+      rotatingDeps,
+    );
+
+    expect(result).toMatchObject({
+      action: 'challenge-start',
+      challenge: {
+        prompt: 'We should compensate this carefully before we grasp.',
+        sourceCardIds: ['card-1', 'card-2'],
+      },
+    });
+  });
+
   it('rejects invalid Translation Drills action payloads', async () => {
     await expect(applyTranslationDrillAction(
       'user-1',

@@ -78,6 +78,7 @@ const translationDrillActionSchema = z.discriminatedUnion('action', [
   z.object({
     action: z.literal('challenge-start'),
     sourceCardIds: z.array(activeCardIdSchema).min(1).max(10).optional(),
+    previousSourceCardIds: z.array(activeCardIdSchema).min(1).max(10).optional(),
   }),
   z.object({
     action: z.literal('challenge-clear'),
@@ -341,6 +342,42 @@ function buildChallengePrompt(cards: TranslationDrillContextCard[]) {
     : `I want to ${firstMeaning} this more clearly today.`;
 }
 
+function selectDefaultChallengeSourceCardIds(
+  cards: TranslationDrillContextCard[],
+  previousSourceCardIds: readonly string[] | undefined,
+) {
+  const cardIds = cards.map((card) => card.cardId);
+
+  if (cardIds.length === 0) {
+    throw new TranslationDrillRequestError(400, 'Draw or pin at least one active card before starting a challenge.');
+  }
+
+  if (cardIds.length === 1 || !previousSourceCardIds || previousSourceCardIds.length === 0) {
+    return cardIds.slice(0, Math.min(2, cardIds.length));
+  }
+
+  const previousChallengeKey = previousSourceCardIds.join('|');
+  const firstPreviousIndex = cardIds.indexOf(previousSourceCardIds[0] ?? '');
+
+  if (firstPreviousIndex === -1) {
+    return cardIds.slice(0, Math.min(2, cardIds.length));
+  }
+
+  for (let offset = 1; offset < cardIds.length; offset += 1) {
+    const startIndex = (firstPreviousIndex + offset) % cardIds.length;
+    const candidate = Array.from(
+      { length: Math.min(2, cardIds.length) },
+      (_, index) => cardIds[(startIndex + index) % cardIds.length]!,
+    );
+
+    if (candidate.join('|') !== previousChallengeKey) {
+      return candidate;
+    }
+  }
+
+  return cardIds.slice(0, Math.min(2, cardIds.length));
+}
+
 export async function loadTranslationDrillHomeData(
   userId: string,
   languageId: string,
@@ -524,7 +561,8 @@ export async function applyTranslationDrillAction(
 
       case 'challenge-start': {
         const availableChallengeCards = await deps.listTranslationDrillChallengeCards(userId, languageId, database as never);
-        const selectedSourceCardIds = payload.sourceCardIds ?? availableChallengeCards.slice(0, 2).map((card) => card.cardId);
+        const selectedSourceCardIds = payload.sourceCardIds
+          ?? selectDefaultChallengeSourceCardIds(availableChallengeCards, payload.previousSourceCardIds);
 
         await validateChallengeSourceCards(userId, languageId, selectedSourceCardIds, database, deps);
 
