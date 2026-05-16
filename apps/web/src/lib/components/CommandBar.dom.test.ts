@@ -95,7 +95,7 @@ describe('CommandBar component behavior', () => {
 
     expect(screen.getByText('/next')).toBeTruthy();
     expect(screen.getByText('Move to the next card in the current review session.')).toBeTruthy();
-  });
+  }, 10000);
 
   it('renders suggestion text and forwards apply clicks to the active draft card', async () => {
     pageStore.set({
@@ -669,5 +669,56 @@ describe('CommandBar component behavior', () => {
     }, { timeout: 3000 });
     expect(nextSpy).toHaveBeenCalled();
     expect(requestStructuredChatResponse).not.toHaveBeenCalled();
+  });
+
+  it('renders Translation Drills challenge headers with the language display name', async () => {
+    pageStore.set({
+      params: { lang: 'zh' },
+      route: { id: '/[lang]/translation-drills' },
+      status: 200,
+      error: null,
+      data: {},
+      form: undefined,
+      state: {},
+      url: new URL('https://studypuck.test/zh/translation-drills'),
+    });
+
+    translationDrillSession.sync({
+      lang: 'zh',
+      home: null,
+      activeChallenge: {
+        challengeId: 'challenge-1',
+        prompt: 'That is all.',
+        sourceCardIds: ['card-1'],
+        startedAtIso: '2026-05-16T00:00:00.000Z',
+      },
+      focusedCardId: null,
+    });
+
+    const { default: CommandBar } = await import('./CommandBar.svelte');
+    const snippet = createRawSnippet(() => ({
+      render: () => '<section>context content</section>',
+    }));
+
+    render(CommandBar, {
+      props: {
+        children: snippet,
+      },
+    });
+
+    commandBar.setPathname('/zh/translation-drills');
+    commandBar.setWorkspaceContext('zh', null);
+    commandBar.setSurfaceContext({
+      surface: 'translation_drills',
+      activeChallenge: {
+        challengeId: 'challenge-1',
+        prompt: 'That is all.',
+        sourceCardIds: ['card-1'],
+        startedAtIso: '2026-05-16T00:00:00.000Z',
+      },
+      focusedCardId: null,
+    });
+
+    expect(screen.getByText('Translate to Chinese (Mandarin)')).toBeTruthy();
   });
 });

@@ -9,6 +9,7 @@
   import { resolveCardReviewCommandResponse } from '$lib/command-bar/card-review.js';
   import { resolveCardEntryCommandResponse } from '$lib/command-bar/card-entry.js';
   import { resolveTranslationDrillCommandResponse } from '$lib/command-bar/translation-drills.js';
+  import { getLanguageByCode } from '$lib/config/languages.js';
   import { translationDrillSession } from '$lib/stores/translationDrillSession.js';
   import { translationDrillSessionActions } from '$lib/stores/translationDrillSessionActions.js';
   import { activeCardSuggestionActions } from '$lib/stores/activeCardSuggestionActions.js';
@@ -53,6 +54,9 @@
     !isDesktop && $commandBar.mobileSheetOpen && ($commandBar.messages.length > 0 || $commandBar.isWaiting),
   );
   const activeTranslationDrillChallenge = $derived($translationDrillSession.activeChallenge);
+  const translationDrillTargetLanguageLabel = $derived(
+    getLanguageByCode($translationDrillSession.lang ?? undefined)?.label ?? 'your language',
+  );
 
   function updateDesktopMode() {
     isDesktop = mediaQueryList?.matches ?? false;
@@ -678,7 +682,7 @@
 
         {#if $commandBar.routeContext.commandContext === 'translation-drills' && activeTranslationDrillChallenge}
           <section class="translation-drill-challenge stack" style="--stack-space: var(--space-1)" role="status" aria-live="polite">
-            <p class="translation-drill-challenge__eyebrow">Translate to {$translationDrillSession.lang ? $translationDrillSession.lang.toUpperCase() : 'your language'}</p>
+            <p class="translation-drill-challenge__eyebrow">Translate to {translationDrillTargetLanguageLabel}</p>
             <p class="translation-drill-challenge__prompt">{activeTranslationDrillChallenge.prompt}</p>
           </section>
         {/if}
@@ -795,7 +799,7 @@
 
       {#if $commandBar.routeContext.commandContext === 'translation-drills' && activeTranslationDrillChallenge}
         <section class="translation-drill-challenge stack" style="--stack-space: var(--space-1)" role="status" aria-live="polite">
-          <p class="translation-drill-challenge__eyebrow">Translate to {$translationDrillSession.lang ? $translationDrillSession.lang.toUpperCase() : 'your language'}</p>
+          <p class="translation-drill-challenge__eyebrow">Translate to {translationDrillTargetLanguageLabel}</p>
           <p class="translation-drill-challenge__prompt">{activeTranslationDrillChallenge.prompt}</p>
         </section>
       {/if}

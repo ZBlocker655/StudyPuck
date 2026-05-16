@@ -275,7 +275,7 @@ describe('commandBar entity context and conversation reset', () => {
     });
   });
 
-  it('resets messages when Translation Drills starts a new challenge', () => {
+  it('keeps messages when the active Translation Drills challenge changes within the same surface', () => {
     commandBar.setWorkspaceContext('es', null);
     commandBar.setSurfaceContext({
       surface: 'translation_drills',
@@ -295,7 +295,11 @@ describe('commandBar entity context and conversation reset', () => {
     });
 
     const state = getState();
-    expect(state.messages).toEqual([]);
+    expect(state.messages).toHaveLength(1);
+    expect(state.messages[0]).toMatchObject({
+      role: 'assistant',
+      content: 'Existing conversation',
+    });
     expect(state.surfaceContextHint).toMatchObject({
       surface: 'translation_drills',
       activeChallenge: {

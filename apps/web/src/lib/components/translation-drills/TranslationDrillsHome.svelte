@@ -574,6 +574,7 @@
     try {
       const result = await postAction({
         action: 'challenge-start',
+        previousSourceCardIds: activeChallenge?.sourceCardIds,
       });
 
       if (result.action !== 'challenge-start') {
