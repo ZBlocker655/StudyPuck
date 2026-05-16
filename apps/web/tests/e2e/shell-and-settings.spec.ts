@@ -87,7 +87,7 @@ test('saves a language-specific Card Entry example sentence format', async ({ pa
 	});
 	await chineseCard
 		.locator('input[name="exampleSentenceFormat"][value="sentence_transliteration_translation"]')
-		.check();
+		.check({ force: true });
 	await chineseCard.getByRole('button', { name: 'Save Example Format', exact: true }).click();
 
 	await expect(chineseCard).toContainText(
