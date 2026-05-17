@@ -66,6 +66,18 @@ The LLM creates English sentences following specific behavioral requirements:
 - **Cross-group Integration**: When possible, use cards from different groups within the same sentence to reinforce connections
 - **Context Awareness**: Draw from currently active cards in the translation context
 
+### Challenge Quality Definition
+
+A good Translation Drills challenge is not just any sentence that mentions a card's dictionary gloss. It must satisfy all of the following:
+
+- **Natural English prompt**: The sentence should sound like something a real person might say or write, not a template or study-app instruction.
+- **Clear lexical target**: The prompt should create a concrete opportunity to use the intended card or cards in the target language.
+- **Focused difficulty**: One focus card is preferred; a second card is only used when it creates a more natural sentence rather than a more crowded one.
+- **Idiomatic respect**: Phrase, collocation, and idiom cards must be exercised in believable situations. The prompt should not flatten them into awkward literal English.
+- **Card-aware grounding**: Card examples, card type, and per-card LLM instructions should influence challenge selection and phrasing.
+- **No brittle gloss splicing**: The system must not build challenge text by mechanically inserting raw card meanings into canned sentence shells.
+- **Evaluation-ready scope**: The resulting challenge should be specific enough that the follow-up feedback can judge whether the learner used the intended structure naturally, while still allowing valid alternative phrasings.
+
 ### User Translation
 
 - **One Sentence at a Time**: Each translation exercise focuses on a single English sentence
@@ -78,6 +90,7 @@ The LLM creates English sentences following specific behavioral requirements:
 - **Grammar Focus**: Emphasis on grammatical accuracy and proper usage patterns
 - **Usage Guidance**: Corrections that explain not just what was wrong but why
 - **Conversational Support**: LLM can engage in follow-up discussion about translation choices, alternative approaches, or related grammar concepts
+- **Card-target awareness**: Feedback should explicitly note whether the learner used the intended focus card or cards naturally, and whether a different phrasing is still acceptable
 
 ## Context Management Operations
 

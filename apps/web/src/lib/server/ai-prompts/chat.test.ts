@@ -317,6 +317,13 @@ describe('buildStructuredChatPrompt', () => {
     expect(prompt.userPrompt).toContain('{"type":"next_translation_drill_challenge","payload":{}}');
     expect(prompt.userPrompt).toContain('The active Translation Drills challenge is authoritative app state.');
     expect(prompt.userPrompt).toContain('If the user message looks like an attempted translation for the active challenge');
+    expect(prompt.userPrompt).toContain('You may proactively suggest add_inbox_note when the drill reveals a durable usage distinction');
+    expect(prompt.userPrompt).toContain('If the learner gives a natural, correct translation that uses a valid synonym');
+    expect(prompt.userPrompt).toContain('If the learner leaves an English word or phrase in the answer');
+    expect(prompt.userPrompt).toContain('If the missing English word is the intended source-card target');
+    expect(prompt.userPrompt).toContain('If the missing English word is not the intended source-card target');
+    expect(prompt.userPrompt).toContain('If prior conversation history shows you already hinted');
+    expect(prompt.userPrompt).toContain('Only call the answer plainly wrong when it is ungrammatical');
     expect(prompt.userPrompt).toContain('follow-up question about the challenge');
     expect(prompt.userPrompt).toContain('Use exact groupId and cardId values from the Translation Drills machine context');
   });

@@ -685,7 +685,80 @@ describe('CommandBar component behavior', () => {
 
     translationDrillSession.sync({
       lang: 'zh',
-      home: null,
+      home: {
+        summary: {
+          configuredGroupCount: 1,
+          activeCardCount: 1,
+          snoozedCardCount: 0,
+          dismissedCardCount: 0,
+          disabledCardCount: 0,
+          remainingDrawCount: 0,
+          hasConfiguredDrawPiles: true,
+          hasVisibleContext: true,
+        },
+        availableGroups: [{ groupId: 'group-1', groupName: 'Core' }],
+        configuredGroups: [{
+          groupId: 'group-1',
+          groupName: 'Core',
+          drawPileName: null,
+          pileSizeLimit: 4,
+          remainingCardCount: 0,
+          activeCards: [{
+            cardId: 'card-1',
+            content: '谈论',
+            meaning: 'to discuss',
+            cardType: 'word',
+            examples: [],
+            mnemonics: [],
+            llmInstructions: null,
+            updatedAtIso: null,
+            sourceGroup: { groupId: 'group-1', groupName: 'Core' },
+            addedFrom: 'draw_pile:group-1',
+            addedAtIso: null,
+            lastUsedAtIso: null,
+            usageCount: 0,
+            state: 'active',
+            stateUntilIso: null,
+            cefrOverride: null,
+            nextDueAtIso: null,
+            intervalDays: null,
+            performanceScore: null,
+            dismissSchedule: null,
+          }],
+          snoozedCards: [],
+        }],
+        ungroupedContextCards: [],
+        challenge: {
+          activeChallenge: null,
+          generationInput: {
+            activeCardCount: 1,
+            cefrLevel: 'B1',
+            cards: [{
+              cardId: 'card-1',
+              content: '谈论',
+              meaning: 'to discuss',
+              cardType: 'word',
+              examples: [],
+              mnemonics: [],
+              llmInstructions: null,
+              updatedAtIso: null,
+              sourceGroup: { groupId: 'group-1', groupName: 'Core' },
+              addedFrom: 'draw_pile:group-1',
+              addedAtIso: null,
+              lastUsedAtIso: null,
+              usageCount: 0,
+              state: 'active',
+              stateUntilIso: null,
+              cefrOverride: null,
+              nextDueAtIso: null,
+              intervalDays: null,
+              performanceScore: null,
+              dismissSchedule: null,
+            }],
+            suggestedSourceCardIds: ['card-1'],
+          },
+        },
+      },
       activeChallenge: {
         challengeId: 'challenge-1',
         prompt: 'That is all.',
@@ -720,5 +793,6 @@ describe('CommandBar component behavior', () => {
     });
 
     expect(screen.getByText('Translate to Chinese (Mandarin)')).toBeTruthy();
+    expect(screen.queryByRole('list', { name: 'Challenge focus cards' })).toBeNull();
   });
 });

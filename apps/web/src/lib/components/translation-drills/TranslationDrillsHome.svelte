@@ -65,8 +65,22 @@
   let availableDrawerGroups: Array<{ groupId: string; groupName: string }> = [];
   let lastHandledSessionActionId = get(translationDrillSessionActions)?.actionId ?? 0;
 
+  function hasCard(homeData: HomeState | null, cardId: string | null) {
+    if (!homeData || !cardId) {
+      return false;
+    }
+
+    return homeData.configuredGroups.some((group) =>
+      group.activeCards.some((card) => card.cardId === cardId) ||
+      group.snoozedCards.some((card) => card.cardId === cardId),
+    ) || homeData.ungroupedContextCards.some((card) => card.cardId === cardId);
+  }
+
   $: if (home !== previousHome) {
-    homeState = home ? structuredClone(home) : null;
+    const nextHomeState = home ? structuredClone(home) : null;
+    const nextDrawerCardId = hasCard(nextHomeState, drawerCardId) ? drawerCardId : null;
+
+    homeState = nextHomeState;
     previousHome = home;
     actionMessage = '';
     actionError = null;
@@ -77,7 +91,7 @@
     learnMoreExpanded = false;
     activeChallenge = home?.challenge.activeChallenge ?? null;
     focusedCardId = null;
-    drawerCardId = null;
+    drawerCardId = nextDrawerCardId;
     if (homeState) {
       syncGenerationInput();
     }

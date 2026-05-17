@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher, onDestroy, tick } from 'svelte';
+  import { createEventDispatcher, onDestroy, onMount, tick } from 'svelte';
   import { get } from 'svelte/store';
   import {
     addEditableGroup,
@@ -69,6 +69,7 @@
   let groupSearchInput: HTMLInputElement | null = null;
   let llmInstructionsOpen = Boolean(card.llmInstructions);
   let lastHandledSuggestionActionId = get(activeCardSuggestionActions)?.actionId ?? 0;
+  let backdropCloseReady = false;
 
   function serializePayload(payload: ReturnType<typeof buildPayload>) {
     return JSON.stringify(payload);
@@ -348,6 +349,11 @@
   async function handleClose() {
     deleteConfirmOpen = false;
 
+    if (disabled) {
+      dispatch('close');
+      return;
+    }
+
     if (await persistDraft()) {
       dispatch('close');
     }
@@ -461,6 +467,25 @@
   onDestroy(() => {
     clearSavedIndicatorTimer();
   });
+
+  onMount(() => {
+    const frameId = requestAnimationFrame(() => {
+      backdropCloseReady = true;
+      drawerElement?.focus();
+    });
+
+    return () => {
+      cancelAnimationFrame(frameId);
+    };
+  });
+
+  function handleBackdropClick() {
+    if (!backdropCloseReady) {
+      return;
+    }
+
+    void handleClose();
+  }
 </script>
 
 <svelte:window on:keydown={handleWindowKeydown} />
@@ -469,7 +494,7 @@
   type="button"
   class="active-card-drawer__backdrop"
   aria-label="Close card detail drawer"
-  on:click={() => void handleClose()}
+  on:click={handleBackdropClick}
 ></button>
 
 <div
@@ -516,7 +541,7 @@
           type="button"
           class="active-card-drawer__close"
           aria-label="Close drawer"
-          disabled={disabled || removePending}
+          disabled={removePending}
           on:click={() => void handleClose()}
         >
           ✕

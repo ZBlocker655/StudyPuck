@@ -124,6 +124,119 @@ describe('createAiService', () => {
     expect(silentHooks.onRequestFailure).toHaveBeenCalledTimes(1);
   });
 
+  it('repairs malformed JSON deterministically before falling back to another provider', async () => {
+    const geminiGenerator = vi.fn(async () => '{"draftCards":[{"content":"say "hola""}]}');
+    const openAiGenerator = vi.fn(async () => '{"draftCards":[{"content":"fallback"}]}');
+    const service = createAiService({
+      privateEnv: {
+        GEMINI_API_KEY: 'test-gemini-key',
+        OPENAI_API_KEY: 'test-openai-key',
+      },
+      hooks: silentHooks,
+      providerGenerators: {
+        gemini: geminiGenerator,
+        openai: openAiGenerator,
+      },
+    });
+
+    const response = await service.generateStructured({
+      metadata: {
+        feature: 'chat',
+        operation: 'conversation',
+        userId: 'user-1',
+        languageId: 'zh',
+        routeContextType: 'translation-drills',
+      },
+      systemPrompt: 'system',
+      userPrompt: 'user',
+      responseSchema,
+    });
+
+    expect(response).toEqual({
+      draftCards: [{ content: 'say "hola"' }],
+    });
+    expect(geminiGenerator).toHaveBeenCalledTimes(1);
+    expect(openAiGenerator).not.toHaveBeenCalled();
+  });
+
+  it('uses an LLM repair pass before falling back to another provider', async () => {
+    const geminiGenerator = vi.fn(async (request: { systemPrompt: string }) =>
+      request.systemPrompt.includes('repair malformed JSON')
+        ? '{"draftCards":[{"content":"repaired"}]}'
+        : '{"draftCards":[{"content":"hola"}]',
+    );
+    const openAiGenerator = vi.fn(async () => '{"draftCards":[{"content":"fallback"}]}');
+    const service = createAiService({
+      privateEnv: {
+        GEMINI_API_KEY: 'test-gemini-key',
+        OPENAI_API_KEY: 'test-openai-key',
+      },
+      hooks: silentHooks,
+      providerGenerators: {
+        gemini: geminiGenerator,
+        openai: openAiGenerator,
+      },
+    });
+
+    const response = await service.generateStructured({
+      metadata: {
+        feature: 'chat',
+        operation: 'conversation',
+        userId: 'user-1',
+        languageId: 'zh',
+        routeContextType: 'translation-drills',
+      },
+      systemPrompt: 'system',
+      userPrompt: 'user',
+      responseSchema,
+    });
+
+    expect(response).toEqual({
+      draftCards: [{ content: 'repaired' }],
+    });
+    expect(geminiGenerator).toHaveBeenCalledTimes(2);
+    expect(openAiGenerator).not.toHaveBeenCalled();
+  });
+
+  it('falls back to OpenAI after deterministic and LLM repair both fail', async () => {
+    const geminiGenerator = vi.fn(async (request: { systemPrompt: string }) =>
+      request.systemPrompt.includes('repair malformed JSON')
+        ? '{"draftCards":['
+        : '{"draftCards":[{"content":"hola"}]',
+    );
+    const openAiGenerator = vi.fn(async () => '{"draftCards":[{"content":"fallback"}]}');
+    const service = createAiService({
+      privateEnv: {
+        GEMINI_API_KEY: 'test-gemini-key',
+        OPENAI_API_KEY: 'test-openai-key',
+      },
+      hooks: silentHooks,
+      providerGenerators: {
+        gemini: geminiGenerator,
+        openai: openAiGenerator,
+      },
+    });
+
+    const response = await service.generateStructured({
+      metadata: {
+        feature: 'chat',
+        operation: 'conversation',
+        userId: 'user-1',
+        languageId: 'zh',
+        routeContextType: 'translation-drills',
+      },
+      systemPrompt: 'system',
+      userPrompt: 'user',
+      responseSchema,
+    });
+
+    expect(response).toEqual({
+      draftCards: [{ content: 'fallback' }],
+    });
+    expect(geminiGenerator).toHaveBeenCalledTimes(2);
+    expect(openAiGenerator).toHaveBeenCalledTimes(1);
+  });
+
   it('throws a configuration error when no providers are configured', async () => {
     const service = createAiService({
       privateEnv: {},

@@ -362,8 +362,8 @@ async function loadContextRows(
       ...(normalizedCardIds.length > 0 ? [inArray(translationDrillContext.cardId, normalizedCardIds)] : []),
     ))
     .orderBy(
-      sql`${translationDrillContext.lastUsed} ASC NULLS FIRST`,
-      asc(translationDrillContext.usageCount),
+      sql`COALESCE(${translationDrillContext.lastUsed}, to_timestamp(${translationDrillSrs.lastUsed})) ASC NULLS FIRST`,
+      sql`GREATEST(COALESCE(${translationDrillContext.usageCount}, 0), COALESCE(${translationDrillSrs.usageCount}, 0))`,
       desc(cards.updatedAt),
     );
 }
@@ -438,12 +438,16 @@ function buildGroupLookup(groupRows: Array<{ groupId: string; groupName: string 
   return new Map(groupRows.map((group) => [group.groupId, group.groupName]));
 }
 
+function getEffectiveUsageCount(contextUsageCount: number | null, srsUsageCount: number | null): number {
+  return Math.max(contextUsageCount ?? 0, srsUsageCount ?? 0);
+}
+
 function mapContextCard(
   row: TranslationDrillContextRow,
   groupLookup: Map<string, string>,
 ): TranslationDrillContextCard {
   const sourceGroupId = parseDrawPileSourceGroupId(row.addedFrom);
-  const usageCount = row.contextUsageCount ?? row.srsUsageCount ?? 0;
+  const usageCount = getEffectiveUsageCount(row.contextUsageCount, row.srsUsageCount);
 
   return {
     cardId: row.cardId,
@@ -837,6 +841,44 @@ export async function disableTranslationDrillCard(
       usageCount: updated.usageCount,
       performanceScore: updated.performanceScore,
     };
+  });
+}
+
+export async function recordTranslationDrillChallengeUsage(
+  userId: string,
+  languageId: string,
+  cardIds: readonly string[],
+  options: { occurredAt?: Date } = {},
+  database?: AnyDb,
+): Promise<void> {
+  const normalizedCardIds = [...new Set(cardIds.map((cardId) => cardId.trim()).filter(Boolean))];
+
+  if (normalizedCardIds.length === 0) {
+    return;
+  }
+
+  const occurredAt = options.occurredAt ?? new Date();
+
+  await runInTransaction(database, async (tx) => {
+    const contextCards = await Promise.all(normalizedCardIds.map(async (cardId) => requireContextCard(userId, languageId, cardId, tx)));
+
+    if (contextCards.some((card) => card.state !== 'active')) {
+      throw new Error('Only active Translation Drills cards can be recorded for challenge usage.');
+    }
+
+    for (const card of contextCards) {
+      await tx
+        .update(translationDrillContext)
+        .set({
+          lastUsed: occurredAt,
+          usageCount: card.usageCount + 1,
+        })
+        .where(and(
+          eq(translationDrillContext.userId, userId),
+          eq(translationDrillContext.languageId, languageId),
+          eq(translationDrillContext.cardId, card.cardId),
+        ));
+    }
   });
 }
 

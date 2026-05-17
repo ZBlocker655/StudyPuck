@@ -291,6 +291,7 @@ describe('applyTranslationDrillAction', () => {
       usageCount: 1,
       performanceScore: null,
     })),
+    recordTranslationDrillChallengeUsage: vi.fn(async () => undefined),
     getTranslationDrillDismissSchedule: vi.fn(async () => ({
       cardId: 'card-1',
       recommendedDays: 5,
@@ -376,6 +377,10 @@ describe('applyTranslationDrillAction', () => {
   });
 
   it('validates challenge source cards against the active context', async () => {
+    const planChallenge = vi.fn(async () => ({
+      prompt: 'Can you make up for the delay before everyone notices?',
+      sourceCardIds: ['card-1'],
+    }));
     const result = await applyTranslationDrillAction(
       'user-1',
       'zh',
@@ -385,19 +390,33 @@ describe('applyTranslationDrillAction', () => {
       },
       database,
       deps,
+      { planChallenge },
     );
 
+    expect(planChallenge).toHaveBeenCalledWith(expect.objectContaining({
+      targetLanguageName: 'Chinese',
+      cefrLevel: 'B1',
+      previousSourceCardIds: undefined,
+      mustUseAllCandidateCards: true,
+    }));
+    expect(actionDeps.recordTranslationDrillChallengeUsage).toHaveBeenCalledWith(
+      'user-1',
+      'zh',
+      ['card-1'],
+      { occurredAt: now },
+      database,
+    );
     expect(result).toMatchObject({
       action: 'challenge-start',
       conversationReset: true,
       challenge: {
-        prompt: 'I want to compensate this more clearly today.',
+        prompt: 'Can you make up for the delay before everyone notices?',
         sourceCardIds: ['card-1'],
       },
     });
   });
 
-  it('rotates default challenge source cards away from the previous challenge when possible', async () => {
+  it('passes the full active challenge context to the planner for automatic challenge selection', async () => {
     const rotatingDeps = {
       ...actionDeps,
       listTranslationDrillChallengeCards: vi.fn(async () => [
@@ -447,6 +466,10 @@ describe('applyTranslationDrillAction', () => {
         },
       ]),
     } as unknown as TranslationDrillActionDeps;
+    const planChallenge = vi.fn(async () => ({
+      prompt: 'She finally got a handle on the situation.',
+      sourceCardIds: ['card-2'],
+    }));
 
     const result = await applyTranslationDrillAction(
       'user-1',
@@ -457,15 +480,193 @@ describe('applyTranslationDrillAction', () => {
       },
       database,
       rotatingDeps,
+      { planChallenge },
     );
 
+    expect(planChallenge).toHaveBeenCalledWith(expect.objectContaining({
+      previousSourceCardIds: ['card-2', 'card-1'],
+      mustUseAllCandidateCards: false,
+      candidateCards: expect.arrayContaining([
+        expect.objectContaining({ cardId: 'card-2' }),
+        expect.objectContaining({ cardId: 'card-1' }),
+      ]),
+    }));
+    expect(actionDeps.recordTranslationDrillChallengeUsage).toHaveBeenCalledWith(
+      'user-1',
+      'zh',
+      ['card-2'],
+      { occurredAt: now },
+      database,
+    );
     expect(result).toMatchObject({
       action: 'challenge-start',
       challenge: {
-        prompt: 'We should compensate this carefully before we grasp.',
-        sourceCardIds: ['card-1', 'card-2'],
+        prompt: 'She finally got a handle on the situation.',
+        sourceCardIds: ['card-2'],
       },
     });
+  });
+
+  it('shortlists automatic challenge candidates to the least-used half before planning', async () => {
+    const shortlistDeps = {
+      ...actionDeps,
+      listTranslationDrillChallengeCards: vi.fn(async () => [
+        {
+          cardId: 'card-1',
+          content: '补偿',
+          meaning: 'to compensate',
+          cardType: 'word',
+          examples: [],
+          mnemonics: [],
+          llmInstructions: null,
+          updatedAt: new Date('2026-05-01T12:00:00.000Z'),
+          sourceGroup: { groupId: 'group-core', groupName: 'Core' },
+          addedFrom: 'draw_pile:group-core',
+          addedAt: new Date('2026-05-08T12:00:00.000Z'),
+          lastUsedAt: null,
+          usageCount: 0,
+          state: 'active' as const,
+          stateUntil: null,
+          cefrOverride: null,
+          metadata: null,
+          nextDueAt: null,
+          intervalDays: null,
+          performanceScore: null,
+        },
+        {
+          cardId: 'card-2',
+          content: '把握',
+          meaning: 'to grasp',
+          cardType: 'word',
+          examples: [],
+          mnemonics: [],
+          llmInstructions: 'Prefer aspect pairs',
+          updatedAt: new Date('2026-05-02T12:00:00.000Z'),
+          sourceGroup: null,
+          addedFrom: 'pinned_from_review',
+          addedAt: new Date('2026-05-09T12:00:00.000Z'),
+          lastUsedAt: new Date('2026-05-09T12:05:00.000Z'),
+          usageCount: 1,
+          state: 'active' as const,
+          stateUntil: null,
+          cefrOverride: 'B2',
+          metadata: null,
+          nextDueAt: new Date('2026-05-13T12:00:00.000Z'),
+          intervalDays: 3,
+          performanceScore: 0.8,
+        },
+        {
+          cardId: 'card-3',
+          content: '当然',
+          meaning: 'of course',
+          cardType: 'word',
+          examples: [],
+          mnemonics: [],
+          llmInstructions: null,
+          updatedAt: new Date('2026-05-03T12:00:00.000Z'),
+          sourceGroup: null,
+          addedFrom: 'pinned_from_review',
+          addedAt: new Date('2026-05-09T12:10:00.000Z'),
+          lastUsedAt: new Date('2026-05-09T12:10:00.000Z'),
+          usageCount: 2,
+          state: 'active' as const,
+          stateUntil: null,
+          cefrOverride: null,
+          metadata: null,
+          nextDueAt: null,
+          intervalDays: null,
+          performanceScore: null,
+        },
+        {
+          cardId: 'card-4',
+          content: '解决',
+          meaning: 'to solve',
+          cardType: 'word',
+          examples: [],
+          mnemonics: [],
+          llmInstructions: null,
+          updatedAt: new Date('2026-05-04T12:00:00.000Z'),
+          sourceGroup: null,
+          addedFrom: 'pinned_from_review',
+          addedAt: new Date('2026-05-09T12:12:00.000Z'),
+          lastUsedAt: new Date('2026-05-09T12:12:00.000Z'),
+          usageCount: 3,
+          state: 'active' as const,
+          stateUntil: null,
+          cefrOverride: null,
+          metadata: null,
+          nextDueAt: null,
+          intervalDays: null,
+          performanceScore: null,
+        },
+        {
+          cardId: 'card-5',
+          content: '其实',
+          meaning: 'actually',
+          cardType: 'word',
+          examples: [],
+          mnemonics: [],
+          llmInstructions: null,
+          updatedAt: new Date('2026-05-05T12:00:00.000Z'),
+          sourceGroup: null,
+          addedFrom: 'pinned_from_review',
+          addedAt: new Date('2026-05-09T12:15:00.000Z'),
+          lastUsedAt: new Date('2026-05-09T12:15:00.000Z'),
+          usageCount: 4,
+          state: 'active' as const,
+          stateUntil: null,
+          cefrOverride: null,
+          metadata: null,
+          nextDueAt: null,
+          intervalDays: null,
+          performanceScore: null,
+        },
+      ]),
+    } as unknown as TranslationDrillActionDeps;
+    const planChallenge = vi.fn(async () => ({
+      prompt: 'Of course we can solve that later.',
+      sourceCardIds: ['card-1'],
+    }));
+
+    await applyTranslationDrillAction(
+      'user-1',
+      'zh',
+      {
+        action: 'challenge-start',
+      },
+      database,
+      shortlistDeps,
+      { planChallenge },
+    );
+
+    expect(planChallenge).toHaveBeenCalledWith(expect.objectContaining({
+      candidateCards: [
+        expect.objectContaining({ cardId: 'card-1' }),
+        expect.objectContaining({ cardId: 'card-2' }),
+      ],
+    }));
+  });
+
+  it('rejects invalid planner output before returning a challenge', async () => {
+    await expect(applyTranslationDrillAction(
+      'user-1',
+      'zh',
+      {
+        action: 'challenge-start',
+        sourceCardIds: ['card-1'],
+      },
+      database,
+      deps,
+      {
+        planChallenge: vi.fn(async () => ({
+          prompt: 'Use the bad card.',
+          sourceCardIds: ['card-2'],
+        })),
+      },
+    )).rejects.toMatchObject({
+      status: 500,
+      message: 'The challenge generator returned an invalid source-card selection.',
+    } satisfies Partial<TranslationDrillRequestError>);
   });
 
   it('rejects invalid Translation Drills action payloads', async () => {
