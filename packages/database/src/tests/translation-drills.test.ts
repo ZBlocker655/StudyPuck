@@ -254,7 +254,7 @@ describe('Translation Drills database operations', () => {
     expect(drawPiles[0]?.activeCards.map((card) => card.cardId)).toEqual(['card-active']);
     expect(drawPiles[0]?.snoozedCards.map((card) => card.cardId)).toEqual(['card-snoozed']);
     expect(contextCards.find((card) => card.cardId === 'card-pinned')?.sourceGroup).toBeNull();
-    expect(challengeCards.map((card) => card.cardId)).toEqual(['card-pinned', 'card-active']);
+    expect(challengeCards.map((card) => card.cardId)).toEqual(['card-active', 'card-pinned']);
   });
 
   it('draws the next eligible card from a configured pile and can pin cards from Card Review', async () => {

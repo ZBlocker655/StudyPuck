@@ -362,8 +362,8 @@ async function loadContextRows(
       ...(normalizedCardIds.length > 0 ? [inArray(translationDrillContext.cardId, normalizedCardIds)] : []),
     ))
     .orderBy(
-      sql`${translationDrillContext.lastUsed} ASC NULLS FIRST`,
-      asc(translationDrillContext.usageCount),
+      sql`COALESCE(${translationDrillContext.lastUsed}, to_timestamp(${translationDrillSrs.lastUsed})) ASC NULLS FIRST`,
+      sql`GREATEST(COALESCE(${translationDrillContext.usageCount}, 0), COALESCE(${translationDrillSrs.usageCount}, 0))`,
       desc(cards.updatedAt),
     );
 }
@@ -438,12 +438,16 @@ function buildGroupLookup(groupRows: Array<{ groupId: string; groupName: string 
   return new Map(groupRows.map((group) => [group.groupId, group.groupName]));
 }
 
+function getEffectiveUsageCount(contextUsageCount: number | null, srsUsageCount: number | null): number {
+  return Math.max(contextUsageCount ?? 0, srsUsageCount ?? 0);
+}
+
 function mapContextCard(
   row: TranslationDrillContextRow,
   groupLookup: Map<string, string>,
 ): TranslationDrillContextCard {
   const sourceGroupId = parseDrawPileSourceGroupId(row.addedFrom);
-  const usageCount = row.contextUsageCount ?? row.srsUsageCount ?? 0;
+  const usageCount = getEffectiveUsageCount(row.contextUsageCount, row.srsUsageCount);
 
   return {
     cardId: row.cardId,
