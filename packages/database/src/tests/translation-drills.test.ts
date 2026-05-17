@@ -317,24 +317,34 @@ describe('Translation Drills database operations', () => {
       db,
     );
 
-    const storedContextCards = await db
+    const contextCards = await listTranslationDrillContextCards(TEST_USER.userId, TEST_LANG.languageId, db);
+    const storedUsageRows = await db
       .select({
         cardId: translationDrillContext.cardId,
-        usageCount: translationDrillContext.usageCount,
         lastUsed: translationDrillContext.lastUsed,
       })
       .from(translationDrillContext)
       .where(eq(translationDrillContext.userId, TEST_USER.userId));
 
-    expect(storedContextCards).toEqual(expect.arrayContaining([
+    expect(contextCards).toEqual(expect.arrayContaining([
       expect.objectContaining({
         cardId: 'card-active',
         usageCount: 2,
-        lastUsed: NOW,
+        lastUsedAt: NOW,
       }),
       expect.objectContaining({
         cardId: 'card-pinned',
         usageCount: 5,
+        lastUsedAt: NOW,
+      }),
+    ]));
+    expect(storedUsageRows).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        cardId: 'card-active',
+        lastUsed: NOW,
+      }),
+      expect.objectContaining({
+        cardId: 'card-pinned',
         lastUsed: NOW,
       }),
     ]));
