@@ -700,7 +700,7 @@ export async function signOffNote(
       throw new Error(`Cannot sign off note ${noteId} because it has no linked draft cards`);
     }
 
-    await promoteDraftCards(userId, languageId, draftCardIds, tx);
+    await promoteDraftCardsInTransaction(userId, languageId, draftCardIds, tx);
     const noteResult = await tx
       .select()
       .from(inboxNotes)
@@ -718,105 +718,112 @@ export async function signOffNote(
   });
 }
 
+async function promoteDraftCardsInTransaction(
+  userId: string,
+  languageId: string,
+  cardIds: string[],
+  tx: AnyDb
+): Promise<PromoteDraftCardsResult> {
+  const uniqueCardIds = [...new Set(cardIds)];
+
+  if (uniqueCardIds.length === 0) {
+    return {
+      promotedCardIds: [],
+      processedNoteIds: [],
+    };
+  }
+
+  const draftCards = await tx
+    .select({ cardId: cards.cardId })
+    .from(cards)
+    .where(and(
+      eq(cards.userId, userId),
+      eq(cards.languageId, languageId),
+      eq(cards.status, 'draft'),
+      inArray(cards.cardId, uniqueCardIds)
+    ));
+
+  const foundCardIds = draftCards.map((card) => card.cardId);
+
+  if (foundCardIds.length !== uniqueCardIds.length) {
+    const foundCardIdSet = new Set(foundCardIds);
+    const missingCardId = uniqueCardIds.find((cardId) => !foundCardIdSet.has(cardId));
+    throw new Error(`Draft card not found: ${missingCardId}`);
+  }
+
+  const groupedCardRows = await tx
+    .select({ cardId: cardGroups.cardId })
+    .from(cardGroups)
+    .where(and(
+      eq(cardGroups.userId, userId),
+      eq(cardGroups.languageId, languageId),
+      inArray(cardGroups.cardId, uniqueCardIds)
+    ));
+
+  const groupedCardIds = new Set(groupedCardRows.map((row) => row.cardId));
+  const cardIdMissingGroup = uniqueCardIds.find((cardId) => !groupedCardIds.has(cardId));
+
+  if (cardIdMissingGroup) {
+    throw new Error(`Draft card requires at least one group before promotion: ${cardIdMissingGroup}`);
+  }
+
+  const linkedNoteRows = await tx
+    .select({ noteId: noteCardLinks.noteId })
+    .from(noteCardLinks)
+    .where(and(
+      eq(noteCardLinks.userId, userId),
+      eq(noteCardLinks.languageId, languageId),
+      inArray(noteCardLinks.cardId, uniqueCardIds)
+    ));
+
+  const affectedNoteIds = [...new Set(linkedNoteRows.map((row) => row.noteId))];
+  const now = new Date();
+
+  await tx
+    .update(cards)
+    .set({
+      status: 'active',
+      updatedAt: now,
+    })
+    .where(and(
+      eq(cards.userId, userId),
+      eq(cards.languageId, languageId),
+      inArray(cards.cardId, uniqueCardIds)
+    ));
+
+  const remainingDraftNoteIds = await getRemainingDraftNoteIds(userId, languageId, affectedNoteIds, tx);
+  const remainingDraftNoteIdSet = new Set(remainingDraftNoteIds);
+  const processedNoteIds = affectedNoteIds.filter((noteId) => !remainingDraftNoteIdSet.has(noteId));
+
+  if (processedNoteIds.length > 0) {
+    await tx
+      .update(inboxNotes)
+      .set({ state: 'processed' })
+      .where(and(
+        eq(inboxNotes.userId, userId),
+        eq(inboxNotes.languageId, languageId),
+        inArray(inboxNotes.noteId, processedNoteIds)
+      ));
+  }
+
+  await incrementCardEntryDailyStats(userId, languageId, {
+    notesProcessed: processedNoteIds.length,
+    cardsPromotedToActive: uniqueCardIds.length,
+  }, tx);
+
+  return {
+    promotedCardIds: uniqueCardIds,
+    processedNoteIds,
+  };
+}
+
 export async function promoteDraftCards(
   userId: string,
   languageId: string,
   cardIds: string[],
   db?: AnyDb
 ): Promise<PromoteDraftCardsResult> {
-  return withTransaction(db, async (tx) => {
-    const uniqueCardIds = [...new Set(cardIds)];
-
-    if (uniqueCardIds.length === 0) {
-      return {
-        promotedCardIds: [],
-        processedNoteIds: [],
-      };
-    }
-
-    const draftCards = await tx
-      .select({ cardId: cards.cardId })
-      .from(cards)
-      .where(and(
-        eq(cards.userId, userId),
-        eq(cards.languageId, languageId),
-        eq(cards.status, 'draft'),
-        inArray(cards.cardId, uniqueCardIds)
-      ));
-
-    const foundCardIds = draftCards.map((card) => card.cardId);
-
-    if (foundCardIds.length !== uniqueCardIds.length) {
-      const foundCardIdSet = new Set(foundCardIds);
-      const missingCardId = uniqueCardIds.find((cardId) => !foundCardIdSet.has(cardId));
-      throw new Error(`Draft card not found: ${missingCardId}`);
-    }
-
-    const groupedCardRows = await tx
-      .select({ cardId: cardGroups.cardId })
-      .from(cardGroups)
-      .where(and(
-        eq(cardGroups.userId, userId),
-        eq(cardGroups.languageId, languageId),
-        inArray(cardGroups.cardId, uniqueCardIds)
-      ));
-
-    const groupedCardIds = new Set(groupedCardRows.map((row) => row.cardId));
-    const cardIdMissingGroup = uniqueCardIds.find((cardId) => !groupedCardIds.has(cardId));
-
-    if (cardIdMissingGroup) {
-      throw new Error(`Draft card requires at least one group before promotion: ${cardIdMissingGroup}`);
-    }
-
-    const linkedNoteRows = await tx
-      .select({ noteId: noteCardLinks.noteId })
-      .from(noteCardLinks)
-      .where(and(
-        eq(noteCardLinks.userId, userId),
-        eq(noteCardLinks.languageId, languageId),
-        inArray(noteCardLinks.cardId, uniqueCardIds)
-      ));
-
-    const affectedNoteIds = [...new Set(linkedNoteRows.map((row) => row.noteId))];
-    const now = new Date();
-
-    await tx
-      .update(cards)
-      .set({
-        status: 'active',
-        updatedAt: now,
-      })
-      .where(and(
-        eq(cards.userId, userId),
-        eq(cards.languageId, languageId),
-        inArray(cards.cardId, uniqueCardIds)
-      ));
-
-    const remainingDraftNoteIds = await getRemainingDraftNoteIds(userId, languageId, affectedNoteIds, tx);
-    const remainingDraftNoteIdSet = new Set(remainingDraftNoteIds);
-    const processedNoteIds = affectedNoteIds.filter((noteId) => !remainingDraftNoteIdSet.has(noteId));
-
-    if (processedNoteIds.length > 0) {
-      await tx
-        .update(inboxNotes)
-        .set({ state: 'processed' })
-        .where(and(
-          eq(inboxNotes.userId, userId),
-          eq(inboxNotes.languageId, languageId),
-          inArray(inboxNotes.noteId, processedNoteIds)
-        ));
-    }
-
-    await incrementCardEntryDailyStats(userId, languageId, {
-      notesProcessed: processedNoteIds.length,
-      cardsPromotedToActive: uniqueCardIds.length,
-    }, tx);
-
-    return {
-      promotedCardIds: uniqueCardIds,
-      processedNoteIds,
-    };
-  });
+  return withTransaction(db, async (tx) => promoteDraftCardsInTransaction(userId, languageId, cardIds, tx));
 }
 
 export async function deleteDraftCards(
