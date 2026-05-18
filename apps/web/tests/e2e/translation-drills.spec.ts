@@ -57,11 +57,10 @@ test('translation drills opens the card detail drawer from the context menu', as
 	const activeCardRow = page.locator('article[aria-label="经历"]');
 	await expect(activeCardRow).toBeVisible();
 	const menuButton = activeCardRow.getByRole('button', { name: '···' });
-	await menuButton.focus();
-	await expect(menuButton).toBeFocused();
-	await menuButton.press('Enter');
+	await menuButton.click();
+	await expect(menuButton).toHaveAttribute('aria-expanded', 'true');
 
-	const viewCardDetailButton = page.getByRole('button', { name: 'View card detail' });
+	const viewCardDetailButton = activeCardRow.getByRole('button', { name: 'View card detail' });
 	await expect(viewCardDetailButton).toBeVisible();
 	await viewCardDetailButton.click();
 
