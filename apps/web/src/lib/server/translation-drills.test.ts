@@ -202,6 +202,25 @@ describe('Translation Drills server helpers', () => {
       status: 404,
     } satisfies Partial<TranslationDrillRequestError>);
   });
+
+  it('normalizes dismiss schedules so Tomorrow is always first', async () => {
+    baseDeps.getTranslationDrillDismissSchedule.mockImplementation(async (_userId: string, _languageId: string, cardId: string) => ({
+      cardId,
+      recommendedDays: 14,
+      optionDays: [30, 14],
+    }));
+
+    const result = await loadTranslationDrillHomeData('user-1', 'zh', database, deps);
+
+    expect(result.configuredGroups[0]?.activeCards[0]?.dismissSchedule).toEqual({
+      recommendedDays: 14,
+      optionDays: [1, 14, 30],
+    });
+    expect(result.challenge.generationInput.cards[0]?.dismissSchedule).toEqual({
+      recommendedDays: 14,
+      optionDays: [1, 14, 30],
+    });
+  });
 });
 
 describe('applyTranslationDrillAction', () => {

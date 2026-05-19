@@ -219,6 +219,34 @@ describe('TranslationDrillsHome', () => {
     });
   });
 
+  it('shows Tomorrow first and keeps the recommended option selected in the dismiss dialog', async () => {
+    const home = createHome();
+    home.configuredGroups[0]!.activeCards = [createCard({
+      dismissSchedule: {
+        recommendedDays: 14,
+        optionDays: [30, 14],
+      },
+    })];
+
+    render(TranslationDrillsHome, {
+      props: {
+        lang: 'zh',
+        home,
+        loadError: null,
+      },
+    });
+
+    await fireEvent.click(screen.getAllByRole('button', { name: '✕ Dismiss' })[0]);
+
+    const dialog = screen.getByRole('dialog');
+    const radios = within(dialog).getAllByRole('radio') as HTMLInputElement[];
+
+    expect(radios.map((radio) => radio.value)).toEqual(['1', '14', '30']);
+    expect(radios[0]?.closest('label')?.textContent).toContain('Tomorrow');
+    expect(radios[1]?.checked).toBe(true);
+    expect(radios[1]?.closest('label')?.textContent).toContain('Recommended');
+  });
+
   it('opens card detail from the drill context and lets the user close the drawer', async () => {
     render(TranslationDrillsHome, {
       props: {
