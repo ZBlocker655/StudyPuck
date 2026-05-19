@@ -37,6 +37,10 @@ vi.mock('$app/stores', () => ({
   page: pageStore,
 }));
 
+vi.mock('$app/environment', () => ({
+  browser: true,
+}));
+
 const requestStructuredChatResponse = vi.fn();
 
 vi.mock('$lib/chat/client.js', () => ({
@@ -48,6 +52,15 @@ const createInboxNoteRequest = vi.fn();
 vi.mock('$lib/card-entry/client.js', () => ({
   createInboxNoteRequest,
 }));
+
+function setMatchMedia(matches: boolean) {
+  window.matchMedia = vi.fn().mockReturnValue({
+    matches,
+    media: matches ? '(min-width: 64rem)' : '(max-width: 63.999rem)',
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }) as typeof window.matchMedia;
+}
 
 describe('CommandBar component behavior', () => {
   beforeEach(() => {
@@ -64,6 +77,7 @@ describe('CommandBar component behavior', () => {
       state: {},
       url: new URL('https://studypuck.test/zh/card-review'),
     });
+    setMatchMedia(false);
     commandBar.setPathname('/zh/card-review');
     commandBar.setWorkspaceContext(null, null);
     commandBar.setTargetHint(null, null);
@@ -539,7 +553,7 @@ describe('CommandBar component behavior', () => {
     await fireEvent.input(textbox, { target: { value: 'Draw another card from Core' } });
     await fireEvent.keyDown(textbox, { key: 'Enter' });
 
-    expect(await screen.findAllByText('Draw card')).toHaveLength(2);
+    expect(await screen.findAllByText('Draw card')).toHaveLength(1);
     await fireEvent.click(screen.getAllByRole('button', { name: /Draw from group-1/i })[0]);
 
     expect(drawSpy).toHaveBeenCalledWith('group-1');
@@ -794,5 +808,92 @@ describe('CommandBar component behavior', () => {
 
     expect(screen.getByText('Translate to Chinese (Mandarin)')).toBeTruthy();
     expect(screen.queryByRole('list', { name: 'Challenge focus cards' })).toBeNull();
+  });
+
+  it('shows a conversation-first Translation Drills mobile shell and opens cards in a bottom sheet', async () => {
+    pageStore.set({
+      params: { lang: 'zh' },
+      route: { id: '/[lang]/translation-drills' },
+      status: 200,
+      error: null,
+      data: {},
+      form: undefined,
+      state: {},
+      url: new URL('https://studypuck.test/zh/translation-drills'),
+    });
+
+    const { default: CommandBar } = await import('./CommandBar.svelte');
+    const snippet = createRawSnippet(() => ({
+      render: () => '<section><h2>Mobile cards context</h2></section>',
+    }));
+
+    render(CommandBar, {
+      props: {
+        children: snippet,
+      },
+    });
+
+    commandBar.setPathname('/zh/translation-drills');
+    commandBar.setWorkspaceContext('zh', null);
+    commandBar.setSurfaceContext({
+      surface: 'translation_drills',
+      activeChallenge: null,
+      focusedCardId: null,
+    });
+
+    expect(screen.getByRole('button', { name: 'Open cards view' })).toBeTruthy();
+    expect(screen.queryByLabelText('Cards sheet')).toBeNull();
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Open cards view' }));
+
+    const cardsSheet = screen.getByLabelText('Cards sheet');
+    expect(cardsSheet).toBeTruthy();
+    expect(within(cardsSheet).getByText('Mobile cards context')).toBeTruthy();
+  });
+
+  it('collapses the Translation Drills context pane on desktop for active recall', async () => {
+    setMatchMedia(true);
+    pageStore.set({
+      params: { lang: 'zh' },
+      route: { id: '/[lang]/translation-drills' },
+      status: 200,
+      error: null,
+      data: {},
+      form: undefined,
+      state: {},
+      url: new URL('https://studypuck.test/zh/translation-drills'),
+    });
+
+    const { default: CommandBar } = await import('./CommandBar.svelte');
+    const snippet = createRawSnippet(() => ({
+      render: () => '<section><h2>Desktop cards context</h2></section>',
+    }));
+
+    render(CommandBar, {
+      props: {
+        children: snippet,
+      },
+    });
+
+    commandBar.setPathname('/zh/translation-drills');
+    commandBar.setWorkspaceContext('zh', null);
+    commandBar.setSurfaceContext({
+      surface: 'translation_drills',
+      activeChallenge: null,
+      focusedCardId: null,
+    });
+
+    expect(screen.getByText('Desktop cards context')).toBeTruthy();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Collapse cards view' })).toBeTruthy();
+    });
+    await fireEvent.click(screen.getByRole('button', { name: 'Collapse cards view' }));
+
+    expect(screen.queryByText('Desktop cards context')).toBeNull();
+
+    await fireEvent.click(screen.getAllByRole('button', { name: 'Open cards view' })[0]!);
+
+    expect(screen.getByText('Desktop cards context')).toBeTruthy();
   });
 });
