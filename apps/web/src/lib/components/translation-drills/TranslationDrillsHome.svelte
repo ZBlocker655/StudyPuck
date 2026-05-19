@@ -13,6 +13,10 @@
     translationDrillSessionActions,
     type TranslationDrillLocalResponse,
   } from '$lib/stores/translationDrillSessionActions.js';
+  import {
+    getTranslationDrillDismissDefaultDays,
+    getTranslationDrillDismissOptions,
+  } from '$lib/translation-drills/dismiss-schedule.js';
 
   export let lang: string;
   export let home: TranslationDrillHomeData | null;
@@ -98,7 +102,7 @@
   }
 
   $: dismissCard = dismissCardId ? findCard(dismissCardId)?.card ?? null : null;
-  $: dismissOptions = dismissCard?.dismissSchedule?.optionDays ?? [1];
+  $: dismissOptions = getTranslationDrillDismissOptions(dismissCard?.dismissSchedule);
   $: drawerCard = drawerCardId ? findCard(drawerCardId)?.card ?? null : null;
   $: drawerCardDetail = drawerCard ? toDrawerCard(drawerCard) : null;
   $: availableDrawerGroups = homeState?.availableGroups ?? [];
@@ -450,7 +454,7 @@
 
     setFocusedCard(cardId);
     dismissCardId = cardId;
-    dismissReturnInDays = card.dismissSchedule?.recommendedDays ?? card.dismissSchedule?.optionDays[0] ?? 1;
+    dismissReturnInDays = getTranslationDrillDismissDefaultDays(card.dismissSchedule);
     openMenuCardId = null;
     actionError = null;
   }

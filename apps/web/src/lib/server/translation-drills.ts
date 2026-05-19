@@ -21,6 +21,7 @@ import {
   type TranslationDrillChallengePlan,
   type TranslationDrillChallengePlannerInput,
 } from '$lib/server/translation-drill-challenges.js';
+import { normalizeTranslationDrillDismissSchedule } from '$lib/translation-drills/dismiss-schedule.js';
 
 type DatabaseClient = ReturnType<typeof getDb>;
 
@@ -236,6 +237,10 @@ function toIsoString(date: Date | null): string | null {
   return date ? date.toISOString() : null;
 }
 
+function toDismissScheduleData(schedule: TranslationDrillDismissScheduleData): TranslationDrillDismissScheduleData {
+  return normalizeTranslationDrillDismissSchedule(schedule);
+}
+
 function mapContextCard(
   card: TranslationDrillContextCard,
   dismissSchedules: ReadonlyMap<string, TranslationDrillDismissScheduleData> = new Map(),
@@ -406,10 +411,10 @@ export async function loadTranslationDrillHomeData(
 
       return [
         card.cardId,
-        {
+        toDismissScheduleData({
           recommendedDays: schedule.recommendedDays,
           optionDays: schedule.optionDays,
-        } satisfies TranslationDrillDismissScheduleData,
+        }),
       ] as const;
     }),
   );
@@ -480,10 +485,10 @@ export async function applyTranslationDrillAction(
           action: 'draw',
           card: mapContextCard(drawnCard, new Map([[
             drawnCard.cardId,
-            {
+            toDismissScheduleData({
               recommendedDays: schedule.recommendedDays,
               optionDays: schedule.optionDays,
-            },
+            }),
           ]])),
           message: buildActionMessage('draw'),
         };
