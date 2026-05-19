@@ -28,10 +28,12 @@
 
   let inputElement: HTMLTextAreaElement | null = null;
   let desktopTrackElement: HTMLDivElement | null = null;
-  let isDesktop = false;
+  let isDesktop = $state(false);
   let isPointerDragging = false;
   let pointerStartX = 0;
   let pointerStartWidth = 62;
+  let translationDrillsDesktopContextCollapsed = $state(false);
+  let translationDrillsMobileCardsOpen = $state(false);
 
   const desktopQuery = '(min-width: 64rem)';
   let mediaQueryList: MediaQueryList | null = null;
@@ -49,14 +51,40 @@
     visibleCommands.length ? Math.min($commandBar.highlightedIndex, visibleCommands.length - 1) : 0,
   );
   const highlightedCommand = $derived(visibleCommands[safeHighlightedIndex] ?? null);
-  const showDesktopConversation = $derived(!$commandBar.desktopConversationCollapsed);
-  const showMobileConversation = $derived(
+  const isTranslationDrillsContext = $derived($commandBar.routeContext.commandContext === 'translation-drills');
+  const showDesktopConversationPane = $derived(
+    isTranslationDrillsContext || !$commandBar.desktopConversationCollapsed,
+  );
+  const showStandardMobileConversation = $derived(
+    !isTranslationDrillsContext &&
     !isDesktop && $commandBar.mobileSheetOpen && ($commandBar.messages.length > 0 || $commandBar.isWaiting),
   );
+  const showTranslationDrillsMobileShell = $derived(!isDesktop && isTranslationDrillsContext);
   const activeTranslationDrillChallenge = $derived($translationDrillSession.activeChallenge);
   const translationDrillTargetLanguageLabel = $derived(
     getLanguageByCode($translationDrillSession.lang ?? undefined)?.label ?? 'your language',
   );
+  const translationDrillsEmptyTitle = $derived(
+    isTranslationDrillsContext && !activeTranslationDrillChallenge ? 'No active challenge' : 'No conversation yet',
+  );
+  const translationDrillsEmptyCopy = $derived(
+    isTranslationDrillsContext && !activeTranslationDrillChallenge
+      ? 'Click New Challenge or type /next below to begin.'
+      : 'Responses will appear here after you send a message or run a conversational command.',
+  );
+
+  $effect(() => {
+    if (!isTranslationDrillsContext) {
+      translationDrillsDesktopContextCollapsed = false;
+      translationDrillsMobileCardsOpen = false;
+    }
+  });
+
+  $effect(() => {
+    if (isDesktop) {
+      translationDrillsMobileCardsOpen = false;
+    }
+  });
 
   function updateDesktopMode() {
     isDesktop = mediaQueryList?.matches ?? false;
@@ -266,6 +294,11 @@
       }
 
       if (event.key === 'Escape' && !isDesktop) {
+        if (isTranslationDrillsContext && translationDrillsMobileCardsOpen) {
+          translationDrillsMobileCardsOpen = false;
+          return;
+        }
+
         commandBar.closeMobileSheet();
       }
 
@@ -332,6 +365,23 @@
 
   function handleAutocompleteMouseDown(event: MouseEvent) {
     event.preventDefault();
+  }
+
+  function openTranslationDrillsCards() {
+    if (isDesktop) {
+      translationDrillsDesktopContextCollapsed = false;
+      return;
+    }
+
+    translationDrillsMobileCardsOpen = true;
+  }
+
+  function closeTranslationDrillsCards() {
+    translationDrillsMobileCardsOpen = false;
+  }
+
+  function toggleTranslationDrillsDesktopContext() {
+    translationDrillsDesktopContextCollapsed = !translationDrillsDesktopContextCollapsed;
   }
 
   async function handleNewTranslationChallenge() {
@@ -601,10 +651,11 @@
   });
 </script>
 
-<div class="workspace-shell">
+<div class="workspace-shell" class:workspace-shell--translation-drills={isTranslationDrillsContext}>
   <div
     class="workspace-shell__desktop"
-    class:workspace-shell__desktop--collapsed={!showDesktopConversation}
+    class:workspace-shell__desktop--collapsed={!showDesktopConversationPane}
+    class:workspace-shell__desktop--context-collapsed={isTranslationDrillsContext && translationDrillsDesktopContextCollapsed}
     bind:this={desktopTrackElement}
     style={`--workspace-context-width: ${$commandBar.desktopContextWidth}%;`}
     onpointermove={handlePointerMove}
@@ -612,27 +663,45 @@
     onpointercancel={handlePointerUp}
     onpointerleave={handlePointerUp}
   >
-    <main id="main-content" class="workspace-pane workspace-pane--context" aria-label="Context view">
-      <div class="workspace-pane__inner">
-        {@render children()}
-      </div>
-    </main>
+    {#if isTranslationDrillsContext && translationDrillsDesktopContextCollapsed}
+      <button
+        type="button"
+        class="context-strip"
+        aria-label="Open cards view"
+        onclick={openTranslationDrillsCards}
+      >
+        Cards
+      </button>
+    {:else}
+      <main
+        id="main-content"
+        class="workspace-pane workspace-pane--context"
+        class:workspace-pane--translation-drills-mobile-hidden={isTranslationDrillsContext}
+        aria-label="Context view"
+      >
+        <div class="workspace-pane__inner">
+          {@render children()}
+        </div>
+      </main>
+    {/if}
 
     <div
       class="workspace-divider"
-      hidden={!showDesktopConversation}
+      hidden={!showDesktopConversationPane || (isTranslationDrillsContext && translationDrillsDesktopContextCollapsed)}
       role="separator"
       aria-orientation="vertical"
       aria-label="Resize conversation and context views"
     >
-      <button
-        type="button"
-        class="workspace-divider__swap"
-        aria-label="Swap conversation and context view"
-        onclick={() => commandBar.togglePaneDominance()}
-      >
-        ⇄
-      </button>
+      {#if !isTranslationDrillsContext}
+        <button
+          type="button"
+          class="workspace-divider__swap"
+          aria-label="Swap conversation and context view"
+          onclick={() => commandBar.togglePaneDominance()}
+        >
+          ⇄
+        </button>
+      {/if}
 
       <button
         type="button"
@@ -642,7 +711,7 @@
       ></button>
     </div>
 
-    {#if showDesktopConversation}
+    {#if showDesktopConversationPane && !showTranslationDrillsMobileShell}
       <aside class="workspace-pane workspace-pane--conversation" aria-label="Conversation view">
         <header class="conversation-header cluster">
           <div class="stack conversation-header__copy" style="--stack-space: var(--space-1)">
@@ -660,23 +729,32 @@
               >
                 New Challenge
               </button>
+              <button
+                type="button"
+                class="conversation-header__button"
+                aria-label={translationDrillsDesktopContextCollapsed ? 'Open cards view' : 'Collapse cards view'}
+                onclick={toggleTranslationDrillsDesktopContext}
+              >
+                {translationDrillsDesktopContextCollapsed ? 'Cards' : 'Hide Cards'}
+              </button>
+            {:else}
+              <button
+                type="button"
+                class="conversation-header__button"
+                aria-label="Swap conversation and context view"
+                onclick={() => commandBar.togglePaneDominance()}
+              >
+                ⇄
+              </button>
+              <button
+                type="button"
+                class="conversation-header__button"
+                aria-label="Collapse conversation view"
+                onclick={() => commandBar.collapseConversation()}
+              >
+                Collapse
+              </button>
             {/if}
-            <button
-              type="button"
-              class="conversation-header__button"
-              aria-label="Swap conversation and context view"
-              onclick={() => commandBar.togglePaneDominance()}
-            >
-              ⇄
-            </button>
-            <button
-              type="button"
-              class="conversation-header__button"
-              aria-label="Collapse conversation view"
-              onclick={() => commandBar.collapseConversation()}
-            >
-              Collapse
-            </button>
           </div>
         </header>
 
@@ -696,14 +774,10 @@
           {#if $commandBar.messages.length === 0 && !$commandBar.isWaiting}
             <div class="conversation-empty stack" style="--stack-space: var(--space-2)">
               <p class="conversation-empty__title">
-                {$commandBar.routeContext.commandContext === 'translation-drills' && !activeTranslationDrillChallenge
-                  ? 'No active challenge'
-                  : 'No conversation yet'}
+                {translationDrillsEmptyTitle}
               </p>
               <p class="text-muted">
-                {$commandBar.routeContext.commandContext === 'translation-drills' && !activeTranslationDrillChallenge
-                  ? 'Click New Challenge or type /next below to begin.'
-                  : 'Responses will appear here after you send a message or run a conversational command.'}
+                {translationDrillsEmptyCopy}
               </p>
             </div>
           {/if}
@@ -760,7 +834,91 @@
     {/if}
   </div>
 
-  {#if showMobileConversation}
+  {#if showTranslationDrillsMobileShell}
+    <section class="translation-drills-mobile" aria-label="Conversation view">
+      <div class="translation-drills-mobile__pane">
+        <header class="conversation-header cluster">
+          <div class="stack conversation-header__copy" style="--stack-space: var(--space-1)">
+            <p class="conversation-header__eyebrow">Conversation</p>
+            <h2>Translation Drills</h2>
+          </div>
+
+          <div class="cluster conversation-header__actions">
+            <button
+              type="button"
+              class="conversation-header__button conversation-header__button--primary"
+              aria-label="Start a new Translation Drills challenge"
+              onclick={() => void handleNewTranslationChallenge()}
+            >
+              New Challenge
+            </button>
+            <button
+              type="button"
+              class="conversation-header__button"
+              aria-label="Open cards view"
+              onclick={openTranslationDrillsCards}
+            >
+              Cards
+            </button>
+          </div>
+        </header>
+
+        {#if activeTranslationDrillChallenge}
+          <section class="translation-drill-challenge stack" style="--stack-space: var(--space-1)" role="status" aria-live="polite">
+            <p class="translation-drill-challenge__eyebrow">Translate to {translationDrillTargetLanguageLabel}</p>
+            <p class="translation-drill-challenge__prompt">{activeTranslationDrillChallenge.prompt}</p>
+          </section>
+        {/if}
+
+        <div class="conversation-thread" aria-live="polite" aria-atomic="false">
+          {#if $commandBar.messages.length === 0 && !$commandBar.isWaiting}
+            <div class="conversation-empty stack" style="--stack-space: var(--space-2)">
+              <p class="conversation-empty__title">{translationDrillsEmptyTitle}</p>
+              <p class="text-muted">{translationDrillsEmptyCopy}</p>
+            </div>
+          {/if}
+
+          {#each $commandBar.messages as message}
+            {#if message.role === 'system'}
+              <p class="conversation-divider">{message.content}</p>
+            {:else}
+              <article
+                class="message"
+                class:message--user={message.role === 'user'}
+                class:message--assistant={message.role !== 'user'}
+              >
+                <p class="message__label">{message.role === 'user' ? 'You' : 'StudyPuck'}</p>
+                <p>{message.content}</p>
+                {#if message.suggestions && message.suggestions.length > 0}
+                  <div class="message__suggestions cluster" style="--cluster-space: var(--space-2)">
+                    {#each message.suggestions as suggestion}
+                      <button
+                        type="button"
+                        class="suggestion-button"
+                        onclick={() => void handleSuggestionClick(suggestion)}
+                      >
+                        <span class="suggestion-button__text">{getSuggestionText(suggestion)}</span>
+                        <span class="suggestion-button__meta">{getSuggestionLabel(suggestion)}</span>
+                      </button>
+                    {/each}
+                  </div>
+                {/if}
+              </article>
+            {/if}
+          {/each}
+
+          {#if $commandBar.isWaiting}
+            <article class="message message--assistant">
+              <p class="message__label">StudyPuck</p>
+              <p class="message__thinking"><span class="message__spinner" aria-hidden="true"></span>Thinking...</p>
+            </article>
+          {/if}
+        </div>
+      </div>
+    </section>
+  {/if}
+
+  {#if showStandardMobileConversation}
     <button
       type="button"
       class="conversation-backdrop"
@@ -841,6 +999,42 @@
           </article>
         {/if}
       </div>
+    </section>
+  {/if}
+
+  {#if showTranslationDrillsMobileShell && translationDrillsMobileCardsOpen}
+    <button
+    type="button"
+    class="conversation-backdrop"
+    aria-label="Dismiss cards sheet"
+    onclick={closeTranslationDrillsCards}
+    ></button>
+
+    <section class="conversation-sheet conversation-sheet--cards stack" style="--stack-space: var(--space-3)" aria-label="Cards sheet">
+    <button
+      type="button"
+      class="conversation-sheet__handle"
+      aria-label="Dismiss cards sheet"
+      onclick={closeTranslationDrillsCards}
+    >
+      <span aria-hidden="true"></span>
+    </button>
+
+    <div class="conversation-sheet__actions cluster">
+      <p class="conversation-sheet__title">Cards</p>
+      <button
+        type="button"
+        class="conversation-header__button"
+        aria-label="Close cards view"
+        onclick={closeTranslationDrillsCards}
+      >
+        Close
+      </button>
+    </div>
+
+    <div class="conversation-sheet__content">
+      {@render children()}
+    </div>
     </section>
   {/if}
 
@@ -925,6 +1119,11 @@
   }
 
   .conversation-strip {
+    display: none;
+  }
+
+  .context-strip,
+  .translation-drills-mobile {
     display: none;
   }
 
@@ -1209,6 +1408,11 @@
     overflow: auto;
   }
 
+  .conversation-sheet__content {
+    min-block-size: 0;
+    overflow: auto;
+  }
+
   .conversation-thread--challenge {
     min-block-size: 12rem;
   }
@@ -1269,6 +1473,12 @@
     font-weight: 600;
   }
 
+  .conversation-sheet__title {
+    margin: 0;
+    color: var(--color-text-primary);
+    font-weight: 600;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .message__spinner {
       animation: none;
@@ -1291,6 +1501,10 @@
 
     .workspace-shell__desktop--collapsed {
       grid-template-columns: minmax(0, 1fr) 0 2.75rem;
+    }
+
+    .workspace-shell__desktop--context-collapsed {
+      grid-template-columns: 4.5rem 0 minmax(18rem, 1fr);
     }
 
     .workspace-pane--context,
@@ -1351,6 +1565,25 @@
       box-shadow: var(--shadow-sm);
     }
 
+    .context-strip {
+      display: grid;
+      place-items: center;
+      block-size: calc(100vh - var(--shell-header-height) - 8rem);
+      margin-block-start: calc(var(--shell-header-height) + var(--space-4));
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      background: var(--color-surface);
+      color: var(--color-text-primary);
+      box-shadow: var(--shadow-sm);
+      font-family: var(--font-ui);
+      font-size: var(--font-size-caption);
+      font-weight: 600;
+      letter-spacing: var(--tracking-caps);
+      text-transform: uppercase;
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+    }
+
     .conversation-strip__badge {
       display: inline-grid;
       place-items: center;
@@ -1395,6 +1628,27 @@
       display: none !important;
     }
 
+    .workspace-shell--translation-drills .workspace-pane--translation-drills-mobile-hidden {
+      display: none;
+    }
+
+    .translation-drills-mobile {
+      display: block;
+      padding-block-start: calc(var(--shell-header-height) + var(--space-4));
+      padding-block-end: calc(var(--shell-mobile-nav-height) + 6rem + env(safe-area-inset-bottom));
+      padding-inline: var(--space-3);
+    }
+
+    .translation-drills-mobile__pane {
+      display: flex;
+      flex-direction: column;
+      min-block-size: calc(100vh - var(--shell-header-height) - var(--shell-mobile-nav-height) - 8rem);
+      padding: var(--space-4);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      background: var(--color-surface);
+    }
+
     .workspace-shell__desktop {
       padding-block-start: calc(var(--shell-header-height) + var(--space-4));
       padding-block-end: calc(var(--shell-mobile-nav-height) + 6rem + env(safe-area-inset-bottom));
@@ -1430,6 +1684,10 @@
     .conversation-sheet__actions {
       justify-content: space-between;
       gap: var(--space-2);
+    }
+
+    .conversation-sheet--cards {
+      max-block-size: min(72vh, 42rem);
     }
 
     .conversation-sheet__handle {
