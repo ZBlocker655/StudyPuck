@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { createServer } from 'node:net';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -18,11 +19,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, '..');
 const webAppDir = resolve(repoRoot, 'apps', 'web');
 const viteCliPath = resolve(webAppDir, 'node_modules', 'vite', 'bin', 'vite.js');
+const playwrightArgs = process.argv.slice(2);
 const BRANCH_PREFIX = 'test-e2e-web-';
 const PARENT_BRANCH = 'development';
 const SERVER_HOST = '127.0.0.1';
-const SERVER_PORT = Number(process.env.PLAYWRIGHT_PORT ?? 4173);
-const SERVER_URL = `http://${SERVER_HOST}:${SERVER_PORT}`;
+const DEFAULT_SERVER_PORT = 4173;
 const SERVER_START_TIMEOUT_MS = 180_000;
 
 const startLongRunningCommand = (command, commandArgs, env, cwd) =>
@@ -40,6 +41,25 @@ const startLongRunningCommand = (command, commandArgs, env, cwd) =>
 			});
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const findAvailablePort = async (preferredPort) => {
+	for (let port = preferredPort; port < preferredPort + 20; port += 1) {
+		const isAvailable = await new Promise((resolve) => {
+			const server = createServer();
+			server.unref();
+			server.once('error', () => resolve(false));
+			server.listen(port, SERVER_HOST, () => {
+				server.close(() => resolve(true));
+			});
+		});
+
+		if (isAvailable) {
+			return port;
+		}
+	}
+
+	throw new Error(`Unable to find an available Playwright port starting at ${preferredPort}.`);
+};
 
 const waitForServer = async (url, timeoutMs) => {
 	const deadline = Date.now() + timeoutMs;
@@ -111,6 +131,11 @@ try {
 		DATABASE_URL: testDatabaseUrl,
 		E2E_TEST_MODE: 'enabled',
 	};
+	const requestedPort = process.env.PLAYWRIGHT_PORT;
+	const serverPort = requestedPort
+		? Number(requestedPort)
+		: await findAvailablePort(DEFAULT_SERVER_PORT);
+	const serverUrl = `http://${SERVER_HOST}:${serverPort}`;
 
 	const migrateExitCode = await runCommandStreaming(
 		'pnpm',
@@ -130,23 +155,32 @@ try {
 			'--host',
 			SERVER_HOST,
 			'--port',
-			String(SERVER_PORT),
+			String(serverPort),
 			'--strictPort',
 		],
 		testEnv,
 		webAppDir
 	);
 
-	await waitForServer(SERVER_URL, SERVER_START_TIMEOUT_MS);
+	if (!requestedPort && serverPort !== DEFAULT_SERVER_PORT) {
+		console.log(`Port ${DEFAULT_SERVER_PORT} is busy; using Playwright port ${serverPort} instead.`);
+	}
+
+	await waitForServer(serverUrl, SERVER_START_TIMEOUT_MS);
 
 	const exitCode = await runCommandStreaming(
 		'pnpm',
-		['--dir', webAppDir, 'test:e2e'],
+		[
+			'--dir',
+			webAppDir,
+			'test:e2e',
+			...(playwrightArgs.length > 0 ? ['--', ...playwrightArgs] : []),
+		],
 		{
 			...testEnv,
 			PLAYWRIGHT_MANAGED_SERVER: '1',
-			PLAYWRIGHT_BASE_URL: SERVER_URL,
-			PLAYWRIGHT_PORT: String(SERVER_PORT),
+			PLAYWRIGHT_BASE_URL: serverUrl,
+			PLAYWRIGHT_PORT: String(serverPort),
 		},
 		repoRoot
 	);

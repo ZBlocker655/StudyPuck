@@ -54,7 +54,8 @@ export const runCommandStreaming = (command, commandArgs, env, cwd) =>
 		});
 	});
 
-export const runNeon = (args, env) => runCommandCapture('npx', ['--yes', 'neonctl', ...args], env);
+export const runNeon = (args, env) =>
+	runCommandCapture(process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm', ['exec', 'neonctl', ...args], env);
 
 export const deleteBranch = (branchName, env) => {
 	runNeon(['branches', 'delete', branchName, '--force'], env);
