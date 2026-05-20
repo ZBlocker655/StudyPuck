@@ -96,7 +96,7 @@ describe('TranslationDrillsHome', () => {
     expect(screen.getByRole('button', { name: 'HSK2 draw pile — 2 cards remaining' })).toBeTruthy();
   });
 
-  it('shows the empty-context overlay when no drill groups or cards are available', () => {
+  it('shows the empty-context overlay when no drill groups or cards are available', async () => {
     render(TranslationDrillsHome, {
       props: {
         lang: 'zh',
@@ -120,7 +120,14 @@ describe('TranslationDrillsHome', () => {
     });
 
     expect(screen.getByRole('heading', { name: 'Add groups to start drilling' })).toBeTruthy();
+    const learnMoreButton = screen.getByRole('button', { name: 'Learn more' });
+    expect(learnMoreButton.getAttribute('aria-expanded')).toBe('false');
     expect(screen.getByRole('link', { name: 'Go to Groups' }).getAttribute('href')).toBe('/zh/cards/groups');
+
+    await fireEvent.click(learnMoreButton);
+
+    expect(learnMoreButton.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByText(/Add groups, mark them as Translation Drills piles/)).toBeTruthy();
   });
 
   it('draws cards from a pile and updates the visible count', async () => {
@@ -258,8 +265,8 @@ describe('TranslationDrillsHome', () => {
 
     const activeCardRow = screen.getByLabelText('经历').closest('article');
     expect(activeCardRow).toBeTruthy();
-    await fireEvent.click(within(activeCardRow as HTMLElement).getByRole('button', { name: '···' }));
-    await fireEvent.click(screen.getByRole('button', { name: 'View card detail' }));
+    await fireEvent.click(within(activeCardRow as HTMLElement).getByRole('button', { name: 'More actions for 经历' }));
+    await fireEvent.click(screen.getByRole('menuitem', { name: 'View card detail' }));
 
     const closeButton = await screen.findByRole('button', { name: 'Close drawer' });
     expect(closeButton.hasAttribute('disabled')).toBe(false);
@@ -282,8 +289,8 @@ describe('TranslationDrillsHome', () => {
 
     const activeCardRow = screen.getByLabelText('经历').closest('article');
     expect(activeCardRow).toBeTruthy();
-    await fireEvent.click(within(activeCardRow as HTMLElement).getByRole('button', { name: '···' }));
-    await fireEvent.click(screen.getByRole('button', { name: 'View card detail' }));
+    await fireEvent.click(within(activeCardRow as HTMLElement).getByRole('button', { name: 'More actions for 经历' }));
+    await fireEvent.click(screen.getByRole('menuitem', { name: 'View card detail' }));
 
     await screen.findByRole('button', { name: 'Close drawer' });
 

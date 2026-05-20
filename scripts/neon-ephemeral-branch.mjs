@@ -28,6 +28,14 @@ export const runCommandCapture = (command, commandArgs, env) => {
 	}).trim();
 };
 
+const tryRunCommandCapture = (command, commandArgs, env) => {
+	try {
+		return runCommandCapture(command, commandArgs, env);
+	} catch {
+		return null;
+	}
+};
+
 export const runCommandStreaming = (command, commandArgs, env, cwd) =>
 	new Promise((resolve) => {
 		const child =
@@ -54,7 +62,16 @@ export const runCommandStreaming = (command, commandArgs, env, cwd) =>
 		});
 	});
 
-export const runNeon = (args, env) => runCommandCapture('npx', ['--yes', 'neonctl', ...args], env);
+export const runNeon = (args, env) => {
+	const pnpmCommand = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
+	const pnpmResult = tryRunCommandCapture(pnpmCommand, ['exec', 'neonctl', ...args], env);
+
+	if (pnpmResult !== null) {
+		return pnpmResult;
+	}
+
+	return runCommandCapture(process.platform === 'win32' ? 'npx.cmd' : 'npx', ['--yes', 'neonctl', ...args], env);
+};
 
 export const deleteBranch = (branchName, env) => {
 	runNeon(['branches', 'delete', branchName, '--force'], env);

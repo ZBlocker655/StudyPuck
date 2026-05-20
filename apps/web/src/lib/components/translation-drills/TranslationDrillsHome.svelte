@@ -766,6 +766,8 @@
                     <button
                       type="button"
                       class="card-row__action"
+                      aria-label={`More actions for ${card.content}`}
+                      aria-controls={`translation-drills-menu-${card.cardId}`}
                       aria-expanded={openMenuCardId === card.cardId}
                       aria-haspopup="menu"
                       onclick={() => openMenuCardId = openMenuCardId === card.cardId ? null : card.cardId}
@@ -774,10 +776,16 @@
                     </button>
 
                     {#if openMenuCardId === card.cardId}
-                      <div class="card-row__menu stack" style="--stack-space: var(--space-1)" role="menu">
+                      <div
+                        id={`translation-drills-menu-${card.cardId}`}
+                        class="card-row__menu stack"
+                        style="--stack-space: var(--space-1)"
+                        role="menu"
+                      >
                         <button
                           type="button"
                           class="card-row__menu-button"
+                          role="menuitem"
                           onclick={() => openDrawer(card.cardId)}
                         >
                           View card detail
@@ -785,6 +793,7 @@
                         <button
                           type="button"
                           class="card-row__menu-button"
+                          role="menuitem"
                           disabled={isActionPending(`card:${card.cardId}:disable`)}
                           onclick={() => void handleDisable(card.cardId)}
                         >
@@ -793,6 +802,7 @@
                         <button
                           type="button"
                           class="card-row__menu-button"
+                          role="menuitem"
                           onclick={() => openMenuCardId = null}
                         >
                           Cancel
@@ -824,6 +834,8 @@
                     <button
                       type="button"
                       class="card-row__action"
+                      aria-label={`More actions for ${card.content}`}
+                      aria-controls={`translation-drills-menu-${card.cardId}`}
                       aria-expanded={openMenuCardId === card.cardId}
                       aria-haspopup="menu"
                       onclick={() => openMenuCardId = openMenuCardId === card.cardId ? null : card.cardId}
@@ -832,10 +844,16 @@
                     </button>
 
                     {#if openMenuCardId === card.cardId}
-                      <div class="card-row__menu stack" style="--stack-space: var(--space-1)" role="menu">
+                      <div
+                        id={`translation-drills-menu-${card.cardId}`}
+                        class="card-row__menu stack"
+                        style="--stack-space: var(--space-1)"
+                        role="menu"
+                      >
                         <button
                           type="button"
                           class="card-row__menu-button"
+                          role="menuitem"
                           onclick={() => openDrawer(card.cardId)}
                         >
                           View card detail
@@ -843,6 +861,7 @@
                         <button
                           type="button"
                           class="card-row__menu-button"
+                          role="menuitem"
                           disabled={isActionPending(`card:${card.cardId}:disable`)}
                           onclick={() => void handleDisable(card.cardId)}
                         >
@@ -851,6 +870,7 @@
                         <button
                           type="button"
                           class="card-row__menu-button"
+                          role="menuitem"
                           onclick={() => openMenuCardId = null}
                         >
                           Cancel
@@ -940,6 +960,8 @@
             <button
               type="button"
               class="translation-drills__button translation-drills__button--secondary"
+              aria-controls="translation-drills-overlay-detail"
+              aria-expanded={learnMoreExpanded}
               onclick={() => learnMoreExpanded = !learnMoreExpanded}
             >
               Learn more
@@ -947,7 +969,7 @@
           </div>
 
           {#if learnMoreExpanded}
-            <p class="translation-drills__overlay-detail">
+            <p id="translation-drills-overlay-detail" class="translation-drills__overlay-detail">
               Add groups, mark them as Translation Drills piles, and draw from those piles whenever you want fresh vocabulary in view.
             </p>
           {/if}

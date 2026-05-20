@@ -36,6 +36,14 @@ export type TranslationDrillChallengePlan = {
   sourceCardIds: string[];
 };
 
+function isE2ETestModeEnabled() {
+  if (typeof process === 'undefined') {
+    return false;
+  }
+
+  return process.env?.E2E_TEST_MODE === 'enabled';
+}
+
 function toPromptCard(card: TranslationDrillContextCard): TranslationDrillChallengePromptCard {
   return {
     cardId: card.cardId,
@@ -88,6 +96,22 @@ function validateChallengePlan(
   };
 }
 
+function buildE2EChallengePlan(input: TranslationDrillChallengePlannerInput): TranslationDrillChallengePlan {
+  const previousSourceCardIds = new Set(normalizeSourceCardIds(input.previousSourceCardIds ?? []));
+  const nextCandidates = input.mustUseAllCandidateCards
+    ? input.candidateCards
+    : input.candidateCards.filter((card) => !previousSourceCardIds.has(card.cardId));
+  const selectedCards = (nextCandidates.length > 0 ? nextCandidates : input.candidateCards).slice(
+    0,
+    input.mustUseAllCandidateCards ? input.candidateCards.length : 1,
+  );
+
+  return {
+    prompt: `Use ${selectedCards.map((card) => card.meaning?.trim() || card.content.trim()).join(' + ')} in a natural sentence.`,
+    sourceCardIds: selectedCards.map((card) => card.cardId),
+  };
+}
+
 export async function planTranslationDrillChallenge(
   input: TranslationDrillChallengePlannerInput & {
     privateEnv: Record<string, string | undefined>;
@@ -96,6 +120,10 @@ export async function planTranslationDrillChallenge(
 ): Promise<TranslationDrillChallengePlan> {
   if (input.candidateCards.length === 0) {
     throw new Error('Draw or pin at least one active card before starting a challenge.');
+  }
+
+  if (isE2ETestModeEnabled()) {
+    return validateChallengePlan(buildE2EChallengePlan(input), input);
   }
 
   const prompt = buildTranslationDrillChallengePrompt({
