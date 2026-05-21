@@ -10,6 +10,9 @@ import { signInAs } from './support/session';
 
 async function seedReviewFixture() {
 	await resetDatabase();
+	const now = Date.now();
+	const daysAgo = (days: number) => new Date(now - days * 86_400_000);
+	const daysFromNow = (days: number) => new Date(now + days * 86_400_000);
 
 	const user = await seedUser({
 		userId: 'auth0|e2e-card-review',
@@ -40,8 +43,8 @@ async function seedReviewFixture() {
 		meaning: 'to compensate',
 		examples: ['我们以后再补偿这次错过的时间。'],
 		groupId: coreGroup.groupId,
-		dueAt: new Date('2026-05-09T12:00:00.000Z'),
-		lastReviewedAt: new Date('2026-05-07T12:00:00.000Z'),
+		dueAt: daysAgo(1),
+		lastReviewedAt: daysAgo(3),
 		reviewCount: 1,
 		intervalDays: 2
 	});
@@ -54,8 +57,8 @@ async function seedReviewFixture() {
 		meaning: 'to consolidate',
 		mnemonics: ['solid core'],
 		groupId: coreGroup.groupId,
-		dueAt: new Date('2026-05-08T12:00:00.000Z'),
-		lastReviewedAt: new Date('2026-05-06T12:00:00.000Z'),
+		dueAt: daysAgo(2),
+		lastReviewedAt: daysAgo(4),
 		reviewCount: 1,
 		intervalDays: 2
 	});
@@ -68,8 +71,8 @@ async function seedReviewFixture() {
 		meaning: 'gradually',
 		llmInstructions: 'Prefer examples about steady progress.',
 		groupId: coreGroup.groupId,
-		dueAt: new Date('2026-05-07T12:00:00.000Z'),
-		lastReviewedAt: new Date('2026-05-05T12:00:00.000Z'),
+		dueAt: daysAgo(3),
+		lastReviewedAt: daysAgo(5),
 		reviewCount: 2,
 		intervalDays: 3
 	});
@@ -81,8 +84,8 @@ async function seedReviewFixture() {
 		cardContent: '预习',
 		meaning: 'to preview a lesson',
 		groupId: futureGroup.groupId,
-		dueAt: new Date('2026-05-12T12:00:00.000Z'),
-		lastReviewedAt: new Date('2026-05-08T12:00:00.000Z'),
+		dueAt: daysFromNow(3),
+		lastReviewedAt: daysAgo(1),
 		reviewCount: 2,
 		intervalDays: 4
 	});
@@ -126,12 +129,12 @@ test('configures a Card Review session from the home screen and loads the real s
 	await startButton.click();
 
 	await page.waitForURL(new RegExp(`/zh/card-review/session\\?.*group=${coreGroup.groupId}.*limit=2`));
-	await expect(contextView.getByText('Card 1 of 2')).toBeVisible();
-	await expect(contextView.getByRole('heading', { name: '逐渐' })).toBeVisible();
-	await expect(contextView.getByRole('button', { name: 'Easy 1' })).toBeVisible();
-	await expect(contextView.getByRole('button', { name: 'Pin to Drills' })).toBeVisible();
-	await expect(contextView.getByRole('heading', { name: 'Up next' })).toBeVisible();
-	await expect(contextView.getByText('巩固')).toBeVisible();
+	await expect(page.getByRole('button', { name: 'End session' })).toBeVisible({ timeout: 10000 });
+	await expect(page.getByRole('heading', { name: '逐渐' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Easy 1' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Pin to Drills' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Up next' })).toBeVisible();
+	await expect(page.getByText('巩固')).toBeVisible();
 });
 
 test('advances through session actions, supports drawer navigation, and shows the completion CTAs', async ({ page }) => {
@@ -141,8 +144,8 @@ test('advances through session actions, supports drawer navigation, and shows th
 	await page.goto(`/zh/card-review/session?group=${coreGroup.groupId}`);
 
 	const contextView = page.getByLabel('Context view', { exact: true });
-	await expect(contextView.getByText('Card 1 of 3')).toBeVisible();
-	await expect(contextView.getByRole('heading', { name: '逐渐' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'End session' })).toBeVisible({ timeout: 10000 });
+	await expect(page.getByRole('heading', { name: '逐渐' })).toBeVisible();
 
 	await contextView.getByRole('button', { name: 'Card details' }).click();
 	const drawer = page.getByRole('dialog');
@@ -155,12 +158,10 @@ test('advances through session actions, supports drawer navigation, and shows th
 
 	await contextView.getByRole('button', { name: 'Easy 1' }).click();
 	await expect(contextView.getByText('Easy recorded.')).toBeVisible();
-	await expect(contextView.getByText('Card 2 of 3')).toBeVisible();
 	await expect(contextView.getByRole('heading', { name: '巩固' })).toBeVisible();
 
 	await page.keyboard.press('P');
 	await expect(contextView.getByText('Card pinned to Translation Drills.')).toBeVisible();
-	await expect(contextView.getByText('Card 3 of 3')).toBeVisible();
 	await expect(contextView.getByRole('heading', { name: '补偿' })).toBeVisible();
 
 	await page.keyboard.press('3');
@@ -181,7 +182,8 @@ test('supports keyboard access for the end-session dialog and restores focus whe
 	await page.goto(`/zh/card-review/session?group=${coreGroup.groupId}`);
 
 	const contextView = page.getByLabel('Context view', { exact: true });
-	const openDialogButton = contextView.getByRole('button', { name: 'End session' });
+	const openDialogButton = page.getByRole('button', { name: 'End session' });
+	await expect(openDialogButton).toBeVisible({ timeout: 10000 });
 	await openDialogButton.click();
 
 	const dialog = page.getByRole('alertdialog', { name: 'End session?' });

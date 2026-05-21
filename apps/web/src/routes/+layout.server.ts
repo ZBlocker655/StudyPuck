@@ -1,3 +1,4 @@
+import { isE2ETestModeEnabled } from '$lib/server/e2e-auth.js';
 import type { LayoutServerLoad } from './$types.js';
 
 export const load: LayoutServerLoad = async (event) => {
@@ -10,7 +11,10 @@ export const load: LayoutServerLoad = async (event) => {
       console.log('✅ Auth session loaded successfully for user:', session.user.id);
     }
     
-    return { session };
+    return {
+      session,
+      isE2ETestMode: isE2ETestModeEnabled(),
+    };
   } catch (error) {
     // CRITICAL: Auth is failing - log detailed error for debugging
     const err = error as Error;
@@ -24,6 +28,7 @@ export const load: LayoutServerLoad = async (event) => {
     // Return auth failure state with explicit flag
     return { 
       session: null,
+      isE2ETestMode: isE2ETestModeEnabled(),
       authError: {
         failed: true,
         error: err.message || 'Auth system error',

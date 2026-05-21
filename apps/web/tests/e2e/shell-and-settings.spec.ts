@@ -50,12 +50,12 @@ test('navigates settings tabs and supports the real add-language flow', async ({
 
 	const addLanguageButton = contextView.getByRole('button', { name: '+ Add Language', exact: true });
 	await expect(addLanguageButton).toBeVisible();
-	const addLanguageDialog = page.locator('.dialog[aria-labelledby="add-language-title"]');
+	const addLanguageDialog = page.getByRole('dialog', { name: 'Add a Language' });
 	await expect(async () => {
 		await addLanguageButton.click();
 		await expect(addLanguageDialog).toBeVisible();
 	}).toPass({ timeout: 10000 });
-	await page.locator('label.language-picker__tile', { hasText: 'Dutch' }).click();
+	await addLanguageDialog.getByLabel('Dutch').click();
 	await addLanguageDialog.getByRole('button', { name: 'Add Language →' }).click();
 
 	await page.waitForURL(/\/nl\/?$/);
@@ -85,9 +85,7 @@ test('saves a language-specific Card Entry example sentence format', async ({ pa
 	const chineseCard = page.locator('.language-card', {
 		has: page.getByRole('heading', { name: 'Chinese (Mandarin)' })
 	});
-	await chineseCard
-		.locator('input[name="exampleSentenceFormat"][value="sentence_transliteration_translation"]')
-		.check({ force: true });
+	await chineseCard.getByLabel('Sentence + transliteration + translation').click();
 	await chineseCard.getByRole('button', { name: 'Save Example Format', exact: true }).click();
 
 	await expect(chineseCard).toContainText(

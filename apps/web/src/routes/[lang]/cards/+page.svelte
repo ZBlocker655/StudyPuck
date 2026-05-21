@@ -54,6 +54,7 @@
   let pendingAction: { action: BulkAction; cardIds: string[] } | null = null;
   let bulkAssignOpen = false;
   let selectedBulkGroupId: string | null = null;
+  let selectionModeRequested = false;
   let isMobileViewport = false;
   let viewportMediaQuery: MediaQueryList | null = null;
 
@@ -136,7 +137,7 @@
   }
 
   $: selectedIndex = selectedCard ? library.filteredCardIds.indexOf(selectedCard.cardId) : -1;
-  $: isSelectMode = selectedCardIds.length > 0;
+  $: isSelectMode = selectionModeRequested || selectedCardIds.length > 0;
   $: sortedAvailableGroups = sortCardLibraryGroups(library.availableGroups);
   $: selectedGroupNames = sortedAvailableGroups
     .filter((group) => selectedGroupIds.includes(group.groupId))
@@ -153,6 +154,7 @@
     filterSyncTimer = setTimeout(() => {
       lastRequestedFilterState = nextFilterState;
       selectedCardIds = [];
+      selectionModeRequested = false;
       bulkAssignOpen = false;
       selectedBulkGroupId = null;
       actionFeedback = null;
@@ -226,8 +228,19 @@
 
   function clearSelection() {
     selectedCardIds = [];
+    selectionModeRequested = false;
     bulkAssignOpen = false;
     selectedBulkGroupId = null;
+  }
+
+  function toggleSelectMode() {
+    if (isSelectMode) {
+      clearSelection();
+      return;
+    }
+
+    selectionModeRequested = true;
+    actionFeedback = null;
   }
 
   function dismissActionFeedback() {
@@ -306,6 +319,7 @@
       }
 
       selectedCardIds = [];
+      selectionModeRequested = false;
       bulkAssignOpen = false;
       selectedBulkGroupId = null;
       isRefreshing = true;
@@ -375,6 +389,20 @@
     clearGroupLabel="All groups"
     clearTypeLabel="All types"
   />
+
+  {#if library.items.length > 0}
+    <div class="cards-page__toolbar">
+      <button
+        type="button"
+        class:cards-page__toolbar-button--secondary={isSelectMode}
+        class="cards-page__toolbar-button"
+        aria-pressed={isSelectMode}
+        on:click={toggleSelectMode}
+      >
+        {isSelectMode ? 'Done selecting' : 'Select cards'}
+      </button>
+    </div>
+  {/if}
 
   {#if isSelectMode}
     <div class="cards-page__bulk-actions">
@@ -452,6 +480,7 @@
           rowTemplate="1rem minmax(0, 2.2fr) minmax(10rem, 1fr) auto"
           clickable
           hasActions={false}
+          desktopShowCheckbox={isSelectMode}
           mobileShowCheckbox={!isMobileViewport || isSelectMode}
           on:toggleSelection={() => toggleSelection(item.cardId)}
           on:activate={() => handleRowActivate(item.cardId)}
@@ -595,6 +624,7 @@
   }
 
   .cards-page__feedback-dismiss,
+  .cards-page__toolbar-button,
   .cards-page__state-cta {
     display: inline-flex;
     align-items: center;
@@ -615,6 +645,16 @@
     background: none;
     color: var(--color-text-secondary);
     text-decoration: underline;
+  }
+
+  .cards-page__toolbar {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .cards-page__toolbar-button--secondary {
+    background: var(--color-surface);
+    color: var(--color-text-primary);
   }
 
   .cards-page__state {

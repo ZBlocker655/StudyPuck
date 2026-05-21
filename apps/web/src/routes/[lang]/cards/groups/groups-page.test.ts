@@ -56,6 +56,7 @@ describe('Groups page', () => {
       props: {
         data: {
           session: null,
+          isE2ETestMode: false,
           authError: undefined,
           availableLanguages: [],
           cardEntryShell: {

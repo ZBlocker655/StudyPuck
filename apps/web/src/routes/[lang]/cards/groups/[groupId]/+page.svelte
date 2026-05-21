@@ -62,6 +62,7 @@
   let pendingBulkAction: BulkAction | null = null;
   let bulkAssignOpen = false;
   let selectedBulkGroupId: string | null = null;
+  let selectionModeRequested = false;
   let isMobileViewport = false;
   let viewportMediaQuery: MediaQueryList | null = null;
 
@@ -187,7 +188,7 @@
   }
 
   $: selectedIndex = selectedCard ? cards.filteredCardIds.indexOf(selectedCard.cardId) : -1;
-  $: isSelectMode = selectedCardIds.length > 0;
+  $: isSelectMode = selectionModeRequested || selectedCardIds.length > 0;
   $: typeFilterLabel = formatCardLibraryTypeFilterLabel(selectedType);
   $: hasActiveFilters = searchQuery.trim().length > 0 || selectedType !== null;
   $: filteredAddableCards = filterAddableGroupCards(addableCards.items, addCardsSearchQuery);
@@ -205,6 +206,7 @@
     filterSyncTimer = setTimeout(() => {
       lastRequestedFilterState = nextFilterState;
       selectedCardIds = [];
+      selectionModeRequested = false;
       bulkAssignOpen = false;
       selectedBulkGroupId = null;
       actionFeedback = null;
@@ -276,8 +278,19 @@
 
   function clearSelection() {
     selectedCardIds = [];
+    selectionModeRequested = false;
     bulkAssignOpen = false;
     selectedBulkGroupId = null;
+  }
+
+  function toggleSelectMode() {
+    if (isSelectMode) {
+      clearSelection();
+      return;
+    }
+
+    selectionModeRequested = true;
+    actionFeedback = null;
   }
 
   function handleRowActivate(cardId: string) {
@@ -410,6 +423,7 @@
       }
 
       selectedCardIds = [];
+      selectionModeRequested = false;
       bulkAssignOpen = false;
       selectedBulkGroupId = null;
     } catch (error) {
@@ -941,9 +955,21 @@
       showGroupFilter={false}
     />
 
-    <button type="button" class="group-detail-page__toolbar-button" on:click={openAddCardsDrawer}>
-      + Add Cards
-    </button>
+    <div class="group-detail-page__toolbar-actions cluster">
+      <button
+        type="button"
+        class:group-detail-page__toolbar-button--secondary={isSelectMode}
+        class="group-detail-page__toolbar-button"
+        aria-pressed={isSelectMode}
+        on:click={toggleSelectMode}
+      >
+        {isSelectMode ? 'Done selecting' : 'Select cards'}
+      </button>
+
+      <button type="button" class="group-detail-page__toolbar-button" on:click={openAddCardsDrawer}>
+        + Add Cards
+      </button>
+    </div>
   </div>
 
   {#if isSelectMode}
@@ -1020,6 +1046,7 @@
           checkboxLabel="Select card"
           rowTemplate="1rem minmax(0, 2.4fr) auto"
           clickable
+          desktopShowCheckbox={isSelectMode}
           showGroups={false}
           hasActions={false}
           mobileShowCheckbox={!isMobileViewport || isSelectMode}
@@ -1243,7 +1270,8 @@
   .group-detail-page__header-actions,
   .group-detail-page__dialog-actions,
   .group-detail-page__drawer-header,
-  .group-detail-page__drawer-row-heading {
+  .group-detail-page__drawer-row-heading,
+  .group-detail-page__toolbar-actions {
     display: flex;
     align-items: start;
     justify-content: space-between;
@@ -1367,6 +1395,12 @@
     border-color: var(--color-primary);
     background: var(--color-primary);
     color: var(--color-text-inverse);
+  }
+
+  .group-detail-page__toolbar-button--secondary {
+    border-color: var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text-primary);
   }
 
   .group-detail-page__translation-drills-eyebrow {

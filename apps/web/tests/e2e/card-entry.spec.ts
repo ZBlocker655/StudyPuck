@@ -44,7 +44,6 @@ test('supports inbox capture, nav badges, note actions, and language isolation',
   await expect(page.locator('.card-entry-count')).toHaveText('1');
   await expect(page.locator('.app-sidebar .nav-badge')).toHaveText('1');
 
-  await inlineRow.hover();
   await inlineRow.getByRole('button', { name: 'Defer' }).click();
 
   await expect(page.getByText('hola desde inline')).toHaveCount(0);
@@ -76,7 +75,6 @@ test('supports command-bar quick-add flow and process handoff route', async ({ p
   await expect(drawerRow).toHaveCount(1);
   await expect(page.locator('.card-entry-count')).toHaveText('1');
 
-  await drawerRow.hover();
   await drawerRow.getByRole('link', { name: 'Process →' }).click();
 
   await page.waitForURL(/\/es\/card-entry\/notes\//);
@@ -166,7 +164,7 @@ test('keeps first-added example sentence and mnemonic field visible on single cl
   // persistDraft fetch; the stale response must not clobber the new empty textarea.
   const contentField = page.getByPlaceholder('Card content...');
   await contentField.click();
-  await page.getByRole('button', { name: '+ Add', exact: true }).first().click();
+  await page.getByRole('button', { name: 'Add example sentence' }).click();
 
   const exampleTextarea = page.getByPlaceholder('Example sentence...');
   await expect(exampleTextarea).toHaveCount(1);
@@ -175,7 +173,7 @@ test('keeps first-added example sentence and mnemonic field visible on single cl
   // Focus the meaning field, then click "+ Add" for mnemonics.
   const meaningField = page.getByPlaceholder('Meaning...');
   await meaningField.click();
-  await page.getByRole('button', { name: '+ Add', exact: true }).last().click();
+  await page.getByRole('button', { name: 'Add mnemonic' }).click();
 
   const mnemonicTextarea = page.getByPlaceholder('Mnemonic...');
   await expect(mnemonicTextarea).toHaveCount(1);
