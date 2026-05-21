@@ -468,7 +468,9 @@ test('group detail deletes the group and navigates back to groups list', async (
 	await page.goto(`/es/cards/groups/${groupId}`);
 	await expect(page.getByRole('heading', { level: 1, name: 'DeleteMe', exact: true })).toBeVisible();
 
-	await page.getByRole('button', { name: 'Delete Group' }).click();
+	const deleteButton = page.locator('.group-detail-page__header-actions').getByRole('button', { name: 'Delete Group' });
+	await expect(deleteButton).toBeVisible();
+	await deleteButton.click();
 
 	const dialog = page.getByRole('alertdialog');
 	await expect(dialog).toBeVisible();

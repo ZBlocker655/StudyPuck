@@ -27,9 +27,11 @@
     day: 'numeric',
   });
 
-  let queueItems: SessionItem[] = [];
-  let initialTotalCount = 0;
-  let sessionAvailableGroups: CardLibraryGroupData[] = [];
+  let queueItems: SessionItem[] = data.reviewSession ? structuredClone(data.reviewSession.items) : [];
+  let initialTotalCount = data.reviewSession?.totalCount ?? 0;
+  let sessionAvailableGroups: CardLibraryGroupData[] = data.reviewSession
+    ? structuredClone(data.reviewSession.availableGroups)
+    : [];
   let ratingCounts = {
     easy: 0,
     medium: 0,

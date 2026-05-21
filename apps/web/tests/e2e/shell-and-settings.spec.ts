@@ -55,7 +55,7 @@ test('navigates settings tabs and supports the real add-language flow', async ({
 		await addLanguageButton.click();
 		await expect(addLanguageDialog).toBeVisible();
 	}).toPass({ timeout: 10000 });
-	await addLanguageDialog.getByLabel('Dutch').click();
+	await addLanguageDialog.locator('.language-picker__surface', { hasText: 'Dutch' }).click();
 	await addLanguageDialog.getByRole('button', { name: 'Add Language →' }).click();
 
 	await page.waitForURL(/\/nl\/?$/);
@@ -85,7 +85,7 @@ test('saves a language-specific Card Entry example sentence format', async ({ pa
 	const chineseCard = page.locator('.language-card', {
 		has: page.getByRole('heading', { name: 'Chinese (Mandarin)' })
 	});
-	await chineseCard.getByLabel('Sentence + transliteration + translation').click();
+	await chineseCard.locator('.preference-option__surface', { hasText: 'Sentence + transliteration + translation' }).click();
 	await chineseCard.getByRole('button', { name: 'Save Example Format', exact: true }).click();
 
 	await expect(chineseCard).toContainText(
