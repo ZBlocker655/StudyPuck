@@ -186,7 +186,7 @@ Baseline coverage should include:
 
 The following patterns were learned through repeated headless-CI failures and are now standing rules. Each addresses a specific way that tests pass locally (headed Chrome on Windows) but fail in headless Linux CI.
 
-### 1. Hover-gated action buttons — use `evaluate(dispatchEvent)`, not `.click({ force: true })`
+### 1. Hover-gated action buttons — use `evaluate(el => el.click())`, not `.click({ force: true })` or `dispatchEvent`
 
 StudyPuck uses `@media (hover: hover) and (pointer: fine)` CSS to hide card-row action buttons by default:
 
@@ -198,22 +198,28 @@ StudyPuck uses `@media (hover: hover) and (pointer: fine)` CSS to hide card-row 
 .card-row:hover .card-row__actions { opacity: 1; pointer-events: auto; }
 ```
 
-Headless CI Chromium matches this media query. The buttons are invisible and inside a `pointer-events: none` container. **Important**: `{ force: true }` only bypasses Playwright's own actionability checks — the actual click is still dispatched via native browser mouse events, which the browser routes around `pointer-events: none` on ancestor elements. The click therefore lands on an underlying element rather than the button.
+Headless CI Chromium matches this media query. The buttons are invisible and inside an `opacity: 0 / pointer-events: none` container. Two separate failures arise:
 
-**Use `evaluate()` to dispatch a JS MouseEvent** — JavaScript's `dispatchEvent()` is immune to CSS `pointer-events`:
+1. **`{ force: true }` does not work.** It only bypasses Playwright's own actionability checks — the actual click is still dispatched via native browser mouse events, which the browser routes around `pointer-events: none` on ancestor elements.
+2. **`evaluate(el => el.dispatchEvent(new MouseEvent('click', ...)))` is unreliable.** `dispatchEvent` creates a synthetic event with `isTrusted: false`. Svelte 5's compiled event handlers may silently ignore untrusted events.
+3. **`viewCardDetailButton.click()` on items inside `opacity: 0` ancestors times out.** Playwright's click actionability check uses `checkVisibility({ checkOpacity: true })`, which considers elements inside an `opacity: 0` stacking context non-interactable and retries indefinitely.
+
+**Use `evaluate(el => (el as HTMLElement).click())`**. This is a native programmatic call — not a pointer event — so it:
+- bypasses CSS `pointer-events: none` (including on ancestors),
+- fires a **trusted** event (`isTrusted: true`) that Svelte's event handlers always accept,
+- bypasses Playwright's actionability checks (including the opacity stacking-context check).
 
 ```ts
-// ✅ Correct: JS dispatchEvent bypasses pointer-events:none entirely
-await menuButton.evaluate(el =>
-  el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
-);
+// ✅ Correct: native el.click() bypasses pointer-events:none AND fires trusted event
+await menuButton.evaluate((el: HTMLElement) => el.click());
 await expect(menuButton).toHaveAttribute('aria-expanded', 'true', { timeout: 10000 });
+
+// ✅ Also use el.click() for menu items / other elements inside the same opacity:0 container:
+await viewCardDetailButton.evaluate((el: HTMLElement) => el.click());
 
 // ✅ Inside toPass for idempotent actions (card leaves the list on success):
 await expect(async () => {
-  await snoozeButton.evaluate(el =>
-    el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
-  );
+  await snoozeButton.evaluate((el: HTMLElement) => el.click());
   await expect(page.locator('article[aria-label="..., snoozed"]')).toBeVisible();
 }).toPass({ timeout: 10000 });
 
@@ -222,6 +228,10 @@ await menuButton.click({ force: true });
 // ❌ Unreliable: hover then click races with pointer-events:none reactivation
 await cardRow.hover();
 await actionButton.click();
+// ❌ Unreliable: dispatchEvent fires isTrusted:false, may be filtered by Svelte 5
+await menuButton.evaluate(el =>
+  el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+);
 ```
 
 For checkboxes inside a hover-gated container with Svelte one-way `checked={expr}` bindings, combine the JS dispatch with a change event and assert the downstream effect rather than the checked state (see also Pattern 2):
@@ -273,9 +283,7 @@ await expect(menuButton).toHaveAttribute('aria-expanded', 'true', { timeout: 100
 // ✅ toPass is safe for idempotent actions (snooze, dismiss) where
 //    the action only runs once (card leaves the list on success):
 await expect(async () => {
-  await snoozeButton.evaluate(el =>
-    el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
-  );
+  await snoozeButton.evaluate((el: HTMLElement) => el.click());
   await expect(snoozedCard).toBeVisible();
 }).toPass({ timeout: 10000 });
 
