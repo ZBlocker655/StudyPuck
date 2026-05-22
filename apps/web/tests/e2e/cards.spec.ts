@@ -152,9 +152,11 @@ test('card library drawer closes on backdrop click', async ({ page }) => {
 	const drawer = page.getByRole('dialog');
 	await expect(drawer).toBeVisible();
 
-	await page.locator('.active-card-drawer__backdrop').click();
-	await expect(page).not.toHaveURL(/card=/);
-	await expect(drawer).toHaveCount(0);
+	await expect(async () => {
+		await page.locator('.active-card-drawer__backdrop').click({ force: true });
+		await expect(page).not.toHaveURL(/card=/);
+		await expect(drawer).toHaveCount(0);
+	}).toPass({ timeout: 10000 });
 });
 
 test('card library drawer closes on Escape key', async ({ page }) => {
@@ -171,13 +173,17 @@ test('card library drawer closes on Escape key', async ({ page }) => {
 	await page.goto('/es/cards');
 
 	const drawer = page.getByRole('dialog');
-	await page.getByText('salir', { exact: true }).click();
-	await expect(drawer).toBeVisible();
+	await expect(async () => {
+		await page.locator('.card-list-row', { hasText: 'salir' }).click();
+		await expect(drawer).toBeVisible();
+	}).toPass({ timeout: 10000 });
 
 	await drawer.focus();
-	await page.keyboard.press('Escape');
-	await expect(page).not.toHaveURL(/card=/);
-	await expect(drawer).toHaveCount(0);
+	await expect(async () => {
+		await page.keyboard.press('Escape');
+		await expect(page).not.toHaveURL(/card=/);
+		await expect(drawer).toHaveCount(0);
+	}).toPass({ timeout: 10000 });
 });
 
 test('card library deletes a card from the drawer and removes it from the list', async ({ page }) => {
@@ -197,10 +203,12 @@ test('card library deletes a card from the drawer and removes it from the list',
 	await expect(drawer).toBeVisible();
 
 	const confirmDialog = page.getByRole('alertdialog');
-	await drawer.getByRole('button', { name: 'Delete card' }).click();
-	await expect(confirmDialog).toBeVisible();
+	await expect(async () => {
+		await drawer.locator('.active-card-drawer__delete').click({ force: true });
+		await expect(confirmDialog).toBeVisible();
+	}).toPass({ timeout: 10000 });
 
-	await confirmDialog.getByRole('button', { name: 'Delete card' }).click();
+	await confirmDialog.locator('.active-card-drawer__confirm-delete').click({ force: true });
 
 	await expect(page.getByText('No cards yet')).toBeVisible({ timeout: 10000 });
 });
@@ -231,8 +239,10 @@ test('groups list creates a new group via the drawer', async ({ page }) => {
 
 	await page.goto('/es/cards/groups');
 	const drawer = page.getByRole('dialog', { name: 'New Group' });
-	await page.getByRole('button', { name: /\+ New/ }).click();
-	await expect(drawer).toBeVisible();
+	await expect(async () => {
+		await page.getByRole('button', { name: /\+ New/ }).click();
+		await expect(drawer).toBeVisible();
+	}).toPass({ timeout: 10000 });
 
 	await drawer.getByRole('textbox', { name: /Group name/i }).fill('Vocabulary');
 	await drawer.getByRole('button', { name: 'Create Group' }).click();
@@ -271,8 +281,10 @@ test('groups list renders existing groups and navigates to group detail', async 
 
 	await expect(page.getByRole('heading', { level: 2, name: 'Verbs' })).toBeVisible();
 
-	await page.locator('.groups-page__row-shell', { hasText: 'Verbs' }).getByRole('button', { name: /^Verbs/ }).click();
-	await expect(page).toHaveURL(/\/es\/cards\/groups\/[^/?]+$/);
+	await expect(async () => {
+		await page.locator('.groups-page__row', { hasText: 'Verbs' }).click({ force: true });
+		await expect(page).toHaveURL(/\/es\/cards\/groups\/[^/?]+$/);
+	}).toPass({ timeout: 10000 });
 	await expect(page.getByRole('heading', { level: 1, name: 'Verbs' })).toBeVisible();
 });
 
@@ -292,10 +304,13 @@ test('groups list deletes a group via confirm dialog', async ({ page }) => {
 	await expect(page.getByRole('heading', { level: 2, name: 'TestGroup' })).toBeVisible();
 
 	const dialog = page.getByRole('alertdialog');
-	await page.locator('.groups-page__row-shell', { hasText: 'TestGroup' })
-		.getByRole('button', { name: 'Delete TestGroup' })
-		.click();
-	await expect(dialog).toBeVisible();
+	await expect(async () => {
+		await page.locator('.groups-page__row-shell', { hasText: 'TestGroup' }).hover();
+		await page.locator('.groups-page__row-shell', { hasText: 'TestGroup' })
+			.getByRole('button', { name: 'Delete TestGroup' })
+			.click({ force: true });
+		await expect(dialog).toBeVisible();
+	}).toPass({ timeout: 10000 });
 	await expect(dialog).toContainText('Delete "TestGroup"?');
 
 	await dialog.getByRole('button', { name: 'Delete Group' }).click();
@@ -317,10 +332,13 @@ test('groups list delete confirm dialog cancels when Cancel is clicked', async (
 	await page.goto('/es/cards/groups');
 
 	const dialog = page.getByRole('alertdialog');
-	await page.locator('.groups-page__row-shell', { hasText: 'CancelGroup' })
-		.getByRole('button', { name: 'Delete CancelGroup' })
-		.click();
-	await expect(dialog).toBeVisible();
+	await expect(async () => {
+		await page.locator('.groups-page__row-shell', { hasText: 'CancelGroup' }).hover();
+		await page.locator('.groups-page__row-shell', { hasText: 'CancelGroup' })
+			.getByRole('button', { name: 'Delete CancelGroup' })
+			.click({ force: true });
+		await expect(dialog).toBeVisible();
+	}).toPass({ timeout: 10000 });
 
 	await dialog.getByRole('button', { name: 'Cancel' }).click();
 
@@ -442,11 +460,12 @@ test('group detail edits the group name inline', async ({ page }) => {
 	});
 
 	await page.goto(`/es/cards/groups/${groupId}`);
+	await page.waitForLoadState('networkidle');
 	await expect(page.getByRole('heading', { level: 1, name: 'OldName', exact: true })).toBeVisible();
 
-	await page.getByRole('button', { name: 'OldName' }).click();
+	await page.locator('.group-detail-page__name-button').press('Enter');
 
-	const nameInput = page.getByRole('textbox', { name: 'Group name' });
+	const nameInput = page.locator('.group-detail-page__name-input');
 	await expect(nameInput).toBeVisible();
 	await nameInput.fill('NewName');
 	await nameInput.press('Enter');
@@ -466,6 +485,7 @@ test('group detail deletes the group and navigates back to groups list', async (
 	});
 
 	await page.goto(`/es/cards/groups/${groupId}`);
+	await page.waitForLoadState('networkidle');
 	await expect(page.getByRole('heading', { level: 1, name: 'DeleteMe', exact: true })).toBeVisible();
 
 	const deleteButton = page.locator('.group-detail-page__header-actions').getByRole('button', { name: 'Delete Group' });

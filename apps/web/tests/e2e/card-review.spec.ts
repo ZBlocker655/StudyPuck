@@ -182,7 +182,7 @@ test('supports keyboard access for the end-session dialog and restores focus whe
 	await page.goto(`/zh/card-review/session?group=${coreGroup.groupId}`);
 
 	const contextView = page.getByLabel('Context view', { exact: true });
-	const openDialogButton = page.getByRole('button', { name: 'End session' });
+	const openDialogButton = contextView.getByRole('button', { name: 'End session' });
 	await expect(openDialogButton).toBeVisible({ timeout: 10000 });
 	await openDialogButton.click();
 

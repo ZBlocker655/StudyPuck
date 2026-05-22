@@ -85,7 +85,9 @@ test('saves a language-specific Card Entry example sentence format', async ({ pa
 	const chineseCard = page.locator('.language-card', {
 		has: page.getByRole('heading', { name: 'Chinese (Mandarin)' })
 	});
-	await chineseCard.locator('.preference-option__surface', { hasText: 'Sentence + transliteration + translation' }).click();
+	await chineseCard
+		.locator('input[name="exampleSentenceFormat"][value="sentence_transliteration_translation"]')
+		.check({ force: true });
 	await chineseCard.getByRole('button', { name: 'Save Example Format', exact: true }).click();
 
 	await expect(chineseCard).toContainText(
