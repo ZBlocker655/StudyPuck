@@ -137,12 +137,23 @@ try {
 		: await findAvailablePort(DEFAULT_SERVER_PORT);
 	const serverUrl = `http://${SERVER_HOST}:${serverPort}`;
 
-	const migrateExitCode = await runCommandStreaming(
-		'pnpm',
-		['--dir', webAppDir, 'db:migrate'],
-		testEnv,
-		repoRoot
-	);
+	// Retry migration up to 3 times — Neon compute endpoints may need a few seconds to
+	// warm up after branch creation, and a cold-start TLS failure can crash the driver
+	// (exit code 3221225501 on Windows) rather than returning a graceful error.
+	let migrateExitCode = 1;
+	for (let attempt = 1; attempt <= 3; attempt++) {
+		if (attempt > 1) {
+			console.log(`Migration attempt ${attempt - 1} failed (exit ${migrateExitCode}), waiting 8s for Neon endpoint warm-up...`);
+			await delay(8_000);
+		}
+		migrateExitCode = await runCommandStreaming(
+			'pnpm',
+			['--dir', webAppDir, 'db:migrate'],
+			testEnv,
+			repoRoot
+		);
+		if (migrateExitCode === 0) break;
+	}
 	if (migrateExitCode !== 0) {
 		throw new Error(`Database migration exited with code ${migrateExitCode}`);
 	}

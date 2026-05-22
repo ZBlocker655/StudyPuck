@@ -106,6 +106,11 @@ pnpm --filter @studypuck/database test:docker
 - **Integration testing**: Components work together
 - **Human acceptance**: Final review and approval
 
+#### **Browser Test Reliability Expectations:**
+- prefer visible, deterministic UI states over hover-only access paths when writing or revising Playwright coverage
+- use roles, labels, and explicit readiness signals before reaching for CSS-detail selectors or forced clicks
+- if a browser test needs brittle targeting, improve the UI contract or move the logic to a lower-level test first
+
 ### **Phase 5: Completion and Cleanup**
 
 #### **Human Responsibilities:**

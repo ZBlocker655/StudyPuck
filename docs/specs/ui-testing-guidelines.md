@@ -137,6 +137,14 @@ Use for:
 
 Playwright should cover the high-value end-to-end contracts, not replace smaller component tests.
 
+#### Reliability-first authoring rules
+
+- drive the UI through explicit visible states instead of hover-revealed affordances whenever possible
+- prefer role/label/name-based locators and give repeated controls distinct accessible names before falling back to positional targeting
+- wait for specific readiness signals such as dialog visibility, `aria-expanded`, checked state, URL transitions, and live success/error feedback
+- avoid `force`, `hover`, `first`, `last`, and `nth` unless the interaction model itself is what the test is proving
+- if a browser assertion depends on incidental copy, layout, or timing noise, move that coverage to a component/store/server test instead
+
 ## Minimum Baseline for a New UI Issue
 
 For a new significant UI issue, add at least:

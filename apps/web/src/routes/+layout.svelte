@@ -6,6 +6,10 @@
 	let { children, data } = $props();
 
   afterNavigate(() => {
+    if (data.isE2ETestMode) {
+      return;
+    }
+
     invalidateAll();
   });
 </script>

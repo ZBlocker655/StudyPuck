@@ -515,7 +515,13 @@
   <div class="draft-card__field stack" style="--stack-space: var(--space-2)">
     <div class="cluster draft-card__field-head">
       <span class="draft-card__label">Example sentences</span>
-      <button type="button" class="draft-card__list-button" disabled={disabled} on:click={() => addListValue('examples')}>
+      <button
+        type="button"
+        class="draft-card__list-button"
+        disabled={disabled}
+        aria-label="Add example sentence"
+        on:click={() => addListValue('examples')}
+      >
         + Add
       </button>
     </div>
@@ -554,7 +560,13 @@
   <div class="draft-card__field stack" style="--stack-space: var(--space-2)">
     <div class="cluster draft-card__field-head">
       <span class="draft-card__label">Mnemonics</span>
-      <button type="button" class="draft-card__list-button" disabled={disabled} on:click={() => addListValue('mnemonics')}>
+      <button
+        type="button"
+        class="draft-card__list-button"
+        disabled={disabled}
+        aria-label="Add mnemonic"
+        on:click={() => addListValue('mnemonics')}
+      >
         + Add
       </button>
     </div>

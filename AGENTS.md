@@ -213,6 +213,10 @@ StudyPuck/
 - **Prefer component/store tests for isolated logic**, but use browser tests when the behavior depends on SSR loads, redirects, real forms/actions, command-bar context, or cross-page navigation.
 - **Keep browser tests on the real milestone flows** already in the product rather than on temporary throwaway placeholders.
 - **Use the shared e2e harness** in `apps/web/tests/e2e/` instead of inventing per-spec auth or seed logic.
+- **Prefer explicit visible states over hover-only paths**: open drawers, enter select mode, and wait for dialog/status visibility before interacting.
+- **Prefer roles, labels, and distinct accessible names**; if a control cannot be targeted semantically, improve the product/test contract before adding brittle selectors.
+- **Avoid `force`, hover-only setup, and positional locators (`first`/`last`/`nth`) unless the behavior under test is specifically about that interaction model.**
+- **Reduce unrelated async noise in e2e runs** when possible by gating background revalidation, polling, or similar refresh work behind explicit test-mode behavior.
 
 ### **Deployment Understanding**  
 - **Cloudflare automatically deploys** main branch to studypuck.app

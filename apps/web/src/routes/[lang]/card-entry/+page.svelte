@@ -480,15 +480,6 @@
     .note-row__actions {
       align-content: center;
       grid-auto-flow: column;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 160ms ease;
-    }
-
-    .note-row-shell:hover .note-row__actions,
-    .note-row-shell:focus-within .note-row__actions {
-      opacity: 1;
-      pointer-events: auto;
     }
   }
 

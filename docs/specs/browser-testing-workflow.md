@@ -76,3 +76,20 @@ Use browser tests when you need confidence in:
 - multi-step flows that cross page boundaries
 
 Do **not** add Playwright coverage for trivial copy-only changes with no meaningful behavior impact.
+
+## Reliability-First Browser Test Rules
+
+### Flake categories this suite is actively avoiding
+
+- hover-only or focus-only controls that require setup unrelated to the user behavior under test
+- duplicated generic action names that force positional targeting like `first()` or `last()`
+- background refresh, polling, or post-navigation revalidation that can race otherwise-complete assertions
+- implementation-detail selectors and forced clicks that bypass the product's accessible interaction contract
+
+### Authoring conventions
+
+- put the UI into a deterministic visible state before interacting with it
+- prefer readiness checks such as URL changes, `aria-expanded`, dialog visibility, checked state, and status/error feedback
+- target controls by role, label, accessible name, and stable semantics
+- avoid `force: true`, hover preconditions, and positional locators unless they are the specific behavior being validated
+- if the browser test needs brittle selectors to reach a control, fix the UI contract or move the logic to a lower test layer first

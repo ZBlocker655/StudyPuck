@@ -244,7 +244,7 @@ test('groups list creates a new group via the drawer', async ({ page }) => {
 		await expect(drawer).toBeVisible();
 	}).toPass({ timeout: 10000 });
 
-	await drawer.getByRole('textbox').first().fill('Vocabulary');
+	await drawer.getByRole('textbox', { name: /Group name/i }).fill('Vocabulary');
 	await drawer.getByRole('button', { name: 'Create Group' }).click();
 
 	await expect(page.getByRole('heading', { level: 2, name: 'Vocabulary' })).toBeVisible({ timeout: 10000 });
@@ -377,7 +377,7 @@ test('group detail shows empty state when no cards are in the group', async ({ p
 	await page.goto(`/es/cards/groups/${group.groupId}`);
 
 	await expect(page.getByText('No cards in this group yet')).toBeVisible();
-	await expect(page.locator('.group-detail-page__state-cta', { hasText: '+ Add Cards' })).toBeVisible();
+	await expect(page.locator('.group-detail-page__state').getByRole('button', { name: '+ Add Cards' })).toBeVisible();
 });
 
 test('group detail adds cards via the Add Cards drawer', async ({ page }) => {
@@ -403,18 +403,15 @@ test('group detail adds cards via the Add Cards drawer', async ({ page }) => {
 	});
 
 	await page.goto(`/es/cards/groups/${groupId}`);
-	await page.waitForLoadState('networkidle');
 	await expect(page.getByRole('heading', { level: 1, name: 'Destination', exact: true })).toBeVisible();
 
-	await page.getByRole('button', { name: '+ Add Cards' }).click();
-
 	const addDrawer = page.getByRole('dialog', { name: /Add cards to/ });
-	await expect(addDrawer).toBeVisible();
+	await expect(async () => {
+		await page.getByRole('button', { name: '+ Add Cards' }).click();
+		await expect(addDrawer).toBeVisible();
+	}).toPass({ timeout: 10000 });
 
-	const cardRow = addDrawer.locator('label', { hasText: 'agregar' });
-	await expect(cardRow).toBeVisible();
-
-	await cardRow.locator('input[type="checkbox"]').check();
+	await addDrawer.getByRole('checkbox', { name: /agregar/i }).check();
 
 	await addDrawer.getByRole('button', { name: /Add \d+ card/ }).click();
 
@@ -440,15 +437,12 @@ test('group detail removes cards from the group using bulk Remove from group act
 	await expect(page.getByText('quitar')).toBeVisible();
 	await expect(page.getByText('1 card')).toBeVisible();
 
-	// Select the card (desktop: hover to show checkbox)
 	const row = page.locator('.card-list-row', { hasText: 'quitar' });
 	const bulkBar = page.locator('.card-list-bulk-bar');
-	await expect(async () => {
-		await row.hover();
-		await row.getByRole('checkbox', { name: 'Select card' }).check({ force: true });
-		await expect(row.getByRole('checkbox', { name: 'Select card' })).toBeChecked();
-		await expect(bulkBar).toBeVisible();
-	}).toPass({ timeout: 10000 });
+	await page.getByRole('button', { name: 'Select cards' }).click();
+	await row.getByRole('checkbox', { name: 'Select card' }).check();
+	await expect(row.getByRole('checkbox', { name: 'Select card' })).toBeChecked();
+	await expect(bulkBar).toBeVisible();
 	await bulkBar.getByRole('button', { name: 'Remove from group' }).click();
 
 	await expect(page.getByText('No cards in this group yet')).toBeVisible({ timeout: 10000 });
@@ -495,9 +489,11 @@ test('group detail deletes the group and navigates back to groups list', async (
 	await page.waitForLoadState('networkidle');
 	await expect(page.getByRole('heading', { level: 1, name: 'DeleteMe', exact: true })).toBeVisible();
 
-	await page.locator('.group-detail-page__header-button--danger').press('Enter');
+	const deleteButton = page.locator('.group-detail-page__header-actions').getByRole('button', { name: 'Delete Group' });
+	await expect(deleteButton).toBeVisible();
+	await deleteButton.click();
 
-	const dialog = page.locator('.group-detail-page__dialog[role="alertdialog"]');
+	const dialog = page.getByRole('alertdialog');
 	await expect(dialog).toBeVisible();
 	await expect(dialog).toContainText('Delete "DeleteMe"?');
 

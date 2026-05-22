@@ -12,8 +12,10 @@
   export let rowTemplate = '1rem minmax(0, 2.25fr) minmax(9rem, 1fr) auto auto';
   export let clickable = false;
   export let mobileShowCheckbox = true;
+  export let desktopShowCheckbox = false;
   export let showGroups = true;
   export let hasActions = true;
+  export let desktopShowActions = false;
   export let longPressDuration = 500;
 
   let longPressTimer: ReturnType<typeof setTimeout> | null = null;
@@ -69,10 +71,13 @@
   }
 </script>
 
+<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
   class:selected
   class:card-list-row--clickable={clickable}
   class:card-list-row--mobile-checkbox-hidden={!mobileShowCheckbox}
+  class:card-list-row--desktop-checkbox-visible={desktopShowCheckbox}
+  class:card-list-row--desktop-actions-visible={desktopShowActions}
   class="card-list-row"
   role={clickable ? 'button' : undefined}
   tabindex={clickable ? 0 : undefined}
@@ -166,6 +171,11 @@
     pointer-events: auto;
   }
 
+  .card-list-row--desktop-checkbox-visible .card-list-row__checkbox {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
   .card-list-row__content,
   .card-list-row__groups,
   .card-list-row__updated {
@@ -188,6 +198,11 @@
   .card-list-row:hover .card-list-row__actions,
   .card-list-row:focus-within .card-list-row__actions,
   .card-list-row.selected .card-list-row__actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .card-list-row--desktop-actions-visible .card-list-row__actions {
     opacity: 1;
     pointer-events: auto;
   }

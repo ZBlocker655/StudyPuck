@@ -258,6 +258,7 @@
           <CardListRow
             selected={selectedCardIds.includes(item.cardId)}
             checkboxLabel="Select draft card"
+            desktopShowActions
             on:toggleSelection={() => toggleSelection(item.cardId)}
           >
               <a
