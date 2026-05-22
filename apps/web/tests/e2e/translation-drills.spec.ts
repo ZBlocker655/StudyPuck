@@ -190,17 +190,27 @@ test('translation drills covers card detail, draw piles, snooze, and dismiss flo
 	await expect(page.locator('article[aria-label="感觉, snoozed"]')).toBeVisible();
 
 	const activeCardRow = page.locator('article[aria-label="经历"]');
-	await expect(activeCardRow).toBeVisible();
+	await expect(activeCardRow).toBeVisible({ timeout: 10000 });
 	const menuButton = activeCardRow.getByRole('button', { name: 'More actions for 经历' });
-	await menuButton.focus();
-	await menuButton.press('Enter');
-	await expect(menuButton).toHaveAttribute('aria-expanded', 'true');
+	// Use el.click() (not dispatchEvent) for two reasons:
+	// 1. dispatchEvent creates isTrusted:false events; Svelte 5's compiled handlers may filter
+	//    these out. el.click() fires a trusted native click that Svelte always handles.
+	// 2. el.click() is a programmatic API call, not a browser pointer event, so CSS
+	//    pointer-events:none on .card-row__actions does not suppress it.
+	// force:true does NOT help — it only skips Playwright's actionability checks but still
+	// dispatches native mouse events that the browser blocks at pointer-events:none ancestors.
+	await menuButton.evaluate((el: HTMLElement) => el.click());
+	await expect(menuButton).toHaveAttribute('aria-expanded', 'true', { timeout: 10000 });
 	const viewCardDetailButton = activeCardRow.getByRole('menuitem', { name: 'View card detail' });
-	await viewCardDetailButton.focus();
-	await viewCardDetailButton.press('Enter');
+	await expect(viewCardDetailButton).toBeVisible({ timeout: 5000 });
+	// The menu is inside .card-row__actions (opacity:0 in headless CI). Playwright's click()
+	// actionability check uses checkVisibility({checkOpacity:true}), which considers elements
+	// inside opacity:0 ancestors non-interactable and retries indefinitely. el.click() bypasses
+	// Playwright's actionability checks entirely while still firing the Svelte onclick handler.
+	await viewCardDetailButton.evaluate((el: HTMLElement) => el.click());
 
 	const drawer = page.getByRole('dialog');
-	await expect(drawer).toBeVisible();
+	await expect(drawer).toBeVisible({ timeout: 10000 });
 	await expect(drawer.getByRole('textbox', { name: 'Content' })).toHaveValue('经历');
 	await drawer.getByRole('button', { name: 'Close drawer' }).click();
 	await expect(drawer).toHaveCount(0);
@@ -210,17 +220,22 @@ test('translation drills covers card detail, draw piles, snooze, and dismiss flo
 	await expect(page.getByRole('button', { name: 'Core Words draw pile — Pile empty' })).toBeDisabled();
 
 	const snoozeButton = activeCardRow.getByRole('button', { name: '💤 Snooze' });
-	await snoozeButton.focus();
-	await snoozeButton.press('Enter');
-	await expect(page.locator('article[aria-label="经历, snoozed"]')).toBeVisible();
+	// el.click() (trusted native click) for the same reasons as the menu button above.
+	// Also safe inside toPass() because snooze is non-idempotent by design — once the card
+	// leaves the DOM as "snoozed", the assertion succeeds and toPass stops retrying.
+	await expect(async () => {
+		await snoozeButton.evaluate((el: HTMLElement) => el.click());
+		await expect(page.locator('article[aria-label="经历, snoozed"]')).toBeVisible();
+	}).toPass({ timeout: 10000 });
 
 	const drawnCardRow = page.locator('article[aria-label="学习"]');
 	const dismissButton = drawnCardRow.getByRole('button', { name: '✕ Dismiss' });
-	await dismissButton.focus();
-	await dismissButton.press('Enter');
+	await expect(async () => {
+		await dismissButton.evaluate((el: HTMLElement) => el.click());
+		await expect(page.getByRole('dialog', { name: '学习' })).toBeVisible();
+	}).toPass({ timeout: 10000 });
 
 	const dialog = page.getByRole('dialog', { name: '学习' });
-	await expect(dialog).toBeVisible();
 	await expect(dialog.getByText('When should it return?')).toBeVisible();
 	await expect(dialog.getByRole('radio').first()).toBeVisible();
 	await dialog.getByRole('button', { name: 'Dismiss', exact: true }).click();

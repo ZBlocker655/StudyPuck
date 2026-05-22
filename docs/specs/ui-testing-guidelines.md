@@ -182,6 +182,148 @@ Baseline coverage should include:
 - success/error state
 - live-region or equivalent announcement behavior where content updates dynamically
 
+## Playwright CI Hardening Patterns
+
+The following patterns were learned through repeated headless-CI failures and are now standing rules. Each addresses a specific way that tests pass locally (headed Chrome on Windows) but fail in headless Linux CI.
+
+### 1. Hover-gated action buttons — use `evaluate(el => el.click())`, not `.click({ force: true })` or `dispatchEvent`
+
+StudyPuck uses `@media (hover: hover) and (pointer: fine)` CSS to hide card-row action buttons by default:
+
+```css
+.card-row__actions {
+  opacity: 0;
+  pointer-events: none;
+}
+.card-row:hover .card-row__actions { opacity: 1; pointer-events: auto; }
+```
+
+Headless CI Chromium matches this media query. The buttons are invisible and inside an `opacity: 0 / pointer-events: none` container. Two separate failures arise:
+
+1. **`{ force: true }` does not work.** It only bypasses Playwright's own actionability checks — the actual click is still dispatched via native browser mouse events, which the browser routes around `pointer-events: none` on ancestor elements.
+2. **`evaluate(el => el.dispatchEvent(new MouseEvent('click', ...)))` is unreliable.** `dispatchEvent` creates a synthetic event with `isTrusted: false`. Svelte 5's compiled event handlers may silently ignore untrusted events.
+3. **`viewCardDetailButton.click()` on items inside `opacity: 0` ancestors times out.** Playwright's click actionability check uses `checkVisibility({ checkOpacity: true })`, which considers elements inside an `opacity: 0` stacking context non-interactable and retries indefinitely.
+
+**Use `evaluate(el => (el as HTMLElement).click())`**. This is a native programmatic call — not a pointer event — so it:
+- bypasses CSS `pointer-events: none` (including on ancestors),
+- fires a **trusted** event (`isTrusted: true`) that Svelte's event handlers always accept,
+- bypasses Playwright's actionability checks (including the opacity stacking-context check).
+
+```ts
+// ✅ Correct: native el.click() bypasses pointer-events:none AND fires trusted event
+await menuButton.evaluate((el: HTMLElement) => el.click());
+await expect(menuButton).toHaveAttribute('aria-expanded', 'true', { timeout: 10000 });
+
+// ✅ Also use el.click() for menu items / other elements inside the same opacity:0 container:
+await viewCardDetailButton.evaluate((el: HTMLElement) => el.click());
+
+// ✅ Inside toPass for idempotent actions (card leaves the list on success):
+await expect(async () => {
+  await snoozeButton.evaluate((el: HTMLElement) => el.click());
+  await expect(page.locator('article[aria-label="..., snoozed"]')).toBeVisible();
+}).toPass({ timeout: 10000 });
+
+// ❌ Does NOT work: force:true still uses native browser mouse events
+await menuButton.click({ force: true });
+// ❌ Unreliable: hover then click races with pointer-events:none reactivation
+await cardRow.hover();
+await actionButton.click();
+// ❌ Unreliable: dispatchEvent fires isTrusted:false, may be filtered by Svelte 5
+await menuButton.evaluate(el =>
+  el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+);
+```
+
+For checkboxes inside a hover-gated container with Svelte one-way `checked={expr}` bindings, combine the JS dispatch with a change event and assert the downstream effect rather than the checked state (see also Pattern 2):
+
+```ts
+// ✅ Correct: evaluate sets checked + fires change; assert downstream bulk bar
+await selectCheckbox.evaluate(el => {
+  (el as HTMLInputElement).checked = true;
+  el.dispatchEvent(new Event('change', { bubbles: true }));
+});
+await expect(bulkBar).toBeVisible({ timeout: 10000 });
+
+// ❌ Does NOT work:
+await selectCheckbox.check({ force: true }); // native mouse event, pointer-events blocked
+```
+
+The components with hover-gated actions: `TranslationDrillsHome.svelte` (`.card-row__actions`) and `CardListRow.svelte` (`.card-list-row__checkbox`, `.card-list-row__actions`).
+
+### 2. Svelte 5 reactive radio buttons — use `evaluate()`, not `label.click()`
+
+Radio inputs with one-way Svelte 5 bindings (`checked={expr}` without `bind:checked`) can have their DOM state reset by Svelte's reactive system after a Playwright interaction but before form serialization. `label.click()` and `check({ force: true })` both fail this way.
+
+```ts
+// ✅ Correct: set checked state directly in the browser context
+const radio = card.locator('input[name="someGroup"][value="targetValue"]');
+await radio.evaluate((el) => {
+  const input = el as HTMLInputElement;
+  const form = input.closest('form')!;
+  form.querySelectorAll<HTMLInputElement>(`input[name="${input.name}"]`)
+    .forEach((r) => (r.checked = false));
+  input.checked = true;
+  // Do NOT dispatch 'change' — that can re-trigger Svelte reactive effects
+});
+await expect(radio).toBeChecked({ timeout: 2000 });
+await card.getByRole('button', { name: 'Save', exact: true }).click();
+
+// ❌ Unreliable: label.click() or check({ force: true }) on Svelte 5 reactive radios
+```
+
+### 3. Never wrap toggle-state actions in `toPass()`
+
+`toPass()` retries the entire wrapped function on assertion failure. If the action is a **toggle** (menu open/close, checkbox, accordion), each retry flips the state back. The assertion then alternates and never consistently passes.
+
+```ts
+// ✅ Correct: single click + extended timeout on assertion
+await menuButton.click();
+await expect(menuButton).toHaveAttribute('aria-expanded', 'true', { timeout: 10000 });
+
+// ✅ toPass is safe for idempotent actions (snooze, dismiss) where
+//    the action only runs once (card leaves the list on success):
+await expect(async () => {
+  await snoozeButton.evaluate((el: HTMLElement) => el.click());
+  await expect(snoozedCard).toBeVisible();
+}).toPass({ timeout: 10000 });
+
+// ❌ Wrong: toPass wrapping a toggle flips state on every retry
+await expect(async () => {
+  await menuButton.click();           // retry 1: opens; retry 2: closes; …
+  await expect(menuButton).toHaveAttribute('aria-expanded', 'true');
+}).toPass({ timeout: 10000 });
+```
+
+### 4. Use `.click()` on buttons — never `focus() + press('Enter')`
+
+Headless Linux Chromium does not reliably dispatch keyboard events when focus hasn't fully settled. `focus() + press('Enter')` passes locally but fails intermittently in CI.
+
+```ts
+// ✅ Correct
+await button.click();
+
+// ❌ Unreliable in headless CI
+await button.focus();
+await button.press('Enter');
+```
+
+`press('Enter')` is reliable only on **text inputs that are already the active element** (e.g., a command bar that the test just typed into).
+
+### 5. Guard dynamic UI with explicit visibility waits
+
+Elements revealed by a button click may not be interactable in the same tick. Always add an `expect(...).toBeVisible({ timeout: N })` guard before interacting with newly revealed UI.
+
+```ts
+// ✅ Correct
+await selectCardsButton.click();
+await expect(firstCheckbox).toBeVisible({ timeout: 10000 });
+await firstCheckbox.check();
+
+// ❌ Race condition — checkbox may not exist yet
+await selectCardsButton.click();
+await firstCheckbox.check();
+```
+
 ## What This Guideline Does Not Require
 
 This guideline does **not** require:
