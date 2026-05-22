@@ -85,9 +85,14 @@ test('saves a language-specific Card Entry example sentence format', async ({ pa
 	const chineseCard = page.locator('.language-card', {
 		has: page.getByRole('heading', { name: 'Chinese (Mandarin)' })
 	});
+	// Click the visible label wrapper (the input itself has pointer-events:none)
 	await chineseCard
-		.locator('input[name="exampleSentenceFormat"][value="sentence_transliteration_translation"]')
-		.check({ force: true });
+		.locator('label.preference-option:has(input[value="sentence_transliteration_translation"])')
+		.click();
+	// Verify the radio is actually checked before submitting
+	await expect(
+		chineseCard.locator('input[name="exampleSentenceFormat"][value="sentence_transliteration_translation"]')
+	).toBeChecked({ timeout: 5000 });
 	await chineseCard.getByRole('button', { name: 'Save Example Format', exact: true }).click();
 
 	await expect(chineseCard).toContainText(
