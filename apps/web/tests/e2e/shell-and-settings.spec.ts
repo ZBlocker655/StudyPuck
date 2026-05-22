@@ -85,22 +85,18 @@ test('saves a language-specific Card Entry example sentence format', async ({ pa
 	const chineseCard = page.locator('.language-card', {
 		has: page.getByRole('heading', { name: 'Chinese (Mandarin)' })
 	});
-	// Use evaluate to set radio state directly — label.click() is unreliable because
-	// Svelte's reactive checked={expr} binding can reset the DOM property after a click.
-	const radioInput = chineseCard.locator(
-		'input[name="exampleSentenceFormat"][value="sentence_transliteration_translation"]'
-	);
-	await radioInput.evaluate((el) => {
-		const input = el as HTMLInputElement;
-		const form = input.closest('form')!;
-		// Uncheck all radios in the group first, then check only the target
-		form
-			.querySelectorAll<HTMLInputElement>(`input[name="${input.name}"]`)
-			.forEach((r) => (r.checked = false));
-		input.checked = true;
+	// Set the radio and submit in one synchronous evaluate — Svelte 5's reactive
+	// checked={expr} effect runs asynchronously and will reset any DOM state set
+	// before the submit. Combining both operations leaves no gap for that reset.
+	await chineseCard.locator('form[action="?/saveExampleSentenceFormat"]').evaluate((form) => {
+		const f = form as HTMLFormElement;
+		f.querySelectorAll<HTMLInputElement>('input[name="exampleSentenceFormat"]').forEach(
+			(r) => (r.checked = false)
+		);
+		f.querySelector<HTMLInputElement>('input[value="sentence_transliteration_translation"]')!.checked =
+			true;
+		f.requestSubmit();
 	});
-	await expect(radioInput).toBeChecked({ timeout: 2000 });
-	await chineseCard.getByRole('button', { name: 'Save Example Format', exact: true }).click();
 
 	await expect(chineseCard).toContainText(
 		'Chinese (Mandarin) Card Entry examples will now use sentence + transliteration + translation.',

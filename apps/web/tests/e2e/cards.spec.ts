@@ -442,7 +442,7 @@ test('group detail removes cards from the group using bulk Remove from group act
 	await page.getByRole('button', { name: 'Select cards' }).click();
 	const selectCheckbox = row.getByRole('checkbox', { name: 'Select card' });
 	await expect(selectCheckbox).toBeVisible({ timeout: 10000 });
-	await selectCheckbox.check();
+	await selectCheckbox.check({ force: true }); // CardListRow has a hover-gate; force bypasses pointer-events:none
 	await expect(selectCheckbox).toBeChecked();
 	await expect(bulkBar).toBeVisible();
 	await bulkBar.getByRole('button', { name: 'Remove from group' }).click();
