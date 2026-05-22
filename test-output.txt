@@ -1,0 +1,4 @@
+error: unknown option '--verbose'
+undefined
+C:\Users\Zach\Projects\StudyPuck\apps\web:
+ΓÇëERR_PNPM_RECURSIVE_EXEC_FIRST_FAILΓÇë Command "playwright" not found

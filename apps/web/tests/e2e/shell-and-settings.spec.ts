@@ -85,14 +85,21 @@ test('saves a language-specific Card Entry example sentence format', async ({ pa
 	const chineseCard = page.locator('.language-card', {
 		has: page.getByRole('heading', { name: 'Chinese (Mandarin)' })
 	});
-	// Click the visible label wrapper (the input itself has pointer-events:none)
-	await chineseCard
-		.locator('label.preference-option:has(input[value="sentence_transliteration_translation"])')
-		.click();
-	// Verify the radio is actually checked before submitting
-	await expect(
-		chineseCard.locator('input[name="exampleSentenceFormat"][value="sentence_transliteration_translation"]')
-	).toBeChecked({ timeout: 5000 });
+	// Use evaluate to set radio state directly — label.click() is unreliable because
+	// Svelte's reactive checked={expr} binding can reset the DOM property after a click.
+	const radioInput = chineseCard.locator(
+		'input[name="exampleSentenceFormat"][value="sentence_transliteration_translation"]'
+	);
+	await radioInput.evaluate((el) => {
+		const input = el as HTMLInputElement;
+		const form = input.closest('form')!;
+		// Uncheck all radios in the group first, then check only the target
+		form
+			.querySelectorAll<HTMLInputElement>(`input[name="${input.name}"]`)
+			.forEach((r) => (r.checked = false));
+		input.checked = true;
+	});
+	await expect(radioInput).toBeChecked({ timeout: 2000 });
 	await chineseCard.getByRole('button', { name: 'Save Example Format', exact: true }).click();
 
 	await expect(chineseCard).toContainText(

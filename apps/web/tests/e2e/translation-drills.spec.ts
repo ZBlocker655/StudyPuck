@@ -190,8 +190,11 @@ test('translation drills covers card detail, draw piles, snooze, and dismiss flo
 	await expect(page.locator('article[aria-label="感觉, snoozed"]')).toBeVisible();
 
 	const activeCardRow = page.locator('article[aria-label="经历"]');
-	await expect(activeCardRow).toBeVisible();
+	await expect(activeCardRow).toBeVisible({ timeout: 10000 });
+	// Actions are hidden via @media (hover:hover) — hover to reveal them before interacting
+	await activeCardRow.hover();
 	const menuButton = activeCardRow.getByRole('button', { name: 'More actions for 经历' });
+	await expect(menuButton).toBeVisible({ timeout: 5000 });
 	await menuButton.click();
 	await expect(menuButton).toHaveAttribute('aria-expanded', 'true', { timeout: 10000 });
 	const viewCardDetailButton = activeCardRow.getByRole('menuitem', { name: 'View card detail' });
@@ -210,6 +213,7 @@ test('translation drills covers card detail, draw piles, snooze, and dismiss flo
 
 	const snoozeButton = activeCardRow.getByRole('button', { name: '💤 Snooze' });
 	await expect(async () => {
+		await activeCardRow.hover(); // reveal hover-hidden actions
 		await snoozeButton.click();
 		await expect(page.locator('article[aria-label="经历, snoozed"]')).toBeVisible();
 	}).toPass({ timeout: 10000 });
@@ -217,6 +221,7 @@ test('translation drills covers card detail, draw piles, snooze, and dismiss flo
 	const drawnCardRow = page.locator('article[aria-label="学习"]');
 	const dismissButton = drawnCardRow.getByRole('button', { name: '✕ Dismiss' });
 	await expect(async () => {
+		await drawnCardRow.hover(); // reveal hover-hidden actions
 		await dismissButton.click();
 		await expect(page.getByRole('dialog', { name: '学习' })).toBeVisible();
 	}).toPass({ timeout: 10000 });
