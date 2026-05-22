@@ -215,7 +215,7 @@ StudyPuck/
 - **Use the shared e2e harness** in `apps/web/tests/e2e/` instead of inventing per-spec auth or seed logic.
 - **Prefer explicit visible states over hover-only paths**: open drawers, enter select mode, and wait for dialog/status visibility before interacting.
 - **Prefer roles, labels, and distinct accessible names**; if a control cannot be targeted semantically, improve the product/test contract before adding brittle selectors.
-- **Avoid `force`, hover-only setup, and positional locators (`first`/`last`/`nth`) unless the behavior under test is specifically about that interaction model.** Exception: `{ force: true }` is correct for buttons/checkboxes inside hover-gated CSS containers (`pointer-events: none` until `:hover`) — use it there instead of `.hover()`.
+- **Avoid `force`, hover-only setup, and positional locators (`first`/`last`/`nth`) unless the behavior under test is specifically about that interaction model.** Exception: for buttons/checkboxes inside hover-gated CSS containers (`pointer-events: none` on an ancestor until `:hover`), use `evaluate(el => el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })))` — **not** `{ force: true }`. `force: true` only skips Playwright's actionability checks; native browser mouse events still respect `pointer-events: none` on parent containers.
 - **Reduce unrelated async noise in e2e runs** when possible by gating background revalidation, polling, or similar refresh work behind explicit test-mode behavior.
 - **Always review `docs/specs/ui-testing-guidelines.md`** before writing or modifying Playwright e2e tests — it contains CI hardening patterns that are not obvious from reading the test files alone.
 

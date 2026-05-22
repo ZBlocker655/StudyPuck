@@ -186,7 +186,7 @@ Baseline coverage should include:
 
 The following patterns were learned through repeated headless-CI failures and are now standing rules. Each addresses a specific way that tests pass locally (headed Chrome on Windows) but fail in headless Linux CI.
 
-### 1. Hover-gated action buttons — use `{ force: true }`, not `.hover()`
+### 1. Hover-gated action buttons — use `evaluate(dispatchEvent)`, not `.click({ force: true })`
 
 StudyPuck uses `@media (hover: hover) and (pointer: fine)` CSS to hide card-row action buttons by default:
 
@@ -198,28 +198,47 @@ StudyPuck uses `@media (hover: hover) and (pointer: fine)` CSS to hide card-row 
 .card-row:hover .card-row__actions { opacity: 1; pointer-events: auto; }
 ```
 
-Headless CI Chromium matches this media query. The buttons are invisible and unclickable until the container is hovered. The intuitive fix (`.hover()` then `.click()`) is unreliable because Playwright's internal mouse movement during `.click()` can briefly leave the container, deactivating `:hover` and re-enabling `pointer-events: none` before the click lands.
+Headless CI Chromium matches this media query. The buttons are invisible and inside a `pointer-events: none` container. **Important**: `{ force: true }` only bypasses Playwright's own actionability checks — the actual click is still dispatched via native browser mouse events, which the browser routes around `pointer-events: none` on ancestor elements. The click therefore lands on an underlying element rather than the button.
 
-**Use `{ force: true }` directly** — it bypasses `pointer-events` entirely without any timing dependency:
+**Use `evaluate()` to dispatch a JS MouseEvent** — JavaScript's `dispatchEvent()` is immune to CSS `pointer-events`:
 
 ```ts
-// ✅ Correct: force bypasses pointer-events:none
-await menuButton.click({ force: true });
-await actionButton.click({ force: true });
-await checkbox.check({ force: true });
+// ✅ Correct: JS dispatchEvent bypasses pointer-events:none entirely
+await menuButton.evaluate(el =>
+  el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+);
+await expect(menuButton).toHaveAttribute('aria-expanded', 'true', { timeout: 10000 });
 
-// ✅ Inside toPass (safe — action is idempotent once card leaves the list):
+// ✅ Inside toPass for idempotent actions (card leaves the list on success):
 await expect(async () => {
-  await snoozeButton.click({ force: true });
+  await snoozeButton.evaluate(el =>
+    el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+  );
   await expect(page.locator('article[aria-label="..., snoozed"]')).toBeVisible();
 }).toPass({ timeout: 10000 });
 
+// ❌ Does NOT work: force:true still uses native browser mouse events
+await menuButton.click({ force: true });
 // ❌ Unreliable: hover then click races with pointer-events:none reactivation
 await cardRow.hover();
 await actionButton.click();
 ```
 
-The components with hover-gated actions: `TranslationDrillsHome.svelte` (`.card-row__actions`) and `CardListRow.svelte`.
+For checkboxes inside a hover-gated container with Svelte one-way `checked={expr}` bindings, combine the JS dispatch with a change event and assert the downstream effect rather than the checked state (see also Pattern 2):
+
+```ts
+// ✅ Correct: evaluate sets checked + fires change; assert downstream bulk bar
+await selectCheckbox.evaluate(el => {
+  (el as HTMLInputElement).checked = true;
+  el.dispatchEvent(new Event('change', { bubbles: true }));
+});
+await expect(bulkBar).toBeVisible({ timeout: 10000 });
+
+// ❌ Does NOT work:
+await selectCheckbox.check({ force: true }); // native mouse event, pointer-events blocked
+```
+
+The components with hover-gated actions: `TranslationDrillsHome.svelte` (`.card-row__actions`) and `CardListRow.svelte` (`.card-list-row__checkbox`, `.card-list-row__actions`).
 
 ### 2. Svelte 5 reactive radio buttons — use `evaluate()`, not `label.click()`
 
@@ -254,8 +273,9 @@ await expect(menuButton).toHaveAttribute('aria-expanded', 'true', { timeout: 100
 // ✅ toPass is safe for idempotent actions (snooze, dismiss) where
 //    the action only runs once (card leaves the list on success):
 await expect(async () => {
-  await cardRow.hover();
-  await snoozeButton.click();
+  await snoozeButton.evaluate(el =>
+    el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+  );
   await expect(snoozedCard).toBeVisible();
 }).toPass({ timeout: 10000 });
 

@@ -192,8 +192,13 @@ test('translation drills covers card detail, draw piles, snooze, and dismiss flo
 	const activeCardRow = page.locator('article[aria-label="经历"]');
 	await expect(activeCardRow).toBeVisible({ timeout: 10000 });
 	const menuButton = activeCardRow.getByRole('button', { name: 'More actions for 经历' });
-	// force: true bypasses pointer-events:none from the @media(hover:hover) hover-gate
-	await menuButton.click({ force: true });
+	// evaluate() dispatches a JS MouseEvent directly on the element, bypassing the
+	// pointer-events:none on .card-row__actions from @media(hover:hover). force:true
+	// only skips Playwright's actionability checks; it still uses native browser mouse
+	// events that respect CSS pointer-events on ancestor containers.
+	await menuButton.evaluate(el =>
+		el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+	);
 	await expect(menuButton).toHaveAttribute('aria-expanded', 'true', { timeout: 10000 });
 	const viewCardDetailButton = activeCardRow.getByRole('menuitem', { name: 'View card detail' });
 	await expect(viewCardDetailButton).toBeVisible({ timeout: 5000 });
@@ -210,15 +215,20 @@ test('translation drills covers card detail, draw piles, snooze, and dismiss flo
 	await expect(page.getByRole('button', { name: 'Core Words draw pile — Pile empty' })).toBeDisabled();
 
 	const snoozeButton = activeCardRow.getByRole('button', { name: '💤 Snooze' });
+	// evaluate() bypasses pointer-events:none on .card-row__actions; force:true does NOT.
 	await expect(async () => {
-		await snoozeButton.click({ force: true }); // bypass hover-gate pointer-events:none
+		await snoozeButton.evaluate(el =>
+			el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+		);
 		await expect(page.locator('article[aria-label="经历, snoozed"]')).toBeVisible();
 	}).toPass({ timeout: 10000 });
 
 	const drawnCardRow = page.locator('article[aria-label="学习"]');
 	const dismissButton = drawnCardRow.getByRole('button', { name: '✕ Dismiss' });
 	await expect(async () => {
-		await dismissButton.click({ force: true }); // bypass hover-gate pointer-events:none
+		await dismissButton.evaluate(el =>
+			el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+		);
 		await expect(page.getByRole('dialog', { name: '学习' })).toBeVisible();
 	}).toPass({ timeout: 10000 });
 
