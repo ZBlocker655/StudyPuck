@@ -192,11 +192,10 @@ test('translation drills covers card detail, draw piles, snooze, and dismiss flo
 	const activeCardRow = page.locator('article[aria-label="经历"]');
 	await expect(activeCardRow).toBeVisible();
 	const menuButton = activeCardRow.getByRole('button', { name: 'More actions for 经历' });
-	await expect(async () => {
-		await menuButton.click();
-		await expect(menuButton).toHaveAttribute('aria-expanded', 'true');
-	}).toPass({ timeout: 10000 });
+	await menuButton.click();
+	await expect(menuButton).toHaveAttribute('aria-expanded', 'true', { timeout: 10000 });
 	const viewCardDetailButton = activeCardRow.getByRole('menuitem', { name: 'View card detail' });
+	await expect(viewCardDetailButton).toBeVisible({ timeout: 5000 });
 	await viewCardDetailButton.click();
 
 	const drawer = page.getByRole('dialog');

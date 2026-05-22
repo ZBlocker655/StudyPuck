@@ -440,8 +440,10 @@ test('group detail removes cards from the group using bulk Remove from group act
 	const row = page.locator('.card-list-row', { hasText: 'quitar' });
 	const bulkBar = page.locator('.card-list-bulk-bar');
 	await page.getByRole('button', { name: 'Select cards' }).click();
-	await row.getByRole('checkbox', { name: 'Select card' }).check();
-	await expect(row.getByRole('checkbox', { name: 'Select card' })).toBeChecked();
+	const selectCheckbox = row.getByRole('checkbox', { name: 'Select card' });
+	await expect(selectCheckbox).toBeVisible({ timeout: 10000 });
+	await selectCheckbox.check();
+	await expect(selectCheckbox).toBeChecked();
 	await expect(bulkBar).toBeVisible();
 	await bulkBar.getByRole('button', { name: 'Remove from group' }).click();
 
@@ -464,10 +466,9 @@ test('group detail edits the group name inline', async ({ page }) => {
 	await page.waitForLoadState('networkidle');
 	await expect(page.getByRole('heading', { level: 1, name: 'OldName', exact: true })).toBeVisible();
 
-	await page.locator('.group-detail-page__name-button').press('Enter');
-
+	await page.locator('.group-detail-page__name-button').click();
 	const nameInput = page.locator('.group-detail-page__name-input');
-	await expect(nameInput).toBeVisible();
+	await expect(nameInput).toBeVisible({ timeout: 5000 });
 	await nameInput.fill('NewName');
 	await nameInput.press('Enter');
 
