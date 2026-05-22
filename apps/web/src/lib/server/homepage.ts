@@ -1,5 +1,6 @@
-import { and, eq, lte, sql } from 'drizzle-orm';
+import { and, eq, isNull, lte, ne, or, sql } from 'drizzle-orm';
 import {
+  cards,
   cardEntryDailyStats,
   cardReviewDailyStats,
   cardReviewSrs,
@@ -51,17 +52,26 @@ export async function loadDashboardStats(
   languageId: string,
   database: DatabaseClient
 ): Promise<DashboardStats> {
-  const nowEpochSeconds = Math.floor(Date.now() / 1000);
+  const now = new Date();
+  const nowEpochSeconds = Math.floor(now.getTime() / 1000);
 
   const [reviewDueResult, cardEntryCounts, entryActivity, reviewActivity, drillActivity] = await Promise.all([
     database
       .select({ count: sql<number>`count(*)` })
-      .from(cardReviewSrs)
+      .from(cards)
+      .leftJoin(cardReviewSrs, and(
+        eq(cardReviewSrs.userId, cards.userId),
+        eq(cardReviewSrs.languageId, cards.languageId),
+        eq(cardReviewSrs.cardId, cards.cardId),
+      ))
       .where(
         and(
-          eq(cardReviewSrs.userId, userId),
-          eq(cardReviewSrs.languageId, languageId),
-          lte(cardReviewSrs.nextDue, nowEpochSeconds)
+          eq(cards.userId, userId),
+          eq(cards.languageId, languageId),
+          eq(cards.status, 'active'),
+          or(isNull(cardReviewSrs.state), ne(cardReviewSrs.state, 'disabled')),
+          or(isNull(cardReviewSrs.state), ne(cardReviewSrs.state, 'snoozed'), lte(cardReviewSrs.snoozedUntil, now)),
+          or(isNull(cardReviewSrs.nextDue), lte(cardReviewSrs.nextDue, nowEpochSeconds)),
         )
       ),
     getCardEntryCounts(userId, languageId, database as never),
