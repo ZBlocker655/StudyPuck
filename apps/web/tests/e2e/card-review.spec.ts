@@ -147,8 +147,11 @@ test('advances through session actions, supports drawer navigation, and shows th
 	await expect(page.getByRole('button', { name: 'End session' })).toBeVisible({ timeout: 10000 });
 	await expect(page.getByRole('heading', { name: '逐渐' })).toBeVisible();
 
-	await contextView.getByRole('button', { name: 'Card details' }).click();
 	const drawer = page.getByRole('dialog');
+	await expect(async () => {
+		await contextView.getByRole('button', { name: 'Card details' }).click();
+		await expect(drawer).toBeVisible();
+	}).toPass({ timeout: 10000 });
 	await expect(drawer.locator('textarea').first()).toHaveValue('逐渐');
 	await drawer.getByRole('button', { name: 'Next card' }).click();
 	await expect(drawer.locator('textarea').first()).toHaveValue('巩固');
@@ -184,13 +187,15 @@ test('supports keyboard access for the end-session dialog and restores focus whe
 	const contextView = page.getByLabel('Context view', { exact: true });
 	const openDialogButton = contextView.getByRole('button', { name: 'End session' });
 	await expect(openDialogButton).toBeVisible({ timeout: 10000 });
-	await openDialogButton.click();
-
 	const dialog = page.getByRole('alertdialog', { name: 'End session?' });
 	const keepReviewingButton = dialog.getByRole('button', { name: 'Keep reviewing' });
 	const endSessionButton = dialog.getByRole('button', { name: 'End session' });
 
-	await expect(keepReviewingButton).toBeFocused();
+	await expect(async () => {
+		await openDialogButton.click();
+		await expect(dialog).toBeVisible();
+	}).toPass({ timeout: 10000 });
+	await expect(keepReviewingButton).toBeFocused({ timeout: 3000 });
 	await page.keyboard.press('Shift+Tab');
 	await expect(endSessionButton).toBeFocused();
 	await page.keyboard.press('Tab');

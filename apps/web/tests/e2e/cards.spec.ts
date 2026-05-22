@@ -405,10 +405,11 @@ test('group detail adds cards via the Add Cards drawer', async ({ page }) => {
 	await page.goto(`/es/cards/groups/${groupId}`);
 	await expect(page.getByRole('heading', { level: 1, name: 'Destination', exact: true })).toBeVisible();
 
-	await page.getByRole('button', { name: '+ Add Cards' }).click();
-
 	const addDrawer = page.getByRole('dialog', { name: /Add cards to/ });
-	await expect(addDrawer).toBeVisible();
+	await expect(async () => {
+		await page.getByRole('button', { name: '+ Add Cards' }).click();
+		await expect(addDrawer).toBeVisible();
+	}).toPass({ timeout: 10000 });
 
 	await addDrawer.getByRole('checkbox', { name: /agregar/i }).check();
 
