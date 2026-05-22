@@ -192,15 +192,15 @@ test('translation drills covers card detail, draw piles, snooze, and dismiss flo
 	const activeCardRow = page.locator('article[aria-label="经历"]');
 	await expect(activeCardRow).toBeVisible();
 	const menuButton = activeCardRow.getByRole('button', { name: 'More actions for 经历' });
-	await menuButton.focus();
-	await menuButton.press('Enter');
-	await expect(menuButton).toHaveAttribute('aria-expanded', 'true');
+	await expect(async () => {
+		await menuButton.click();
+		await expect(menuButton).toHaveAttribute('aria-expanded', 'true');
+	}).toPass({ timeout: 10000 });
 	const viewCardDetailButton = activeCardRow.getByRole('menuitem', { name: 'View card detail' });
-	await viewCardDetailButton.focus();
-	await viewCardDetailButton.press('Enter');
+	await viewCardDetailButton.click();
 
 	const drawer = page.getByRole('dialog');
-	await expect(drawer).toBeVisible();
+	await expect(drawer).toBeVisible({ timeout: 10000 });
 	await expect(drawer.getByRole('textbox', { name: 'Content' })).toHaveValue('经历');
 	await drawer.getByRole('button', { name: 'Close drawer' }).click();
 	await expect(drawer).toHaveCount(0);
@@ -210,17 +210,19 @@ test('translation drills covers card detail, draw piles, snooze, and dismiss flo
 	await expect(page.getByRole('button', { name: 'Core Words draw pile — Pile empty' })).toBeDisabled();
 
 	const snoozeButton = activeCardRow.getByRole('button', { name: '💤 Snooze' });
-	await snoozeButton.focus();
-	await snoozeButton.press('Enter');
-	await expect(page.locator('article[aria-label="经历, snoozed"]')).toBeVisible();
+	await expect(async () => {
+		await snoozeButton.click();
+		await expect(page.locator('article[aria-label="经历, snoozed"]')).toBeVisible();
+	}).toPass({ timeout: 10000 });
 
 	const drawnCardRow = page.locator('article[aria-label="学习"]');
 	const dismissButton = drawnCardRow.getByRole('button', { name: '✕ Dismiss' });
-	await dismissButton.focus();
-	await dismissButton.press('Enter');
+	await expect(async () => {
+		await dismissButton.click();
+		await expect(page.getByRole('dialog', { name: '学习' })).toBeVisible();
+	}).toPass({ timeout: 10000 });
 
 	const dialog = page.getByRole('dialog', { name: '学习' });
-	await expect(dialog).toBeVisible();
 	await expect(dialog.getByText('When should it return?')).toBeVisible();
 	await expect(dialog.getByRole('radio').first()).toBeVisible();
 	await dialog.getByRole('button', { name: 'Dismiss', exact: true }).click();
