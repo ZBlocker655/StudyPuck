@@ -60,6 +60,21 @@ const { handle: authHandle, signIn, signOut } = SvelteKitAuth(async (event) => {
 				return normalizeRedirectTarget({ url, baseUrl, publicOrigin });
 			},
 
+			async signIn({ user }) {
+				// Allowlist gate: fully locked when ALLOWED_EMAILS is unset or empty.
+				if (isE2ETestRequestAllowed(event)) return true;
+
+				const allowedEmailsEnv = env.ALLOWED_EMAILS?.trim() ?? '';
+				if (!allowedEmailsEnv) return false;
+
+				const allowedEmails = allowedEmailsEnv
+					.split(',')
+					.map((e) => e.trim().toLowerCase())
+					.filter(Boolean);
+
+				return allowedEmails.includes((user.email ?? '').toLowerCase());
+			},
+
 			async jwt({ token, user, profile }) {
 				// Store user data in JWT when user first signs in
 				if (user && profile) {
