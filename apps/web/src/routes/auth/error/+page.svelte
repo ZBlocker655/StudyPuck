@@ -4,6 +4,7 @@
 
   let errorMessage = 'An unknown error occurred during authentication.';
   const commonErrors = {
+    'AccessDenied': 'StudyPuck is currently invite-only. If you\'d like access, please reach out to Zach.',
     'access_denied': 'You have declined to grant the application access. If this was a mistake, you can try signing in again.',
     'configuration_error': 'There is a server-side configuration error with the authentication provider.',
     'invalid_request': 'The request to the authentication provider was invalid. Please try again.',
