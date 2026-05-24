@@ -52,6 +52,7 @@ function createHome(): TranslationDrillHomeData {
       }],
       snoozedCards: [],
     }],
+    posPiles: [],
     ungroupedContextCards: [],
     challenge: {
       activeChallenge: null,

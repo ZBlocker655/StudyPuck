@@ -61,6 +61,7 @@ function createHome(overrides: Partial<TranslationDrillHomeData> = {}): Translat
         state: 'snoozed',
       })],
     }],
+    posPiles: [],
     ungroupedContextCards: [],
     challenge: {
       activeChallenge: null,
@@ -114,6 +115,7 @@ describe('TranslationDrillsHome', () => {
           },
           configuredGroups: [],
           availableGroups: [],
+          posPiles: [],
           ungroupedContextCards: [],
         }),
         loadError: null,

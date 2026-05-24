@@ -82,6 +82,13 @@ export type TranslationDrillDrawPileGroup = {
   snoozedCards: TranslationDrillContextCard[];
 };
 
+export type TranslationDrillPosPile = {
+  pos: string;
+  remainingCardCount: number;
+  activeCards: TranslationDrillContextCard[];
+  snoozedCards: TranslationDrillContextCard[];
+};
+
 export type TranslationDrillDismissSchedule = {
   cardId: string;
   recommendedDays: number;
@@ -147,6 +154,15 @@ function parseDrawPileSourceGroupId(addedFrom: string | null | undefined): strin
 
   const groupId = addedFrom.slice('draw_pile:'.length).trim();
   return groupId.length > 0 ? groupId : null;
+}
+
+export function parseDrawPilePosSource(addedFrom: string | null | undefined): string | null {
+  if (!addedFrom?.startsWith('draw_pile_pos:')) {
+    return null;
+  }
+
+  const pos = addedFrom.slice('draw_pile_pos:'.length).trim();
+  return pos.length > 0 ? pos : null;
 }
 
 async function runInTransaction<T>(database: AnyDb | undefined, callback: (tx: AnyDb) => Promise<T>): Promise<T> {
@@ -412,6 +428,68 @@ async function loadAvailableDrawCandidates(
     );
 }
 
+async function loadAvailablePosPileCandidates(
+  userId: string,
+  languageId: string,
+  pos: string,
+  database?: AnyDb,
+): Promise<TranslationDrillCandidateRow[]> {
+  return await getConn(database)
+    .select({
+      cardId: cards.cardId,
+      updatedAt: cards.updatedAt,
+      state: translationDrillContext.state,
+      nextDue: translationDrillSrs.nextDue,
+    })
+    .from(cards)
+    .leftJoin(translationDrillContext, and(
+      eq(translationDrillContext.userId, cards.userId),
+      eq(translationDrillContext.languageId, cards.languageId),
+      eq(translationDrillContext.cardId, cards.cardId),
+    ))
+    .leftJoin(translationDrillSrs, and(
+      eq(translationDrillSrs.userId, cards.userId),
+      eq(translationDrillSrs.languageId, cards.languageId),
+      eq(translationDrillSrs.cardId, cards.cardId),
+    ))
+    .where(and(
+      eq(cards.userId, userId),
+      eq(cards.languageId, languageId),
+      eq(cards.status, 'active'),
+      eq(cards.cardType, 'word'),
+      eq(cards.partOfSpeech, pos),
+    ))
+    .orderBy(
+      asc(sql<number>`COALESCE(${translationDrillSrs.nextDue}, 0)`),
+      desc(cards.updatedAt),
+    );
+}
+
+async function countAvailablePosPileCandidates(
+  userId: string,
+  languageId: string,
+  pos: string,
+  now: Date,
+  database?: AnyDb,
+): Promise<number> {
+  const nowSeconds = toUnixSeconds(now);
+  const rows = await loadAvailablePosPileCandidates(userId, languageId, pos, database);
+
+  return rows.filter((row) => {
+    if (row.state === null || row.state === undefined) {
+      return true;
+    }
+
+    const state = getContextState(row.state);
+
+    if (state === 'dismissed') {
+      return row.nextDue === null || row.nextDue <= nowSeconds;
+    }
+
+    return false;
+  }).length;
+}
+
 async function countAvailableCardsForGroup(
   userId: string,
   languageId: string,
@@ -635,6 +713,92 @@ export async function listTranslationDrillDrawPileGroups(
   });
 }
 
+export async function listAvailablePosPiles(
+  userId: string,
+  languageId: string,
+  options: { now?: Date } = {},
+  database?: AnyDb,
+): Promise<TranslationDrillPosPile[]> {
+  const now = options.now ?? new Date();
+  const contextCards = await listTranslationDrillContextCards(userId, languageId, database);
+
+  const cardsByPos = new Map<string, { active: TranslationDrillContextCard[]; snoozed: TranslationDrillContextCard[] }>();
+
+  for (const card of contextCards) {
+    const pos = parseDrawPilePosSource(card.addedFrom);
+
+    if (!pos) {
+      continue;
+    }
+
+    const bucket = cardsByPos.get(pos) ?? { active: [], snoozed: [] };
+
+    if (card.state === 'active') {
+      bucket.active.push(card);
+    } else if (card.state === 'snoozed') {
+      bucket.snoozed.push(card);
+    }
+
+    cardsByPos.set(pos, bucket);
+  }
+
+  const remainingCountEntries = await Promise.all(
+    [...cardsByPos.keys()].map(async (pos) => ({
+      pos,
+      remainingCardCount: await countAvailablePosPileCandidates(userId, languageId, pos, now, database),
+    })),
+  );
+
+  // Also collect POS values with drawable candidates not yet in context
+  const allPosInCards = await getConn(database)
+    .selectDistinct({ partOfSpeech: cards.partOfSpeech })
+    .from(cards)
+    .where(and(
+      eq(cards.userId, userId),
+      eq(cards.languageId, languageId),
+      eq(cards.status, 'active'),
+      eq(cards.cardType, 'word'),
+    ));
+
+  const candidatePosValues = allPosInCards
+    .map((row) => row.partOfSpeech)
+    .filter((pos): pos is string => typeof pos === 'string' && pos.trim().length > 0);
+
+  const newPosValues = candidatePosValues.filter((pos) => !cardsByPos.has(pos));
+  const newPosCounts = await Promise.all(
+    newPosValues.map(async (pos) => ({
+      pos,
+      remainingCardCount: await countAvailablePosPileCandidates(userId, languageId, pos, now, database),
+    })),
+  );
+
+  const allRemainingByPos = new Map([
+    ...remainingCountEntries.map((entry) => [entry.pos, entry.remainingCardCount] as const),
+    ...newPosCounts.map((entry) => [entry.pos, entry.remainingCardCount] as const),
+  ]);
+
+  const allPosPiles: TranslationDrillPosPile[] = [];
+
+  for (const [pos, counts] of allRemainingByPos) {
+    const contextBucket = cardsByPos.get(pos) ?? { active: [], snoozed: [] };
+    const hasContextCards = contextBucket.active.length > 0 || contextBucket.snoozed.length > 0;
+    const remainingCardCount = counts;
+
+    if (!hasContextCards && remainingCardCount === 0) {
+      continue;
+    }
+
+    allPosPiles.push({
+      pos,
+      remainingCardCount,
+      activeCards: contextBucket.active,
+      snoozedCards: contextBucket.snoozed,
+    });
+  }
+
+  return allPosPiles.sort((a, b) => a.pos.localeCompare(b.pos));
+}
+
 export async function getTranslationDrillDismissSchedule(
   userId: string,
   languageId: string,
@@ -763,6 +927,50 @@ export async function drawTranslationDrillCard(
       tx,
       {
         addedFrom: `draw_pile:${groupId}`,
+        occurredAt,
+        trackDrawStat: true,
+      },
+    );
+  });
+}
+
+export async function drawTranslationDrillPosCard(
+  userId: string,
+  languageId: string,
+  pos: string,
+  options: { occurredAt?: Date } = {},
+  database?: AnyDb,
+): Promise<TranslationDrillContextCard> {
+  const occurredAt = options.occurredAt ?? new Date();
+  const nowSeconds = toUnixSeconds(occurredAt);
+
+  return await runInTransaction(database, async (tx) => {
+    const candidates = await loadAvailablePosPileCandidates(userId, languageId, pos, tx);
+    const nextCard = candidates.find((candidate) => {
+      if (candidate.state === null) {
+        return true;
+      }
+
+      const state = getContextState(candidate.state);
+
+      if (state !== 'dismissed') {
+        return false;
+      }
+
+      return candidate.nextDue === null || candidate.nextDue <= nowSeconds;
+    });
+
+    if (!nextCard) {
+      throw new Error('There are no cards available to draw from that POS pile right now.');
+    }
+
+    return await activateTranslationDrillCardInConnection(
+      userId,
+      languageId,
+      nextCard.cardId,
+      tx,
+      {
+        addedFrom: `draw_pile_pos:${pos}`,
         occurredAt,
         trackDrawStat: true,
       },
