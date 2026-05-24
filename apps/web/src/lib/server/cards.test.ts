@@ -93,6 +93,7 @@ describe('Card Library server helpers', () => {
       examples: ['我们聊天吧。'],
       mnemonics: ['chat hook'],
       llmInstructions: null,
+      partOfSpeech: null,
       embedding: null,
       embeddingModel: null,
       embeddingGeneratedAt: null,

@@ -26,10 +26,13 @@
     "lint": "turbo lint",
     "check-types": "turbo check-types",
     "format": "prettier --write .",
-    "clean": "turbo clean"
+    "clean": "turbo clean",
+    "backfill:pos:secure": "node scripts/run-with-bitwarden-env.mjs -- tsx scripts/backfill-part-of-speech.ts"
   },
   "devDependencies": {
+    "postgres": "^3.4.4",
     "prettier": "^3.8.3",
+    "tsx": "^4.22.3",
     "turbo": "^2.7.2",
     "varlock": "^0.6.2"
   },
