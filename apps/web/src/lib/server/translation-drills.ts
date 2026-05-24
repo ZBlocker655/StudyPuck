@@ -2,6 +2,7 @@ import {
   disableTranslationDrillCard,
   dismissTranslationDrillCard,
   drawTranslationDrillCard,
+  drawTranslationDrillPosCard,
   getActiveUserLanguages,
   getDb,
   getGroups,
@@ -10,9 +11,11 @@ import {
   listTranslationDrillChallengeCards,
   listTranslationDrillContextCards,
   listTranslationDrillDrawPileGroups,
+  listAvailablePosPiles,
   snoozeTranslationDrillCard,
   type TranslationDrillContextCard,
   type TranslationDrillDrawPileGroup,
+  type TranslationDrillPosPile,
 } from '@studypuck/database';
 import { z } from 'zod';
 import { activeCardIdSchema, activeGroupIdSchema } from '$lib/schemas/cards.js';
@@ -29,6 +32,7 @@ export type TranslationDrillLoaderDeps = {
   getActiveUserLanguages: typeof getActiveUserLanguages;
   getGroups: typeof getGroups;
   listTranslationDrillDrawPileGroups: typeof listTranslationDrillDrawPileGroups;
+  listAvailablePosPiles: typeof listAvailablePosPiles;
   listTranslationDrillContextCards: typeof listTranslationDrillContextCards;
   listTranslationDrillChallengeCards: typeof listTranslationDrillChallengeCards;
   getTranslationDrillDismissSchedule: typeof getTranslationDrillDismissSchedule;
@@ -36,6 +40,7 @@ export type TranslationDrillLoaderDeps = {
 
 export type TranslationDrillActionDeps = Pick<TranslationDrillLoaderDeps, 'getActiveUserLanguages' | 'listTranslationDrillChallengeCards'> & {
   drawTranslationDrillCard: typeof drawTranslationDrillCard;
+  drawTranslationDrillPosCard: typeof drawTranslationDrillPosCard;
   snoozeTranslationDrillCard: typeof snoozeTranslationDrillCard;
   disableTranslationDrillCard: typeof disableTranslationDrillCard;
   dismissTranslationDrillCard: typeof dismissTranslationDrillCard;
@@ -48,6 +53,7 @@ const defaultLoaderDeps: TranslationDrillLoaderDeps = {
   getActiveUserLanguages,
   getGroups,
   listTranslationDrillDrawPileGroups,
+  listAvailablePosPiles,
   listTranslationDrillContextCards,
   listTranslationDrillChallengeCards,
   getTranslationDrillDismissSchedule,
@@ -57,6 +63,7 @@ const defaultActionDeps: TranslationDrillActionDeps = {
   getActiveUserLanguages,
   listTranslationDrillChallengeCards,
   drawTranslationDrillCard,
+  drawTranslationDrillPosCard,
   snoozeTranslationDrillCard,
   disableTranslationDrillCard,
   dismissTranslationDrillCard,
@@ -70,6 +77,10 @@ const translationDrillActionSchema = z.discriminatedUnion('action', [
   z.object({
     action: z.literal('draw'),
     groupId: activeGroupIdSchema,
+  }),
+  z.object({
+    action: z.literal('draw-pos'),
+    pos: z.string().min(1),
   }),
   z.object({
     action: z.literal('snooze'),
@@ -147,6 +158,13 @@ export type TranslationDrillDrawPileGroupData = {
   snoozedCards: TranslationDrillContextCardData[];
 };
 
+export type TranslationDrillPosPileData = {
+  pos: string;
+  remainingCardCount: number;
+  activeCards: TranslationDrillContextCardData[];
+  snoozedCards: TranslationDrillContextCardData[];
+};
+
 export type TranslationDrillHomeData = {
   summary: {
     configuredGroupCount: number;
@@ -160,6 +178,7 @@ export type TranslationDrillHomeData = {
   };
   availableGroups: Array<{ groupId: string; groupName: string }>;
   configuredGroups: TranslationDrillDrawPileGroupData[];
+  posPiles: TranslationDrillPosPileData[];
   ungroupedContextCards: TranslationDrillContextCardData[];
   challenge: {
     activeChallenge: null;
@@ -176,7 +195,7 @@ export type TranslationDrillActionInput = z.infer<typeof translationDrillActionS
 
 export type TranslationDrillActionResult =
   | {
-      action: 'draw';
+      action: 'draw' | 'draw-pos';
       card: TranslationDrillContextCardData;
       message: string;
     }
@@ -286,9 +305,22 @@ function mapDrawPileGroup(
   };
 }
 
+function mapPosPile(
+  pile: TranslationDrillPosPile,
+  dismissSchedules: ReadonlyMap<string, TranslationDrillDismissScheduleData> = new Map(),
+): TranslationDrillPosPileData {
+  return {
+    pos: pile.pos,
+    remainingCardCount: pile.remainingCardCount,
+    activeCards: pile.activeCards.map((card) => mapContextCard(card, dismissSchedules)),
+    snoozedCards: pile.snoozedCards.map((card) => mapContextCard(card, dismissSchedules)),
+  };
+}
+
 function buildActionMessage(action: TranslationDrillActionInput['action']): string {
   switch (action) {
     case 'draw':
+    case 'draw-pos':
       return 'Card drawn into Translation Drills.';
     case 'snooze':
       return 'Card snoozed.';
@@ -330,7 +362,8 @@ function normalizeMutationError(error: unknown): never {
       error.message === 'That card is not active in Translation Drills.' ||
       error.message === 'That card cannot be dismissed from Translation Drills right now.' ||
       error.message === 'That group is not configured as a Translation Drills draw pile.' ||
-      error.message === 'There are no cards available to draw from that pile right now.'
+      error.message === 'There are no cards available to draw from that pile right now.' ||
+      error.message === 'There are no cards available to draw from that POS pile right now.'
     ) {
       throw new TranslationDrillRequestError(404, error.message);
     }
@@ -398,9 +431,10 @@ export async function loadTranslationDrillHomeData(
 ): Promise<TranslationDrillHomeData> {
   const language = await assertUserHasLanguage(userId, languageId, database, deps);
 
-  const [availableGroups, configuredGroups, contextCards, challengeCards] = await Promise.all([
+  const [availableGroups, configuredGroups, posPiles, contextCards, challengeCards] = await Promise.all([
     deps.getGroups(userId, languageId, database as never),
     deps.listTranslationDrillDrawPileGroups(userId, languageId, {}, database as never),
+    deps.listAvailablePosPiles(userId, languageId, {}, database as never),
     deps.listTranslationDrillContextCards(userId, languageId, database as never),
     deps.listTranslationDrillChallengeCards(userId, languageId, database as never),
   ]);
@@ -423,7 +457,8 @@ export async function loadTranslationDrillHomeData(
   const dismissSchedules = new Map(dismissScheduleEntries);
   const ungroupedContextCards = contextCards
     .filter((card) => card.state === 'active' || card.state === 'snoozed')
-    .filter((card) => !card.sourceGroup || !configuredGroupIds.has(card.sourceGroup.groupId));
+    .filter((card) => !card.sourceGroup || !configuredGroupIds.has(card.sourceGroup.groupId))
+    .filter((card) => !card.addedFrom?.startsWith('draw_pile_pos:'));
 
   return {
     summary: {
@@ -440,6 +475,7 @@ export async function loadTranslationDrillHomeData(
       .map((group) => ({ groupId: group.groupId, groupName: group.groupName }))
       .sort((left, right) => left.groupName.localeCompare(right.groupName)),
     configuredGroups: configuredGroups.map((group) => mapDrawPileGroup(group, dismissSchedules)),
+    posPiles: posPiles.map((pile) => mapPosPile(pile, dismissSchedules)),
     ungroupedContextCards: ungroupedContextCards.map((card) => mapContextCard(card, dismissSchedules)),
     challenge: {
       activeChallenge: null,
@@ -493,6 +529,29 @@ export async function applyTranslationDrillAction(
             }),
           ]])),
           message: buildActionMessage('draw'),
+        };
+      }
+
+      case 'draw-pos': {
+        const drawnCard = await deps.drawTranslationDrillPosCard(
+          userId,
+          languageId,
+          payload.pos,
+          { occurredAt: deps.now() },
+          database as never,
+        );
+        const schedule = await deps.getTranslationDrillDismissSchedule(userId, languageId, drawnCard.cardId, database as never);
+
+        return {
+          action: 'draw-pos',
+          card: mapContextCard(drawnCard, new Map([[
+            drawnCard.cardId,
+            toDismissScheduleData({
+              recommendedDays: schedule.recommendedDays,
+              optionDays: schedule.optionDays,
+            }),
+          ]])),
+          message: buildActionMessage('draw-pos'),
         };
       }
 

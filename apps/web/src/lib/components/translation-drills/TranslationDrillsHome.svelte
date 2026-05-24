@@ -7,6 +7,7 @@
     TranslationDrillContextCardData,
     TranslationDrillHomeData,
     TranslationDrillActionResult,
+    TranslationDrillPosPileData,
   } from '$lib/server/translation-drills.js';
   import { translationDrillSession } from '$lib/stores/translationDrillSession.js';
   import {
@@ -26,11 +27,13 @@
   type CardLocation =
     | { collection: 'group-active'; groupId: string; index: number }
     | { collection: 'group-snoozed'; groupId: string; index: number }
+    | { collection: 'pos-pile-active'; pos: string; index: number }
+    | { collection: 'pos-pile-snoozed'; pos: string; index: number }
     | { collection: 'ungrouped'; index: number };
 
   type TranslationDrillActionResponse =
     | {
-        action: 'draw';
+        action: 'draw' | 'draw-pos';
         card: TranslationDrillContextCardData;
         message: string;
       }
@@ -77,6 +80,9 @@
     return homeData.configuredGroups.some((group) =>
       group.activeCards.some((card) => card.cardId === cardId) ||
       group.snoozedCards.some((card) => card.cardId === cardId),
+    ) || homeData.posPiles.some((pile) =>
+      pile.activeCards.some((card) => card.cardId === cardId) ||
+      pile.snoozedCards.some((card) => card.cardId === cardId),
     ) || homeData.ungroupedContextCards.some((card) => card.cardId === cardId);
   }
 
@@ -124,6 +130,7 @@
 
     return [
       ...homeState.configuredGroups.flatMap((group) => group.activeCards),
+      ...homeState.posPiles.flatMap((pile) => pile.activeCards),
       ...homeState.ungroupedContextCards.filter((card) => card.state === 'active'),
     ];
   }
@@ -156,10 +163,12 @@
 
     const activeCardCount =
       homeState.ungroupedContextCards.filter((card) => card.state === 'active').length +
-      homeState.configuredGroups.reduce((count, group) => count + group.activeCards.length, 0);
+      homeState.configuredGroups.reduce((count, group) => count + group.activeCards.length, 0) +
+      homeState.posPiles.reduce((count, pile) => count + pile.activeCards.length, 0);
     const snoozedCardCount =
       homeState.ungroupedContextCards.filter((card) => card.state === 'snoozed').length +
-      homeState.configuredGroups.reduce((count, group) => count + group.snoozedCards.length, 0);
+      homeState.configuredGroups.reduce((count, group) => count + group.snoozedCards.length, 0) +
+      homeState.posPiles.reduce((count, pile) => count + pile.snoozedCards.length, 0);
     const remainingDrawCount = homeState.configuredGroups.reduce((count, group) => count + group.remainingCardCount, 0);
 
     homeState = {
@@ -213,6 +222,26 @@
       }
     }
 
+    for (const pile of homeState.posPiles) {
+      const activeIndex = pile.activeCards.findIndex((card) => card.cardId === cardId);
+
+      if (activeIndex >= 0) {
+        return {
+          card: pile.activeCards[activeIndex],
+          location: { collection: 'pos-pile-active', pos: pile.pos, index: activeIndex },
+        };
+      }
+
+      const snoozedIndex = pile.snoozedCards.findIndex((card) => card.cardId === cardId);
+
+      if (snoozedIndex >= 0) {
+        return {
+          card: pile.snoozedCards[snoozedIndex],
+          location: { collection: 'pos-pile-snoozed', pos: pile.pos, index: snoozedIndex },
+        };
+      }
+    }
+
     const ungroupedIndex = homeState.ungroupedContextCards.findIndex((card) => card.cardId === cardId);
 
     if (ungroupedIndex >= 0) {
@@ -243,6 +272,22 @@
       return match;
     }
 
+    if (location.collection === 'pos-pile-active' || location.collection === 'pos-pile-snoozed') {
+      const pile = homeState.posPiles.find((p) => p.pos === location.pos);
+
+      if (!pile) {
+        return null;
+      }
+
+      if (location.collection === 'pos-pile-active') {
+        pile.activeCards.splice(location.index, 1);
+      } else {
+        pile.snoozedCards.splice(location.index, 1);
+      }
+
+      return match;
+    }
+
     const group = homeState.configuredGroups.find((entry) => entry.groupId === location.groupId);
 
     if (!group) {
@@ -268,6 +313,22 @@
       state: nextState,
     } satisfies TranslationDrillContextCardData;
 
+    if (location.collection === 'pos-pile-active' || location.collection === 'pos-pile-snoozed') {
+      const pile = homeState.posPiles.find((p) => p.pos === location.pos);
+
+      if (!pile) {
+        return;
+      }
+
+      if (nextState === 'active') {
+        pile.activeCards = [...pile.activeCards, nextCard];
+      } else {
+        pile.snoozedCards = [...pile.snoozedCards, nextCard];
+      }
+
+      return;
+    }
+
     if (location.collection === 'ungrouped' || !('groupId' in location) || !location.groupId) {
       homeState.ungroupedContextCards = [...homeState.ungroupedContextCards, nextCard];
       return;
@@ -289,6 +350,31 @@
 
   function applyDrawCard(card: TranslationDrillContextCardData) {
     if (!homeState) {
+      return;
+    }
+
+    if (card.addedFrom?.startsWith('draw_pile_pos:')) {
+      const pos = card.addedFrom.slice('draw_pile_pos:'.length);
+      const pile = homeState.posPiles.find((p) => p.pos === pos);
+
+      if (pile) {
+        pile.activeCards = [...pile.activeCards, card];
+        pile.remainingCardCount = Math.max(0, pile.remainingCardCount - 1);
+        recalculateSummary();
+        return;
+      }
+
+      // Pile not in homeState yet; add it
+      homeState.posPiles = [
+        ...homeState.posPiles,
+        {
+          pos,
+          remainingCardCount: 0,
+          activeCards: [card],
+          snoozedCards: [],
+        } satisfies TranslationDrillPosPileData,
+      ];
+      recalculateSummary();
       return;
     }
 
@@ -407,6 +493,37 @@
     } finally {
       setPendingAction(null);
     }
+  }
+
+  async function handleDrawPos(pos: string) {
+    setFocusedCard(null);
+    setPendingAction(`draw-pos:${pos}`);
+    openMenuCardId = null;
+
+    try {
+      const result = await postAction({
+        action: 'draw-pos',
+        pos,
+      });
+
+      if (result.action !== 'draw-pos') {
+        throw new Error('Unexpected response while drawing a Translation Drills POS card.');
+      }
+
+      applyDrawCard(result.card);
+      actionMessage = `${result.card.content} drawn into context.`;
+    } catch (error) {
+      actionError = error instanceof Error ? error.message : 'The card could not be drawn right now.';
+    } finally {
+      setPendingAction(null);
+    }
+  }
+
+  function formatPosLabel(pos: string): string {
+    return pos
+      .split('_')
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
   }
 
   async function handleSnooze(cardId: string) {
@@ -900,6 +1017,184 @@
           </div>
         </section>
       {/each}
+
+      {#if homeState.posPiles.length > 0}
+        {#each homeState.posPiles as pile (pile.pos)}
+          {@const posLabel = formatPosLabel(pile.pos)}
+          {@const totalCards = pile.activeCards.length + pile.snoozedCards.length}
+          <section class="drill-group stack" style="--stack-space: var(--space-3)" aria-labelledby={`translation-drills-pos-${pile.pos}`}>
+            <header class="drill-group__header cluster">
+              <div class="stack" style="--stack-space: var(--space-1)">
+                <h2 id={`translation-drills-pos-${pile.pos}`}>{posLabel} cards</h2>
+                <p>Draw from your {posLabel.toLowerCase()} word cards.</p>
+              </div>
+
+              <span class="drill-group__count">{totalCards} card{totalCards === 1 ? '' : 's'}</span>
+            </header>
+
+            <div class="stack" style="--stack-space: var(--space-2)">
+              {#each pile.activeCards as card (card.cardId)}
+                <article class="card-row" aria-label={card.content}>
+                  <div class="card-row__body">
+                    <p>{card.content}</p>
+                  </div>
+
+                  <div class="card-row__actions cluster" style="--cluster-space: var(--space-2)">
+                    <button
+                      type="button"
+                      class="card-row__action"
+                      disabled={isActionPending(`card:${card.cardId}:snooze`)}
+                      onclick={() => void handleSnooze(card.cardId)}
+                    >
+                      💤 Snooze
+                    </button>
+                    <button
+                      type="button"
+                      class="card-row__action"
+                      disabled={isActionPending(`card:${card.cardId}:dismiss`)}
+                      onclick={() => openDismissDialog(card.cardId)}
+                    >
+                      ✕ Dismiss
+                    </button>
+
+                    <div class="card-row__menu-wrap">
+                      <button
+                        type="button"
+                        class="card-row__action"
+                        aria-label={`More actions for ${card.content}`}
+                        aria-controls={`translation-drills-menu-${card.cardId}`}
+                        aria-expanded={openMenuCardId === card.cardId}
+                        aria-haspopup="menu"
+                        onclick={() => openMenuCardId = openMenuCardId === card.cardId ? null : card.cardId}
+                      >
+                        ···
+                      </button>
+
+                      {#if openMenuCardId === card.cardId}
+                        <div
+                          id={`translation-drills-menu-${card.cardId}`}
+                          class="card-row__menu stack"
+                          style="--stack-space: var(--space-1)"
+                          role="menu"
+                        >
+                          <button
+                            type="button"
+                            class="card-row__menu-button"
+                            role="menuitem"
+                            onclick={() => openDrawer(card.cardId)}
+                          >
+                            View card detail
+                          </button>
+                          <button
+                            type="button"
+                            class="card-row__menu-button"
+                            role="menuitem"
+                            disabled={isActionPending(`card:${card.cardId}:disable`)}
+                            onclick={() => void handleDisable(card.cardId)}
+                          >
+                            Disable card
+                          </button>
+                          <button
+                            type="button"
+                            class="card-row__menu-button"
+                            role="menuitem"
+                            onclick={() => openMenuCardId = null}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      {/if}
+                    </div>
+                  </div>
+                </article>
+              {/each}
+
+              {#each pile.snoozedCards as card (card.cardId)}
+                <article class="card-row card-row--snoozed" aria-label={`${card.content}, snoozed`}>
+                  <div class="card-row__body">
+                    <p><span aria-hidden="true">🕐 </span>{card.content}</p>
+                  </div>
+
+                  <div class="card-row__actions cluster" style="--cluster-space: var(--space-2)">
+                    <button
+                      type="button"
+                      class="card-row__action"
+                      disabled={isActionPending(`card:${card.cardId}:dismiss`)}
+                      onclick={() => openDismissDialog(card.cardId)}
+                    >
+                      ✕ Dismiss
+                    </button>
+
+                    <div class="card-row__menu-wrap">
+                      <button
+                        type="button"
+                        class="card-row__action"
+                        aria-label={`More actions for ${card.content}`}
+                        aria-controls={`translation-drills-menu-${card.cardId}`}
+                        aria-expanded={openMenuCardId === card.cardId}
+                        aria-haspopup="menu"
+                        onclick={() => openMenuCardId = openMenuCardId === card.cardId ? null : card.cardId}
+                      >
+                        ···
+                      </button>
+
+                      {#if openMenuCardId === card.cardId}
+                        <div
+                          id={`translation-drills-menu-${card.cardId}`}
+                          class="card-row__menu stack"
+                          style="--stack-space: var(--space-1)"
+                          role="menu"
+                        >
+                          <button
+                            type="button"
+                            class="card-row__menu-button"
+                            role="menuitem"
+                            onclick={() => openDrawer(card.cardId)}
+                          >
+                            View card detail
+                          </button>
+                          <button
+                            type="button"
+                            class="card-row__menu-button"
+                            role="menuitem"
+                            disabled={isActionPending(`card:${card.cardId}:disable`)}
+                            onclick={() => void handleDisable(card.cardId)}
+                          >
+                            Disable card
+                          </button>
+                          <button
+                            type="button"
+                            class="card-row__menu-button"
+                            role="menuitem"
+                            onclick={() => openMenuCardId = null}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      {/if}
+                    </div>
+                  </div>
+                </article>
+              {/each}
+            </div>
+
+            <div class="stack" style="--stack-space: var(--space-2)">
+              <button
+                type="button"
+                class={`draw-pile draw-pile--${getDrawPileVariant(pile.remainingCardCount)}`}
+                disabled={pile.remainingCardCount === 0 || isActionPending(`draw-pos:${pile.pos}`)}
+                aria-label={`${posLabel} draw pile — ${formatDrawPileLabel(pile.remainingCardCount)}`}
+                onclick={() => void handleDrawPos(pile.pos)}
+              >
+                {#each DRAW_PILE_STACK_LAYERS as layer}
+                  <span class="draw-pile__card" style={`--draw-pile-layer: ${layer};`}></span>
+                {/each}
+              </button>
+              <p class="draw-pile__caption">{posLabel} draw pile</p>
+            </div>
+          </section>
+        {/each}
+      {/if}
 
       {#if homeState.ungroupedContextCards.length > 0}
         <section class="drill-group stack" style="--stack-space: var(--space-3)" aria-labelledby="translation-drills-ungrouped">

@@ -616,6 +616,7 @@ describe('CommandBar component behavior', () => {
           }],
           snoozedCards: [],
         }],
+        posPiles: [],
         ungroupedContextCards: [],
         challenge: {
           activeChallenge: null,
@@ -744,6 +745,7 @@ describe('CommandBar component behavior', () => {
           }],
           snoozedCards: [],
         }],
+        posPiles: [],
         ungroupedContextCards: [],
         challenge: {
           activeChallenge: null,
