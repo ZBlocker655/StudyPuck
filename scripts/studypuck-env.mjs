@@ -11,7 +11,7 @@ export const requiredSecretKeys = [
 	'DATABASE_URL',
 ];
 
-export const optionalSecretKeys = ['NEON_API_KEY', 'GEMINI_API_KEY', 'OPENAI_API_KEY'];
+export const optionalSecretKeys = ['NEON_API_KEY', 'GEMINI_API_KEY', 'OPENAI_API_KEY', 'DATABASE_URL_PRODUCTION'];
 
 const supportedSecretKeys = [...requiredSecretKeys, ...optionalSecretKeys];
 
