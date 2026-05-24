@@ -122,6 +122,7 @@ export type CardReviewSessionItemData = {
   content: string;
   meaning: string | null;
   cardType: string | null;
+  partOfSpeech: string | null;
   examples: string[];
   mnemonics: string[];
   llmInstructions: string | null;
@@ -234,6 +235,7 @@ function mapSessionItem(item: CardReviewQueueItem): CardReviewSessionItemData {
     content: item.content,
     meaning: item.meaning,
     cardType: item.cardType,
+    partOfSpeech: item.partOfSpeech,
     examples: item.examples,
     mnemonics: item.mnemonics,
     llmInstructions: item.llmInstructions,

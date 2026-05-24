@@ -113,6 +113,7 @@ export type TranslationDrillContextCardData = {
   content: string;
   meaning: string | null;
   cardType: string | null;
+  partOfSpeech: string | null;
   examples: string[];
   mnemonics: string[];
   llmInstructions: string | null;
@@ -250,6 +251,7 @@ function mapContextCard(
     content: card.content,
     meaning: card.meaning,
     cardType: card.cardType,
+    partOfSpeech: card.partOfSpeech,
     examples: card.examples,
     mnemonics: card.mnemonics,
     llmInstructions: card.llmInstructions,

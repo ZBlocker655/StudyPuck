@@ -21,6 +21,7 @@ type TranslationDrillContextRow = {
   content: string;
   meaning: string | null;
   cardType: string | null;
+  partOfSpeech: string | null;
   examples: unknown;
   mnemonics: unknown;
   llmInstructions: string | null;
@@ -52,6 +53,7 @@ export type TranslationDrillContextCard = {
   content: string;
   meaning: string | null;
   cardType: string | null;
+  partOfSpeech: string | null;
   examples: string[];
   mnemonics: string[];
   llmInstructions: string | null;
@@ -326,6 +328,7 @@ async function loadContextRows(
       content: cards.content,
       meaning: cards.meaning,
       cardType: cards.cardType,
+      partOfSpeech: cards.partOfSpeech,
       examples: cards.examples,
       mnemonics: cards.mnemonics,
       llmInstructions: cards.llmInstructions,
@@ -454,6 +457,7 @@ function mapContextCard(
     content: row.content,
     meaning: row.meaning,
     cardType: row.cardType,
+    partOfSpeech: row.partOfSpeech,
     examples: normalizeStringList(row.examples),
     mnemonics: normalizeStringList(row.mnemonics),
     llmInstructions: row.llmInstructions,

@@ -35,11 +35,21 @@ export const editableCardGroupSelectionSchema = z.object({
   groupName: editableGroupNameSchema,
 });
 
+export const partOfSpeechUpdateSchema = z
+  .enum([
+    'noun', 'verb', 'adjective', 'adverb', 'pronoun', 'preposition',
+    'conjunction', 'particle', 'measure_word', 'numeral', 'interjection', 'idiom',
+  ])
+  .nullable()
+  .optional()
+  .default(null);
+
 export const cardEntryDraftCardUpdateSchema = z.object({
   content: editableCardTextSchema,
   meaning: editableCardOptionalTextSchema,
   examples: editableCardListSchema,
   mnemonics: editableCardListSchema,
   llmInstructions: editableCardOptionalTextSchema,
+  partOfSpeech: partOfSpeechUpdateSchema,
   groups: z.array(editableCardGroupSelectionSchema).max(20, 'No more than 20 groups are allowed.'),
 });

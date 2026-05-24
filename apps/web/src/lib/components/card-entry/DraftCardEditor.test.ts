@@ -62,6 +62,7 @@ describe('DraftCardEditor suggestion application', () => {
           examples: ['我坐火车去上海。'],
           mnemonics: [],
           llmInstructions: '',
+          partOfSpeech: null,
           groups: [],
         }),
       });
@@ -133,6 +134,7 @@ describe('DraftCardEditor suggestion application', () => {
           examples: [],
           mnemonics: ['Train tracks look like parallel rails carrying the word forward.'],
           llmInstructions: '',
+          partOfSpeech: null,
           groups: [],
         }),
       });
@@ -179,6 +181,7 @@ describe('DraftCardEditor suggestion application', () => {
           examples: [],
           mnemonics: [],
           llmInstructions: '',
+          partOfSpeech: null,
           groups: [{ groupId: null, groupName: 'Travel' }],
         }),
       });
