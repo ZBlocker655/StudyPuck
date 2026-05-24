@@ -8,6 +8,7 @@ function createCandidateCard(overrides: Partial<TranslationDrillContextCard> = {
     content: '经历',
     meaning: 'experience',
     cardType: 'word',
+    partOfSpeech: null,
     sourceGroup: { groupId: 'group-core', groupName: 'Core Words' },
     examples: [],
     mnemonics: [],

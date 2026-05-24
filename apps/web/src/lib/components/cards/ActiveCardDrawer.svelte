@@ -486,6 +486,13 @@
 
     void handleClose();
   }
+
+  function formatCardTypeLabel(cardType: string): string {
+    if (cardType === 'word') return 'Word';
+    if (cardType === 'pattern') return 'Pattern';
+    if (cardType === 'complex_prompt') return 'Complex prompt';
+    return cardType;
+  }
 </script>
 
 <svelte:window on:keydown={handleWindowKeydown} />
@@ -555,7 +562,12 @@
   </header>
 
   <div class="active-card-drawer__body stack" style="--stack-space: var(--space-4)">
-    <CardListStatusBadge label="Active" tone="active" />
+    <div class="active-card-drawer__meta cluster">
+      <CardListStatusBadge label="Active" tone="active" />
+      {#if draft.cardType}
+        <CardListStatusBadge label={formatCardTypeLabel(draft.cardType)} tone="neutral" />
+      {/if}
+    </div>
 
     <label class="active-card-drawer__field stack" style="--stack-space: var(--space-2)">
       <span class="active-card-drawer__label">Content</span>
@@ -590,6 +602,38 @@
         on:blur={() => void persistDraft()}
       ></textarea>
     </label>
+
+    {#if draft.cardType === 'word'}
+      <label class="active-card-drawer__field stack" style="--stack-space: var(--space-2)">
+        <span class="active-card-drawer__label">Part of speech</span>
+        <select
+          class="active-card-drawer__select"
+          value={draft.partOfSpeech ?? ''}
+          disabled={disabled || removePending}
+          on:change={(event) => {
+            draft = {
+              ...draft,
+              partOfSpeech: event.currentTarget.value || null,
+            };
+            void persistDraft();
+          }}
+        >
+          <option value="">Unknown / not set</option>
+          <option value="noun">Noun</option>
+          <option value="verb">Verb</option>
+          <option value="adjective">Adjective</option>
+          <option value="adverb">Adverb</option>
+          <option value="pronoun">Pronoun</option>
+          <option value="preposition">Preposition</option>
+          <option value="conjunction">Conjunction</option>
+          <option value="particle">Particle</option>
+          <option value="measure_word">Measure word</option>
+          <option value="numeral">Numeral</option>
+          <option value="interjection">Interjection</option>
+          <option value="idiom">Idiom</option>
+        </select>
+      </label>
+    {/if}
 
     <div
       class="active-card-drawer__field stack"
@@ -886,6 +930,7 @@
   .active-card-drawer__group-option,
   .active-card-drawer__create-group,
   .active-card-drawer__group-search,
+  .active-card-drawer__select,
   .active-card-drawer__textarea,
   .active-card-drawer__list-input {
     font-family: var(--font-ui);
@@ -941,6 +986,11 @@
     padding-block-end: var(--space-5);
   }
 
+  .active-card-drawer__meta {
+    gap: var(--space-2);
+    align-items: center;
+  }
+
   .active-card-drawer__field-head {
     align-items: center;
     justify-content: space-between;
@@ -969,7 +1019,8 @@
 
   .active-card-drawer__textarea,
   .active-card-drawer__list-input,
-  .active-card-drawer__group-search {
+  .active-card-drawer__group-search,
+  .active-card-drawer__select {
     inline-size: 100%;
     min-block-size: 2.75rem;
     padding: var(--space-3);
@@ -978,6 +1029,11 @@
     background: var(--color-surface);
     color: var(--color-text-primary);
     resize: none;
+  }
+
+  .active-card-drawer__select {
+    resize: unset;
+    cursor: pointer;
   }
 
   .active-card-drawer__empty-inline {

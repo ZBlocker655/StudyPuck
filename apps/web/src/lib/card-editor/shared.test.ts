@@ -36,6 +36,7 @@ describe('card editor shared helpers', () => {
       examples: ['例子'],
       mnemonics: [],
       llmInstructions: '',
+      partOfSpeech: null,
       groups: [
         { groupId: 'group-2', groupName: 'Travel' },
         { groupId: null, groupName: 'New Group' },

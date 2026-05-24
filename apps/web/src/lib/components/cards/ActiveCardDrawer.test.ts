@@ -12,6 +12,7 @@ function createCard(overrides: Partial<CardLibraryCardDetailData> = {}): CardLib
     content: '谈论',
     meaning: 'to discuss',
     cardType: 'pattern',
+    partOfSpeech: null,
     examples: [],
     mnemonics: [],
     llmInstructions: null,
@@ -79,6 +80,7 @@ describe('ActiveCardDrawer', () => {
           examples: [],
           mnemonics: [],
           llmInstructions: '',
+          partOfSpeech: null,
           groups: [],
         }),
       });
@@ -172,6 +174,7 @@ describe('ActiveCardDrawer', () => {
           examples: [],
           mnemonics: ['Imagine two people talking while a memory hook keeps the phrase anchored.'],
           llmInstructions: '',
+          partOfSpeech: null,
           groups: [],
         }),
       });
@@ -215,6 +218,7 @@ describe('ActiveCardDrawer', () => {
           examples: [],
           mnemonics: [],
           llmInstructions: '',
+          partOfSpeech: null,
           groups: [{ groupId: 'group-1', groupName: 'Conversation' }],
         }),
       });
@@ -256,6 +260,7 @@ describe('ActiveCardDrawer', () => {
           examples: [],
           mnemonics: [],
           llmInstructions: '',
+          partOfSpeech: null,
           groups: [],
         }),
       });
@@ -301,7 +306,121 @@ describe('ActiveCardDrawer', () => {
           examples: [],
           mnemonics: [],
           llmInstructions: '',
+          partOfSpeech: null,
           groups: [{ groupId: null, groupName: 'Travel' }],
+        }),
+      });
+    });
+  });
+
+  it('shows card type badge for all card types', () => {
+    render(ActiveCardDrawer, {
+      props: {
+        lang: 'zh',
+        card: createCard({ cardType: 'word' }),
+        availableGroups: [],
+        selectedIndex: 0,
+        totalCount: 1,
+      },
+    });
+
+    expect(screen.getByText('Word')).toBeTruthy();
+  });
+
+  it('shows "Pattern" badge for pattern cards', () => {
+    render(ActiveCardDrawer, {
+      props: {
+        lang: 'zh',
+        card: createCard({ cardType: 'pattern' }),
+        availableGroups: [],
+        selectedIndex: 0,
+        totalCount: 1,
+      },
+    });
+
+    expect(screen.getByText('Pattern')).toBeTruthy();
+  });
+
+  it('shows POS picker for word-type cards', () => {
+    render(ActiveCardDrawer, {
+      props: {
+        lang: 'zh',
+        card: createCard({ cardType: 'word', partOfSpeech: null }),
+        availableGroups: [],
+        selectedIndex: 0,
+        totalCount: 1,
+      },
+    });
+
+    expect(screen.getByText('Part of speech')).toBeTruthy();
+    expect(screen.getByDisplayValue('Unknown / not set')).toBeTruthy();
+  });
+
+  it('hides POS picker for non-word card types', () => {
+    render(ActiveCardDrawer, {
+      props: {
+        lang: 'zh',
+        card: createCard({ cardType: 'pattern', partOfSpeech: null }),
+        availableGroups: [],
+        selectedIndex: 0,
+        totalCount: 1,
+      },
+    });
+
+    expect(screen.queryByText('Part of speech')).toBeNull();
+  });
+
+  it('shows current POS value in picker for word cards', () => {
+    render(ActiveCardDrawer, {
+      props: {
+        lang: 'zh',
+        card: createCard({ cardType: 'word', partOfSpeech: 'verb' }),
+        availableGroups: [],
+        selectedIndex: 0,
+        totalCount: 1,
+      },
+    });
+
+    expect(screen.getByDisplayValue('Verb')).toBeTruthy();
+  });
+
+  it('saves POS change through the PATCH endpoint', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        card: createCard({ cardType: 'word', partOfSpeech: 'noun' }),
+        availableGroups: [],
+      }),
+    });
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(ActiveCardDrawer, {
+      props: {
+        lang: 'zh',
+        card: createCard({ cardType: 'word', partOfSpeech: null }),
+        availableGroups: [],
+        selectedIndex: 0,
+        totalCount: 1,
+      },
+    });
+
+    await fireEvent.change(screen.getByDisplayValue('Unknown / not set'), {
+      target: { value: 'noun' },
+    });
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/zh/cards/card-1', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          content: '谈论',
+          meaning: 'to discuss',
+          examples: [],
+          mnemonics: [],
+          llmInstructions: '',
+          partOfSpeech: 'noun',
+          groups: [],
         }),
       });
     });
