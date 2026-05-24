@@ -25,6 +25,25 @@ describe('cardEntryDraftSuggestionSchema', () => {
   it('rejects invalid cardType values', () => {
     expect(() => cardEntryDraftSuggestionSchema.parse({ content: '经历', cardType: 'sentence' })).toThrow();
   });
+
+  it('accepts a valid partOfSpeech value', () => {
+    const result = cardEntryDraftSuggestionSchema.parse({ content: '经历', cardType: 'word', partOfSpeech: 'verb' });
+    expect(result.partOfSpeech).toBe('verb');
+  });
+
+  it('defaults partOfSpeech to null when omitted', () => {
+    const result = cardEntryDraftSuggestionSchema.parse({ content: '经历', cardType: 'word' });
+    expect(result.partOfSpeech).toBeNull();
+  });
+
+  it('accepts null partOfSpeech explicitly', () => {
+    const result = cardEntryDraftSuggestionSchema.parse({ content: '经历', cardType: 'word', partOfSpeech: null });
+    expect(result.partOfSpeech).toBeNull();
+  });
+
+  it('rejects invalid partOfSpeech values', () => {
+    expect(() => cardEntryDraftSuggestionSchema.parse({ content: '经历', cardType: 'word', partOfSpeech: 'gerund' })).toThrow();
+  });
 });
 
 describe('buildCardEntryPreprocessPrompt', () => {
@@ -88,5 +107,24 @@ describe('buildCardEntryPreprocessPrompt', () => {
     expect(userPrompt).toContain('Hanzi');
     expect(userPrompt).toContain('pinyin');
     expect(userPrompt).toContain('English');
+  });
+
+  it('includes partOfSpeech in the JSON shape', () => {
+    const { userPrompt } = buildCardEntryPreprocessPrompt({
+      languageId: 'zh',
+      noteContent: '经历',
+      exampleSentenceFormat: 'sentence_translation',
+    });
+    expect(userPrompt).toContain('partOfSpeech');
+  });
+
+  it('instructs the model to guess POS for word-type cards', () => {
+    const { systemPrompt } = buildCardEntryPreprocessPrompt({
+      languageId: 'zh',
+      noteContent: '经历',
+      exampleSentenceFormat: 'sentence_translation',
+    });
+    expect(systemPrompt).toContain('partOfSpeech');
+    expect(systemPrompt).toContain('null for non-word');
   });
 });
