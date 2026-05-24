@@ -266,6 +266,7 @@ export async function findSimilarCards(
       content: cards.content,
       status: cards.status,
       cardType: cards.cardType,
+      partOfSpeech: cards.partOfSpeech,
       meaning: cards.meaning,
       examples: cards.examples,
       mnemonics: cards.mnemonics,

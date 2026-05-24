@@ -1,0 +1,1 @@
+ALTER TABLE "cards" ADD COLUMN "part_of_speech" text;
