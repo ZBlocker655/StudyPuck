@@ -282,7 +282,7 @@ function mapDraftCard(
     content: draftCard.content,
     meaning: draftCard.meaning ?? null,
     cardType: draftCard.cardType ?? null,
-    partOfSpeech: draftCard.partOfSpeech ?? [],
+    partOfSpeech: Array.isArray(draftCard.partOfSpeech) ? draftCard.partOfSpeech : [],
     examples: normalizeStringList(draftCard.examples),
     mnemonics: normalizeStringList(draftCard.mnemonics),
     llmInstructions: parseOptionalText(draftCard.llmInstructions ?? ''),

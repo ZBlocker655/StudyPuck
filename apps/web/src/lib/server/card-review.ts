@@ -235,7 +235,7 @@ function mapSessionItem(item: CardReviewQueueItem): CardReviewSessionItemData {
     content: item.content,
     meaning: item.meaning,
     cardType: item.cardType,
-    partOfSpeech: item.partOfSpeech ?? [],
+    partOfSpeech: Array.isArray(item.partOfSpeech) ? item.partOfSpeech : [],
     examples: item.examples,
     mnemonics: item.mnemonics,
     llmInstructions: item.llmInstructions,

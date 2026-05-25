@@ -426,7 +426,7 @@
             aria-pressed={draft.partOfSpeech?.includes(opt.value) ?? false}
             disabled={disabled}
             on:click={() => {
-              const current = draft.partOfSpeech ?? [];
+              const current = Array.isArray(draft.partOfSpeech) ? draft.partOfSpeech : [];
               draft = {
                 ...draft,
                 partOfSpeech: current.includes(opt.value)
