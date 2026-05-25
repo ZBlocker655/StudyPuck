@@ -393,7 +393,7 @@ function mapActiveCardDetail(card: ActiveCardDetail): CardLibraryCardDetailData 
     content: card.content,
     meaning: card.meaning,
     cardType: card.cardType,
-    partOfSpeech: card.partOfSpeech ?? [],
+    partOfSpeech: Array.isArray(card.partOfSpeech) ? card.partOfSpeech : [],
     examples: normalizeStringList(card.examples),
     mnemonics: normalizeStringList(card.mnemonics),
     llmInstructions: card.llmInstructions ?? null,
