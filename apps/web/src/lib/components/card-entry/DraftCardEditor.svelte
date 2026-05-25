@@ -413,6 +413,38 @@
     ></textarea>
   </label>
 
+  {#if draft.cardType === 'word'}
+    <label class="draft-card__field stack" style="--stack-space: var(--space-2)">
+      <span class="draft-card__label">Part of speech</span>
+      <select
+        class="draft-card__select"
+        value={draft.partOfSpeech ?? ''}
+        disabled={disabled}
+        on:change={(event) => {
+          draft = {
+            ...draft,
+            partOfSpeech: event.currentTarget.value || null,
+          };
+          void persistDraft();
+        }}
+      >
+        <option value="">Unknown / not set</option>
+        <option value="noun">Noun</option>
+        <option value="verb">Verb</option>
+        <option value="adjective">Adjective</option>
+        <option value="adverb">Adverb</option>
+        <option value="pronoun">Pronoun</option>
+        <option value="preposition">Preposition</option>
+        <option value="conjunction">Conjunction</option>
+        <option value="particle">Particle</option>
+        <option value="measure_word">Measure word</option>
+        <option value="numeral">Numeral</option>
+        <option value="interjection">Interjection</option>
+        <option value="idiom">Idiom</option>
+      </select>
+    </label>
+  {/if}
+
   <div
     class="draft-card__field stack"
     style="--stack-space: var(--space-2)"
@@ -732,7 +764,8 @@
 
   .draft-card__textarea,
   .draft-card__group-search,
-  .draft-card__list-input {
+  .draft-card__list-input,
+  .draft-card__select {
     inline-size: 100%;
     padding: var(--space-3);
     border: 1px solid var(--color-border);
@@ -900,6 +933,7 @@
   .draft-card__group-search:focus-visible,
   .draft-card__group-option:focus-visible,
   .draft-card__list-input:focus-visible,
+  .draft-card__select:focus-visible,
   .draft-card__group-trigger:focus-visible,
   .draft-card__list-button:focus-visible,
   .draft-card__create-group:focus-visible,
