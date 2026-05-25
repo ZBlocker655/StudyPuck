@@ -94,6 +94,8 @@ export type CardEntryNoteDraftCardData = {
   cardId: string;
   content: string;
   meaning: string | null;
+  cardType: string | null;
+  partOfSpeech: string | null;
   examples: string[];
   mnemonics: string[];
   llmInstructions: string | null;
@@ -279,6 +281,8 @@ function mapDraftCard(
     cardId: draftCard.cardId,
     content: draftCard.content,
     meaning: draftCard.meaning ?? null,
+    cardType: draftCard.cardType ?? null,
+    partOfSpeech: draftCard.partOfSpeech ?? null,
     examples: normalizeStringList(draftCard.examples),
     mnemonics: normalizeStringList(draftCard.mnemonics),
     llmInstructions: parseOptionalText(draftCard.llmInstructions ?? ''),
@@ -764,6 +768,7 @@ export async function updateCardEntryDraftCardForLanguage(
       examples: parsedInput.examples,
       mnemonics: parsedInput.mnemonics,
       llmInstructions: parsedInput.llmInstructions,
+      partOfSpeech: parsedInput.partOfSpeech,
     },
     database as never
   );

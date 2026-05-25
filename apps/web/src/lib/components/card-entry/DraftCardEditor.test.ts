@@ -11,6 +11,8 @@ function createCard(overrides: Partial<CardEntryNoteDraftCardData> = {}): CardEn
     cardId: 'card-1',
     content: '火车',
     meaning: 'train',
+    cardType: 'word',
+    partOfSpeech: null,
     examples: [],
     mnemonics: [],
     llmInstructions: null,
