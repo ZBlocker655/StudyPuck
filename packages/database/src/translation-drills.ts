@@ -21,7 +21,7 @@ type TranslationDrillContextRow = {
   content: string;
   meaning: string | null;
   cardType: string | null;
-  partOfSpeech: string | null;
+  partOfSpeech: string[] | null;
   examples: unknown;
   mnemonics: unknown;
   llmInstructions: string | null;
@@ -53,7 +53,7 @@ export type TranslationDrillContextCard = {
   content: string;
   meaning: string | null;
   cardType: string | null;
-  partOfSpeech: string | null;
+  partOfSpeech: string[] | null;
   examples: string[];
   mnemonics: string[];
   llmInstructions: string | null;
@@ -457,7 +457,7 @@ async function loadAvailablePosPileCandidates(
       eq(cards.languageId, languageId),
       eq(cards.status, 'active'),
       eq(cards.cardType, 'word'),
-      eq(cards.partOfSpeech, pos),
+      sql`${cards.partOfSpeech} @> ARRAY[${pos}]::text[]`,
     ))
     .orderBy(
       asc(sql<number>`COALESCE(${translationDrillSrs.nextDue}, 0)`),
@@ -750,8 +750,8 @@ export async function listAvailablePosPiles(
   );
 
   // Also collect POS values with drawable candidates not yet in context
-  const allPosInCards = await getConn(database)
-    .selectDistinct({ partOfSpeech: cards.partOfSpeech })
+  const allPosRows = await getConn(database)
+    .select({ pos: sql<string>`unnest(${cards.partOfSpeech})` })
     .from(cards)
     .where(and(
       eq(cards.userId, userId),
@@ -760,9 +760,11 @@ export async function listAvailablePosPiles(
       eq(cards.cardType, 'word'),
     ));
 
-  const candidatePosValues = allPosInCards
-    .map((row) => row.partOfSpeech)
-    .filter((pos): pos is string => typeof pos === 'string' && pos.trim().length > 0);
+  const candidatePosValues = [...new Set(
+    allPosRows
+      .map((row) => row.pos)
+      .filter((pos): pos is string => typeof pos === 'string' && pos.trim().length > 0),
+  )];
 
   const newPosValues = candidatePosValues.filter((pos) => !cardsByPos.has(pos));
   const newPosCounts = await Promise.all(

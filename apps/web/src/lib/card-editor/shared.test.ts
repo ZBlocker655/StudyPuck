@@ -14,6 +14,7 @@ import {
 const baseCard = {
   content: '火车',
   meaning: 'train',
+  partOfSpeech: [],
   examples: ['  例子  '],
   mnemonics: [],
   llmInstructions: null,
@@ -36,7 +37,7 @@ describe('card editor shared helpers', () => {
       examples: ['例子'],
       mnemonics: [],
       llmInstructions: '',
-      partOfSpeech: null,
+      partOfSpeech: [],
       groups: [
         { groupId: 'group-2', groupName: 'Travel' },
         { groupId: null, groupName: 'New Group' },

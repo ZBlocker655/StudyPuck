@@ -71,6 +71,13 @@
       "when": 1779594096137,
       "tag": "0009_short_quicksilver",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1748144400000,
+      "tag": "0010_pos_array",
+      "breakpoints": true
     }
   ]
 }

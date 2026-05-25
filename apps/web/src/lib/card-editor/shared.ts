@@ -8,7 +8,7 @@ export type EditableCardGroup = {
 export type EditableCardLike<Group extends EditableCardGroup = EditableCardGroup> = {
   content: string;
   meaning: string | null;
-  partOfSpeech?: string | null;
+  partOfSpeech: string[];
   examples: string[];
   mnemonics: string[];
   llmInstructions: string | null;
@@ -21,7 +21,7 @@ export type EditableCardPayload = {
   examples: string[];
   mnemonics: string[];
   llmInstructions: string;
-  partOfSpeech: string | null;
+  partOfSpeech: string[];
   groups: Array<{
     groupId: string | null;
     groupName: string;
@@ -39,7 +39,7 @@ export function buildEditableCardPayload<Card extends EditableCardLike>(source: 
     examples: normalizeEditorList(source.examples),
     mnemonics: normalizeEditorList(source.mnemonics),
     llmInstructions: source.llmInstructions ?? '',
-    partOfSpeech: source.partOfSpeech ?? null,
+    partOfSpeech: source.partOfSpeech ?? [],
     groups: source.groups.map((group) => ({
       groupId: group.groupId.trim() ? group.groupId : null,
       groupName: group.groupName,

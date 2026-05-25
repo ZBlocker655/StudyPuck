@@ -24,7 +24,7 @@ export const cards = pgTable('cards', {
   content: text('content').notNull(),
   status: text('status').default('active'),
   cardType: text('card_type').default('word'),
-  partOfSpeech: text('part_of_speech'),
+  partOfSpeech: text('part_of_speech').array(),
   meaning: text('meaning'),
   examples: jsonb('examples'),
   mnemonics: jsonb('mnemonics'),

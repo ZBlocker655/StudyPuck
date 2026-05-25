@@ -12,7 +12,7 @@ function createCard(overrides: Partial<CardEntryNoteDraftCardData> = {}): CardEn
     content: '火车',
     meaning: 'train',
     cardType: 'word',
-    partOfSpeech: null,
+    partOfSpeech: [],
     examples: [],
     mnemonics: [],
     llmInstructions: null,
@@ -64,7 +64,7 @@ describe('DraftCardEditor suggestion application', () => {
           examples: ['我坐火车去上海。'],
           mnemonics: [],
           llmInstructions: '',
-          partOfSpeech: null,
+          partOfSpeech: [],
           groups: [],
         }),
       });
@@ -136,7 +136,7 @@ describe('DraftCardEditor suggestion application', () => {
           examples: [],
           mnemonics: ['Train tracks look like parallel rails carrying the word forward.'],
           llmInstructions: '',
-          partOfSpeech: null,
+          partOfSpeech: [],
           groups: [],
         }),
       });
@@ -183,7 +183,7 @@ describe('DraftCardEditor suggestion application', () => {
           examples: [],
           mnemonics: [],
           llmInstructions: '',
-          partOfSpeech: null,
+          partOfSpeech: [],
           groups: [{ groupId: null, groupName: 'Travel' }],
         }),
       });

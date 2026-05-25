@@ -736,7 +736,7 @@
       content: card.content,
       meaning: card.meaning,
       cardType: card.cardType,
-      partOfSpeech: card.partOfSpeech,
+      partOfSpeech: card.partOfSpeech ?? [],
       examples: card.examples,
       mnemonics: card.mnemonics,
       llmInstructions: card.llmInstructions,

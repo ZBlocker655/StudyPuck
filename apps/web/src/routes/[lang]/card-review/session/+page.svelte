@@ -166,7 +166,7 @@
       content: item.content,
       meaning: item.meaning,
       cardType: item.cardType,
-      partOfSpeech: item.partOfSpeech,
+      partOfSpeech: item.partOfSpeech ?? [],
       examples: item.examples,
       mnemonics: item.mnemonics,
       llmInstructions: item.llmInstructions,

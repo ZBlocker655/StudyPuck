@@ -14,6 +14,7 @@
     type EditableListField,
     updateEditableListValue,
   } from '$lib/card-editor/shared.js';
+  import { POS_OPTIONS } from '$lib/card-editor/pos-options.js';
   import CardListStatusBadge from '$lib/components/card-list/CardListStatusBadge.svelte';
   import type { CardLibraryCardDetailData, CardLibraryGroupData } from '$lib/server/cards.js';
   import { commandBar } from '$lib/stores/commandBar.js';
@@ -604,35 +605,30 @@
     </label>
 
     {#if draft.cardType === 'word'}
-      <label class="active-card-drawer__field stack" style="--stack-space: var(--space-2)">
+      <div class="active-card-drawer__field stack" style="--stack-space: var(--space-2)">
         <span class="active-card-drawer__label">Part of speech</span>
-        <select
-          class="active-card-drawer__select"
-          value={draft.partOfSpeech ?? ''}
-          disabled={disabled || removePending}
-          on:change={(event) => {
-            draft = {
-              ...draft,
-              partOfSpeech: event.currentTarget.value || null,
-            };
-            void persistDraft();
-          }}
-        >
-          <option value="">Unknown / not set</option>
-          <option value="noun">Noun</option>
-          <option value="verb">Verb</option>
-          <option value="adjective">Adjective</option>
-          <option value="adverb">Adverb</option>
-          <option value="pronoun">Pronoun</option>
-          <option value="preposition">Preposition</option>
-          <option value="conjunction">Conjunction</option>
-          <option value="particle">Particle</option>
-          <option value="measure_word">Measure word</option>
-          <option value="numeral">Numeral</option>
-          <option value="interjection">Interjection</option>
-          <option value="idiom">Idiom</option>
-        </select>
-      </label>
+        <div class="active-card-drawer__pos-chips cluster" style="--cluster-space: var(--space-2)">
+          {#each POS_OPTIONS as opt (opt.value)}
+            <button
+              type="button"
+              class="active-card-drawer__pos-chip"
+              class:active-card-drawer__pos-chip--active={draft.partOfSpeech?.includes(opt.value)}
+              aria-pressed={draft.partOfSpeech?.includes(opt.value) ?? false}
+              disabled={disabled || removePending}
+              on:click={() => {
+                const current = draft.partOfSpeech ?? [];
+                draft = {
+                  ...draft,
+                  partOfSpeech: current.includes(opt.value)
+                    ? current.filter((v) => v !== opt.value)
+                    : [...current, opt.value],
+                };
+                void persistDraft();
+              }}
+            >{opt.label}</button>
+          {/each}
+        </div>
+      </div>
     {/if}
 
     <div
@@ -1057,6 +1053,36 @@
     border-radius: var(--radius-pill, 999px);
     background: var(--color-surface-subtle);
     color: var(--color-text-secondary);
+  }
+
+  .active-card-drawer__pos-chip {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-raised);
+    color: var(--color-text-primary);
+    font-family: var(--font-ui);
+    font-size: var(--font-size-small);
+    padding: var(--space-1) var(--space-3);
+    cursor: pointer;
+    transition: border-color 0.1s, background 0.1s;
+  }
+
+  .active-card-drawer__pos-chip:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  .active-card-drawer__pos-chip--active {
+    border-color: color-mix(in srgb, var(--color-primary) 35%, var(--color-border));
+    background: var(--color-primary-subtle);
+    color: var(--color-primary-text);
+  }
+
+  .active-card-drawer__pos-chip:not(:disabled):hover {
+    border-color: color-mix(in srgb, var(--color-primary) 35%, var(--color-border));
+    background: var(--color-primary-subtle);
   }
 
   .active-card-drawer__group-menu {

@@ -14,6 +14,7 @@
     type EditableListField,
     updateEditableListValue,
   } from '$lib/card-editor/shared.js';
+  import { POS_OPTIONS } from '$lib/card-editor/pos-options.js';
   import type {
     CardEntryGroupData,
     CardEntryNoteDraftCardData,
@@ -414,35 +415,30 @@
   </label>
 
   {#if draft.cardType === 'word'}
-    <label class="draft-card__field stack" style="--stack-space: var(--space-2)">
+    <div class="draft-card__field stack" style="--stack-space: var(--space-2)">
       <span class="draft-card__label">Part of speech</span>
-      <select
-        class="draft-card__select"
-        value={draft.partOfSpeech ?? ''}
-        disabled={disabled}
-        on:change={(event) => {
-          draft = {
-            ...draft,
-            partOfSpeech: event.currentTarget.value || null,
-          };
-          void persistDraft();
-        }}
-      >
-        <option value="">Unknown / not set</option>
-        <option value="noun">Noun</option>
-        <option value="verb">Verb</option>
-        <option value="adjective">Adjective</option>
-        <option value="adverb">Adverb</option>
-        <option value="pronoun">Pronoun</option>
-        <option value="preposition">Preposition</option>
-        <option value="conjunction">Conjunction</option>
-        <option value="particle">Particle</option>
-        <option value="measure_word">Measure word</option>
-        <option value="numeral">Numeral</option>
-        <option value="interjection">Interjection</option>
-        <option value="idiom">Idiom</option>
-      </select>
-    </label>
+      <div class="draft-card__pos-chips cluster" style="--cluster-space: var(--space-2)">
+        {#each POS_OPTIONS as opt (opt.value)}
+          <button
+            type="button"
+            class="draft-card__pos-chip"
+            class:draft-card__pos-chip--active={draft.partOfSpeech?.includes(opt.value)}
+            aria-pressed={draft.partOfSpeech?.includes(opt.value) ?? false}
+            disabled={disabled}
+            on:click={() => {
+              const current = draft.partOfSpeech ?? [];
+              draft = {
+                ...draft,
+                partOfSpeech: current.includes(opt.value)
+                  ? current.filter((v) => v !== opt.value)
+                  : [...current, opt.value],
+              };
+              void persistDraft();
+            }}
+          >{opt.label}</button>
+        {/each}
+      </div>
+    </div>
   {/if}
 
   <div
@@ -826,7 +822,32 @@
     padding: var(--space-1) var(--space-3);
   }
 
-  .draft-card__group-option:hover:not(:disabled) {
+  .draft-card__pos-chip {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-raised);
+    color: var(--color-text-primary);
+    font-family: var(--font-ui);
+    font-size: var(--font-size-small);
+    padding: var(--space-1) var(--space-3);
+    cursor: pointer;
+    transition: border-color 0.1s, background 0.1s;
+  }
+
+  .draft-card__pos-chip:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  .draft-card__pos-chip--active {
+    border-color: color-mix(in srgb, var(--color-primary) 35%, var(--color-border));
+    background: var(--color-primary-subtle);
+    color: var(--color-primary-text);
+  }
+
+  .draft-card__pos-chip:not(:disabled):hover {
     border-color: color-mix(in srgb, var(--color-primary) 35%, var(--color-border));
     background: var(--color-primary-subtle);
   }

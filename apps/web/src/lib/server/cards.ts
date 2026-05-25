@@ -108,7 +108,7 @@ export type CardLibraryCardDetailData = {
   content: string;
   meaning: string | null;
   cardType: string | null;
-  partOfSpeech: string | null;
+  partOfSpeech: string[];
   examples: string[];
   mnemonics: string[];
   llmInstructions: string | null;
@@ -393,7 +393,7 @@ function mapActiveCardDetail(card: ActiveCardDetail): CardLibraryCardDetailData 
     content: card.content,
     meaning: card.meaning,
     cardType: card.cardType,
-    partOfSpeech: card.partOfSpeech ?? null,
+    partOfSpeech: card.partOfSpeech ?? [],
     examples: normalizeStringList(card.examples),
     mnemonics: normalizeStringList(card.mnemonics),
     llmInstructions: card.llmInstructions ?? null,
@@ -705,7 +705,7 @@ export async function updateCardLibraryCardForLanguage(
       examples: parsedInput.data.examples,
       mnemonics: parsedInput.data.mnemonics,
       llmInstructions: parsedInput.data.llmInstructions,
-      partOfSpeech: parsedInput.data.partOfSpeech ?? null,
+      partOfSpeech: parsedInput.data.partOfSpeech,
     },
     database as never,
   );

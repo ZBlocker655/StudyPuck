@@ -11,7 +11,7 @@ function createCard(overrides: Partial<TranslationDrillContextCardData> = {}): T
     content: '经历',
     meaning: 'experience',
     cardType: 'word',
-    partOfSpeech: null,
+    partOfSpeech: [],
     examples: [],
     mnemonics: [],
     llmInstructions: null,
