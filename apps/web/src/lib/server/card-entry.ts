@@ -95,7 +95,7 @@ export type CardEntryNoteDraftCardData = {
   content: string;
   meaning: string | null;
   cardType: string | null;
-  partOfSpeech: string | null;
+  partOfSpeech: string[];
   examples: string[];
   mnemonics: string[];
   llmInstructions: string | null;
@@ -282,7 +282,7 @@ function mapDraftCard(
     content: draftCard.content,
     meaning: draftCard.meaning ?? null,
     cardType: draftCard.cardType ?? null,
-    partOfSpeech: draftCard.partOfSpeech ?? null,
+    partOfSpeech: draftCard.partOfSpeech ?? [],
     examples: normalizeStringList(draftCard.examples),
     mnemonics: normalizeStringList(draftCard.mnemonics),
     llmInstructions: parseOptionalText(draftCard.llmInstructions ?? ''),

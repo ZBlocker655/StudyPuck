@@ -36,13 +36,14 @@ export const editableCardGroupSelectionSchema = z.object({
 });
 
 export const partOfSpeechUpdateSchema = z
-  .enum([
-    'noun', 'verb', 'adjective', 'adverb', 'pronoun', 'preposition',
-    'conjunction', 'particle', 'measure_word', 'numeral', 'interjection', 'idiom',
-  ])
-  .nullable()
+  .array(
+    z.enum([
+      'noun', 'verb', 'adjective', 'adverb', 'pronoun', 'preposition',
+      'conjunction', 'particle', 'measure_word', 'numeral', 'interjection', 'idiom',
+    ])
+  )
   .optional()
-  .default(null);
+  .default([]);
 
 export const cardEntryDraftCardUpdateSchema = z.object({
   content: editableCardTextSchema,

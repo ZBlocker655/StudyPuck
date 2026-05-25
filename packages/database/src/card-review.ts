@@ -16,7 +16,7 @@ type ReviewCardRow = {
   content: string;
   meaning: string | null;
   cardType: string | null;
-  partOfSpeech: string | null;
+  partOfSpeech: string[] | null;
   examples: unknown;
   mnemonics: unknown;
   llmInstructions: string | null;
@@ -78,7 +78,7 @@ export type CardReviewQueueItem = {
   content: string;
   meaning: string | null;
   cardType: string | null;
-  partOfSpeech: string | null;
+  partOfSpeech: string[] | null;
   examples: string[];
   mnemonics: string[];
   llmInstructions: string | null;

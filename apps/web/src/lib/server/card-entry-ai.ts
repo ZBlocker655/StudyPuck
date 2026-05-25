@@ -84,7 +84,7 @@ export async function ensureCardEntryNoteProcessingState(input: {
         draftCards: response.draftCards.map((draftCard) => ({
           content: draftCard.content,
           cardType: draftCard.cardType,
-          partOfSpeech: draftCard.partOfSpeech ?? null,
+          partOfSpeech: draftCard.partOfSpeech ?? [],
           meaning: draftCard.meaning,
           examples: draftCard.examples,
           mnemonics: draftCard.mnemonics,

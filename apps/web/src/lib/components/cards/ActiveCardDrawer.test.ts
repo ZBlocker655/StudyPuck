@@ -12,7 +12,7 @@ function createCard(overrides: Partial<CardLibraryCardDetailData> = {}): CardLib
     content: '谈论',
     meaning: 'to discuss',
     cardType: 'pattern',
-    partOfSpeech: null,
+    partOfSpeech: [],
     examples: [],
     mnemonics: [],
     llmInstructions: null,
@@ -80,7 +80,7 @@ describe('ActiveCardDrawer', () => {
           examples: [],
           mnemonics: [],
           llmInstructions: '',
-          partOfSpeech: null,
+          partOfSpeech: [],
           groups: [],
         }),
       });
@@ -174,7 +174,7 @@ describe('ActiveCardDrawer', () => {
           examples: [],
           mnemonics: ['Imagine two people talking while a memory hook keeps the phrase anchored.'],
           llmInstructions: '',
-          partOfSpeech: null,
+          partOfSpeech: [],
           groups: [],
         }),
       });
@@ -218,7 +218,7 @@ describe('ActiveCardDrawer', () => {
           examples: [],
           mnemonics: [],
           llmInstructions: '',
-          partOfSpeech: null,
+          partOfSpeech: [],
           groups: [{ groupId: 'group-1', groupName: 'Conversation' }],
         }),
       });
@@ -260,7 +260,7 @@ describe('ActiveCardDrawer', () => {
           examples: [],
           mnemonics: [],
           llmInstructions: '',
-          partOfSpeech: null,
+          partOfSpeech: [],
           groups: [],
         }),
       });
@@ -306,7 +306,7 @@ describe('ActiveCardDrawer', () => {
           examples: [],
           mnemonics: [],
           llmInstructions: '',
-          partOfSpeech: null,
+          partOfSpeech: [],
           groups: [{ groupId: null, groupName: 'Travel' }],
         }),
       });
@@ -345,7 +345,7 @@ describe('ActiveCardDrawer', () => {
     render(ActiveCardDrawer, {
       props: {
         lang: 'zh',
-        card: createCard({ cardType: 'word', partOfSpeech: null }),
+        card: createCard({ cardType: 'word', partOfSpeech: [] }),
         availableGroups: [],
         selectedIndex: 0,
         totalCount: 1,
@@ -353,14 +353,14 @@ describe('ActiveCardDrawer', () => {
     });
 
     expect(screen.getByText('Part of speech')).toBeTruthy();
-    expect(screen.getByDisplayValue('Unknown / not set')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Noun' }).getAttribute('aria-pressed')).toBe('false');
   });
 
   it('hides POS picker for non-word card types', () => {
     render(ActiveCardDrawer, {
       props: {
         lang: 'zh',
-        card: createCard({ cardType: 'pattern', partOfSpeech: null }),
+        card: createCard({ cardType: 'pattern', partOfSpeech: [] }),
         availableGroups: [],
         selectedIndex: 0,
         totalCount: 1,
@@ -374,21 +374,21 @@ describe('ActiveCardDrawer', () => {
     render(ActiveCardDrawer, {
       props: {
         lang: 'zh',
-        card: createCard({ cardType: 'word', partOfSpeech: 'verb' }),
+        card: createCard({ cardType: 'word', partOfSpeech: ['verb'] }),
         availableGroups: [],
         selectedIndex: 0,
         totalCount: 1,
       },
     });
 
-    expect(screen.getByDisplayValue('Verb')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Verb' }).getAttribute('aria-pressed')).toBe('true');
   });
 
   it('saves POS change through the PATCH endpoint', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
-        card: createCard({ cardType: 'word', partOfSpeech: 'noun' }),
+        card: createCard({ cardType: 'word', partOfSpeech: ['noun'] }),
         availableGroups: [],
       }),
     });
@@ -398,16 +398,14 @@ describe('ActiveCardDrawer', () => {
     render(ActiveCardDrawer, {
       props: {
         lang: 'zh',
-        card: createCard({ cardType: 'word', partOfSpeech: null }),
+        card: createCard({ cardType: 'word', partOfSpeech: [] }),
         availableGroups: [],
         selectedIndex: 0,
         totalCount: 1,
       },
     });
 
-    await fireEvent.change(screen.getByDisplayValue('Unknown / not set'), {
-      target: { value: 'noun' },
-    });
+    await fireEvent.click(screen.getByRole('button', { name: 'Noun' }));
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith('/zh/cards/card-1', {
@@ -419,7 +417,7 @@ describe('ActiveCardDrawer', () => {
           examples: [],
           mnemonics: [],
           llmInstructions: '',
-          partOfSpeech: 'noun',
+          partOfSpeech: ['noun'],
           groups: [],
         }),
       });

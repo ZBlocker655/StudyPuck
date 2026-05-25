@@ -7,10 +7,15 @@ import {
 
 export const cardEntryCardTypeSchema = z.enum(['word', 'pattern', 'complex_prompt']).default('word');
 
-export const partOfSpeechSchema = z.enum([
-  'noun', 'verb', 'adjective', 'adverb', 'pronoun', 'preposition',
-  'conjunction', 'particle', 'measure_word', 'numeral', 'interjection', 'idiom',
-]).nullable().optional().default(null);
+export const partOfSpeechSchema = z
+  .array(
+    z.enum([
+      'noun', 'verb', 'adjective', 'adverb', 'pronoun', 'preposition',
+      'conjunction', 'particle', 'measure_word', 'numeral', 'interjection', 'idiom',
+    ])
+  )
+  .optional()
+  .default([]);
 
 export const cardEntryDraftSuggestionSchema = z.object({
   content: z.string().trim().min(1).max(500),
@@ -45,7 +50,7 @@ export function buildCardEntryPreprocessPrompt(input: {
       'Keep examples and mnemonics concise and useful for study.',
       'Use the configured example sentence format consistently across every example string and do not mix formats within one response.',
       'If the note is ambiguous, produce the safest likely draft cards instead of refusing.',
-      'For word-type cards, set partOfSpeech to the most likely part of speech: one of noun, verb, adjective, adverb, pronoun, preposition, conjunction, particle, measure_word, numeral, interjection, idiom. Set to null for non-word card types.',
+      'For word-type cards, set partOfSpeech to an array of all applicable parts of speech (e.g. ["noun","verb"] for a word that functions as both). Valid values: noun, verb, adjective, adverb, pronoun, preposition, conjunction, particle, measure_word, numeral, interjection, idiom. Use an empty array [] for non-word card types.',
       'Set cardType based on the content: use "word" for a single vocabulary word or very short vocabulary item (e.g. 经历, repasar, bonjour);',
       'use "pattern" for a phrase, expression, grammar pattern, or multi-word construction (e.g. 这还有什么说的, sin embargo, au fur et à mesure);',
       'use "complex_prompt" for a comparative, analytical, or multi-concept prompt (e.g. 东西 vs 事情, ser vs estar).',
@@ -56,7 +61,7 @@ export function buildCardEntryPreprocessPrompt(input: {
       `Example sentence format: ${getCardEntryExampleSentenceFormatLabel(input.exampleSentenceFormat)}.`,
       buildCardEntryExampleSentenceFormatInstruction(input),
       'Return this JSON shape exactly:',
-      '{"draftCards":[{"content":"string","cardType":"word|pattern|complex_prompt","partOfSpeech":"noun|verb|adjective|adverb|pronoun|preposition|conjunction|particle|measure_word|numeral|interjection|idiom|null","meaning":"string|null","examples":["string"],"mnemonics":["string"],"llmInstructions":"string|null"}]}',
+      '{"draftCards":[{"content":"string","cardType":"word|pattern|complex_prompt","partOfSpeech":["noun","verb"],"meaning":"string|null","examples":["string"],"mnemonics":["string"],"llmInstructions":"string|null"}]}',
       'Source note:',
       input.noteContent,
     ].join('\n'),
