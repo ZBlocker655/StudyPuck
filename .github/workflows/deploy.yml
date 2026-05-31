@@ -60,6 +60,9 @@ jobs:
           fi
 
       # Phase 1: Database Migration (BEFORE code deployment)
+      # CRITICAL: PROD_DATABASE_URL must be a DIRECT Neon connection string (no -pooler in hostname).
+      # Pooled/PgBouncer URLs silently break drizzle-kit migrate — DDL won't commit and migration
+      # tracking won't update, but the step still exits 0. See ops/database-branching-guide.md.
       - name: Apply migrations to production database
         env:
           DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
