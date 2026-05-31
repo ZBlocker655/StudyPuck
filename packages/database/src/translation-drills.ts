@@ -801,26 +801,11 @@ export async function listAvailablePosPiles(
   return allPosPiles.sort((a, b) => a.pos.localeCompare(b.pos));
 }
 
-export async function getTranslationDrillDismissSchedule(
-  userId: string,
-  languageId: string,
+export function computeTranslationDrillDismissSchedule(
   cardId: string,
-  database?: AnyDb,
-): Promise<TranslationDrillDismissSchedule> {
-  await requireContextCard(userId, languageId, cardId, database);
-
-  const [row] = await getConn(database)
-    .select({
-      intervalDays: translationDrillSrs.intervalDays,
-    })
-    .from(translationDrillSrs)
-    .where(and(
-      eq(translationDrillSrs.userId, userId),
-      eq(translationDrillSrs.languageId, languageId),
-      eq(translationDrillSrs.cardId, cardId),
-    ));
-
-  const baseInterval = Math.max(row?.intervalDays ?? 1, 1);
+  intervalDays: number | null,
+): TranslationDrillDismissSchedule {
+  const baseInterval = Math.max(intervalDays ?? 1, 1);
   const recommendedDays = Math.min(60, Math.max(5, Math.round(baseInterval * 2)));
   const optionDays = [...new Set([
     1,
@@ -829,11 +814,17 @@ export async function getTranslationDrillDismissSchedule(
     Math.min(90, Math.max(30, Math.round(recommendedDays * 6))),
   ])].sort((left, right) => left - right);
 
-  return {
-    cardId,
-    recommendedDays,
-    optionDays,
-  };
+  return { cardId, recommendedDays, optionDays };
+}
+
+export async function getTranslationDrillDismissSchedule(
+  userId: string,
+  languageId: string,
+  cardId: string,
+  database?: AnyDb,
+): Promise<TranslationDrillDismissSchedule> {
+  const card = await requireContextCard(userId, languageId, cardId, database);
+  return computeTranslationDrillDismissSchedule(card.cardId, card.intervalDays);
 }
 
 export async function activateTranslationDrillCard(

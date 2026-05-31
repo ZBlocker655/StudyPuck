@@ -7,6 +7,7 @@ import {
   getDb,
   getGroups,
   recordTranslationDrillChallengeUsage,
+  computeTranslationDrillDismissSchedule,
   getTranslationDrillDismissSchedule,
   listTranslationDrillChallengeCards,
   listTranslationDrillContextCards,
@@ -35,7 +36,6 @@ export type TranslationDrillLoaderDeps = {
   listAvailablePosPiles: typeof listAvailablePosPiles;
   listTranslationDrillContextCards: typeof listTranslationDrillContextCards;
   listTranslationDrillChallengeCards: typeof listTranslationDrillChallengeCards;
-  getTranslationDrillDismissSchedule: typeof getTranslationDrillDismissSchedule;
 };
 
 export type TranslationDrillActionDeps = Pick<TranslationDrillLoaderDeps, 'getActiveUserLanguages' | 'listTranslationDrillChallengeCards'> & {
@@ -56,7 +56,6 @@ const defaultLoaderDeps: TranslationDrillLoaderDeps = {
   listAvailablePosPiles,
   listTranslationDrillContextCards,
   listTranslationDrillChallengeCards,
-  getTranslationDrillDismissSchedule,
 };
 
 const defaultActionDeps: TranslationDrillActionDeps = {
@@ -258,7 +257,7 @@ function toIsoString(date: Date | null): string | null {
 }
 
 function toDismissScheduleData(schedule: TranslationDrillDismissScheduleData): TranslationDrillDismissScheduleData {
-  return normalizeTranslationDrillDismissSchedule(schedule);
+  return normalizeTranslationDrillDismissSchedule({ recommendedDays: schedule.recommendedDays, optionDays: schedule.optionDays });
 }
 
 function mapContextCard(
@@ -441,20 +440,12 @@ export async function loadTranslationDrillHomeData(
 
   const configuredGroupIds = new Set(configuredGroups.map((group) => group.groupId));
   const visibleContextCards = contextCards.filter((card) => card.state === 'active' || card.state === 'snoozed');
-  const dismissScheduleEntries = await Promise.all(
-    visibleContextCards.map(async (card) => {
-      const schedule = await deps.getTranslationDrillDismissSchedule(userId, languageId, card.cardId, database as never);
-
-      return [
-        card.cardId,
-        toDismissScheduleData({
-          recommendedDays: schedule.recommendedDays,
-          optionDays: schedule.optionDays,
-        }),
-      ] as const;
+  const dismissSchedules = new Map(
+    visibleContextCards.map((card) => {
+      const schedule = computeTranslationDrillDismissSchedule(card.cardId, card.intervalDays);
+      return [card.cardId, toDismissScheduleData(schedule)] as const;
     }),
   );
-  const dismissSchedules = new Map(dismissScheduleEntries);
   const ungroupedContextCards = contextCards
     .filter((card) => card.state === 'active' || card.state === 'snoozed')
     .filter((card) => !card.sourceGroup || !configuredGroupIds.has(card.sourceGroup.groupId))

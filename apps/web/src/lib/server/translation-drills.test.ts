@@ -148,11 +148,6 @@ describe('Translation Drills server helpers', () => {
         performanceScore: null,
       },
     ]),
-    getTranslationDrillDismissSchedule: vi.fn(async (_userId: string, _languageId: string, cardId: string) => ({
-      cardId,
-      recommendedDays: 5,
-      optionDays: [1, 5, 15, 30],
-    })),
     listAvailablePosPiles: vi.fn(async () => []),
   };
   const deps = baseDeps as unknown as TranslationDrillLoaderDeps;
@@ -180,7 +175,7 @@ describe('Translation Drills server helpers', () => {
       activeCardCount: 2,
       cefrLevel: 'B1',
       cards: [
-        expect.objectContaining({ cardId: 'card-2', dismissSchedule: expect.objectContaining({ recommendedDays: 5 }) }),
+        expect.objectContaining({ cardId: 'card-2', dismissSchedule: expect.objectContaining({ recommendedDays: 6 }) }),
         expect.objectContaining({ cardId: 'card-1', dismissSchedule: expect.objectContaining({ recommendedDays: 5 }) }),
       ],
       suggestedSourceCardIds: ['card-2', 'card-1'],
@@ -204,23 +199,36 @@ describe('Translation Drills server helpers', () => {
     } satisfies Partial<TranslationDrillRequestError>);
   });
 
-  it('normalizes dismiss schedules so Tomorrow is always first', async () => {
-    baseDeps.getTranslationDrillDismissSchedule.mockImplementation(async (_userId: string, _languageId: string, cardId: string) => ({
-      cardId,
-      recommendedDays: 14,
-      optionDays: [30, 14],
-    }));
+  it('computes dismiss schedule from card intervalDays without extra DB queries', async () => {
+    // Mock context with card-2 having intervalDays: 7
+    // Expected: baseInterval=7 → recommendedDays=14 → optionDays=[1, 14, 42, 84]
+    baseDeps.listTranslationDrillContextCards.mockResolvedValueOnce([{
+      cardId: 'card-2',
+      content: '把握',
+      meaning: 'to grasp',
+      cardType: 'word',
+      examples: [],
+      mnemonics: [],
+      llmInstructions: null,
+      updatedAt: new Date('2026-05-02T12:00:00.000Z'),
+      sourceGroup: null,
+      addedFrom: 'pinned_from_review' as const,
+      addedAt: new Date('2026-05-09T12:00:00.000Z'),
+      lastUsedAt: null,
+      usageCount: 0,
+      state: 'active' as const,
+      stateUntil: null,
+      cefrOverride: null,
+      metadata: null,
+      nextDueAt: null,
+      intervalDays: 7,
+      performanceScore: null,
+    }] as never);
 
     const result = await loadTranslationDrillHomeData('user-1', 'zh', database, deps);
 
-    expect(result.configuredGroups[0]?.activeCards[0]?.dismissSchedule).toEqual({
-      recommendedDays: 14,
-      optionDays: [1, 14, 30],
-    });
-    expect(result.challenge.generationInput.cards[0]?.dismissSchedule).toEqual({
-      recommendedDays: 14,
-      optionDays: [1, 14, 30],
-    });
+    const card2Schedule = result.challenge.generationInput.cards.find((c) => c.cardId === 'card-2')?.dismissSchedule;
+    expect(card2Schedule).toEqual({ recommendedDays: 14, optionDays: [1, 14, 42, 84] });
   });
 });
 
