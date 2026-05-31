@@ -191,9 +191,8 @@
       return false;
     }
 
-    return !homeState.summary.hasConfiguredDrawPiles || (
-      !homeState.summary.hasVisibleContext &&
-      homeState.summary.remainingDrawCount === 0
+    return !homeState.summary.hasVisibleContext && (
+      !homeState.summary.hasConfiguredDrawPiles || homeState.summary.remainingDrawCount === 0
     );
   }
 
