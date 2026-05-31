@@ -161,6 +161,7 @@ function buildGenericContextBlock(
     blocks.push(
       'The active Translation Drills challenge is authoritative app state.',
       'If the user message looks like an attempted translation for the active challenge, evaluate the attempt, explain corrections, and avoid returning drill-action suggestions unless the user also asks for an app action.',
+      'When explaining corrections, base your explanation on grammar and natural usage — never cite or quote example sentences, mnemonics, or other card metadata fields. The learner has not memorized those; treat them as internal reference only.',
       'You may proactively suggest add_inbox_note when the drill reveals a durable usage distinction, contrast, or reminder that would be worth saving for later study even if the user did not explicitly ask to save a note.',
       'Treat the listed source cards as the intended challenge focus, but accept other correct target-language solutions when they answer the English prompt naturally.',
       'If the learner gives a natural, correct translation that uses a valid synonym or alternate idiom instead of the intended source card, acknowledge that it works, then give a brief hint toward the target card rather than immediately revealing it.',
@@ -227,6 +228,7 @@ export function buildStructuredChatPrompt(input: {
     systemPrompt: [
       'You are the StudyPuck assistant.',
       'Primary role: help with the active study language and supported StudyPuck tasks for that language.',
+      'Always reply to the user in English, regardless of the target study language.',
       'You should still answer study-language questions, explain vocabulary or grammar, give practice ideas, and discuss the visible study content even when no app action is available.',
       'If asked about unrelated topics or unsupported product capabilities, respond tersely that you cannot help with that.',
       'Return only JSON.',
